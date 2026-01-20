@@ -15,6 +15,7 @@ require_once __DIR__ . '/../includes/auth.php';
         <a class="navbar-brand" href="/admin/">Tasks Admin</a>
         <div class="d-flex gap-2">
             <?php if (isLoggedIn()): ?>
+                <a class="btn btn-sm btn-outline-light" href="/admin/api-keys.php">API Keys</a>
                 <span class="navbar-text text-white-50">Signed in as <?= htmlspecialchars($_SESSION['username'] ?? '') ?></span>
                 <form method="post" action="/admin/logout.php" class="m-0">
                     <button class="btn btn-sm btn-outline-light" type="submit">Logout</button>

@@ -89,6 +89,35 @@ function validateApiKeyAndGetUser($apiKey) {
     return $user;
 }
 
+function getAllApiKeys() {
+    $db = getDbConnection();
+    $res = $db->query("
+        SELECT 
+            ak.id,
+            ak.key_name,
+            ak.api_key,
+            ak.created_at,
+            ak.last_used,
+            u.username as user_username
+        FROM api_keys ak
+        JOIN users u ON u.id = ak.user_id
+        ORDER BY ak.created_at DESC
+    ");
+    $keys = [];
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $keys[] = $row;
+    }
+    return $keys;
+}
+
+function deleteApiKey($id) {
+    $db = getDbConnection();
+    $stmt = $db->prepare("DELETE FROM api_keys WHERE id = :id");
+    $stmt->bindValue(':id', (int)$id, SQLITE3_INTEGER);
+    $stmt->execute();
+    return true;
+}
+
 // --------------------
 // Tasks
 // --------------------
