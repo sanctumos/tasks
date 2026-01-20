@@ -19,8 +19,10 @@ $title = $_POST['title'] ?? '';
 $status = $_POST['status'] ?? 'todo';
 $assignedToUserId = $_POST['assigned_to_user_id'] ?? null;
 if ($assignedToUserId === '') $assignedToUserId = null;
+$taskBody = $_POST['body'] ?? null;
+if ($taskBody === '') $taskBody = null;
 
-$res = createTask($title, $status, (int)$currentUser['id'], $assignedToUserId);
+$res = createTask($title, $status, (int)$currentUser['id'], $assignedToUserId, $taskBody);
 
 header('Location: /admin/');
 exit();

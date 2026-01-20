@@ -12,6 +12,7 @@ Each API key maps to a **user** in the `users` table.
 
 - `id` (int)
 - `title` (string)
+- `body` (string|null): Task description/details
 - `status` (string): `todo` | `doing` | `done`
 - `created_by_user_id` (int)
 - `assigned_to_user_id` (int|null)
@@ -54,17 +55,18 @@ curl -sS -H "X-API-Key: $TASKS_API_KEY" "https://tasks.technonomicon.net/api/get
 
 JSON body:
 - `title` (required)
+- `body` (optional; nullable): Task description/details
 - `status` (optional)
 - `assigned_to_user_id` (optional; nullable)
 
 Notes:
-- `created_by_user_id` is set automatically from the API key’s mapped user.
+- `created_by_user_id` is set automatically from the API key's mapped user.
 
 ```bash
 curl -sS -X POST \
   -H "X-API-Key: $TASKS_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"title":"Investigate deployment error","status":"todo","assigned_to_user_id":1}' \
+  -d '{"title":"Investigate deployment error","body":"Check logs and deployment status","status":"todo","assigned_to_user_id":1}' \
   https://tasks.technonomicon.net/api/create-task.php
 ```
 
@@ -73,6 +75,7 @@ curl -sS -X POST \
 JSON body:
 - `id` (required)
 - `title` (optional)
+- `body` (optional; nullable; set to `null` or empty string to clear)
 - `status` (optional)
 - `assigned_to_user_id` (optional; set to `null` to unassign)
 

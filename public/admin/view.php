@@ -63,6 +63,15 @@ require __DIR__ . '/_layout_top.php';
             
             <dt class="col-sm-3">Updated at</dt>
             <dd class="col-sm-9"><?= htmlspecialchars($task['updated_at']) ?></dd>
+            
+            <dt class="col-sm-3">Body</dt>
+            <dd class="col-sm-9">
+                <?php if ($task['body']): ?>
+                    <div class="border rounded p-3 bg-light" style="white-space: pre-wrap;"><?= htmlspecialchars($task['body']) ?></div>
+                <?php else: ?>
+                    <span class="text-muted">No body content</span>
+                <?php endif; ?>
+            </dd>
         </dl>
     </div>
 </div>
@@ -72,7 +81,7 @@ require __DIR__ . '/_layout_top.php';
         <h2 class="h5 mb-3">Update Task</h2>
         <form method="post" action="/admin/update.php">
             <input type="hidden" name="id" value="<?= (int)$task['id'] ?>">
-            <div class="row g-2">
+            <div class="row g-2 mb-2">
                 <div class="col-md-6">
                     <label class="form-label">Title</label>
                     <input class="form-control" name="title" value="<?= htmlspecialchars($task['title']) ?>" required>
@@ -96,10 +105,14 @@ require __DIR__ . '/_layout_top.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-12">
-                    <button class="btn btn-primary" type="submit">Update Task</button>
-                    <a class="btn btn-outline-secondary" href="/admin/">Cancel</a>
-                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Body</label>
+                <textarea class="form-control" name="body" rows="6" placeholder="Task description/details..."><?= htmlspecialchars($task['body'] ?? '') ?></textarea>
+            </div>
+            <div>
+                <button class="btn btn-primary" type="submit">Update Task</button>
+                <a class="btn btn-outline-secondary" href="/admin/">Cancel</a>
             </div>
         </form>
     </div>

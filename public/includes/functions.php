@@ -121,7 +121,7 @@ function deleteApiKey($id) {
 // --------------------
 // Tasks
 // --------------------
-function createTask($title, $status, $createdByUserId, $assignedToUserId = null) {
+function createTask($title, $status, $createdByUserId, $assignedToUserId = null, $body = null) {
     $title = trim((string)$title);
     if ($title === '') {
         return ['success' => false, 'error' => 'Title is required'];
@@ -132,12 +132,22 @@ function createTask($title, $status, $createdByUserId, $assignedToUserId = null)
         return ['success' => false, 'error' => 'Invalid status'];
     }
 
+    $body = $body !== null ? trim((string)$body) : null;
+    if ($body === '') {
+        $body = null;
+    }
+
     $db = getDbConnection();
     $stmt = $db->prepare("
-        INSERT INTO tasks (title, status, created_by_user_id, assigned_to_user_id, created_at, updated_at)
-        VALUES (:title, :status, :cuid, :auid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO tasks (title, body, status, created_by_user_id, assigned_to_user_id, created_at, updated_at)
+        VALUES (:title, :body, :status, :cuid, :auid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ");
     $stmt->bindValue(':title', $title, SQLITE3_TEXT);
+    if ($body === null) {
+        $stmt->bindValue(':body', null, SQLITE3_NULL);
+    } else {
+        $stmt->bindValue(':body', $body, SQLITE3_TEXT);
+    }
     $stmt->bindValue(':status', $status, SQLITE3_TEXT);
     $stmt->bindValue(':cuid', (int)$createdByUserId, SQLITE3_INTEGER);
     if ($assignedToUserId === null) {
@@ -258,6 +268,19 @@ function updateTask($id, $fields = []) {
         } else {
             $sets[] = 'assigned_to_user_id = :assigned_to_user_id';
             $params[':assigned_to_user_id'] = [(int)$fields['assigned_to_user_id'], SQLITE3_INTEGER];
+        }
+    }
+
+    if (array_key_exists('body', $fields)) {
+        $body = $fields['body'] !== null ? trim((string)$fields['body']) : null;
+        if ($body === '') {
+            $body = null;
+        }
+        $sets[] = 'body = :body';
+        if ($body === null) {
+            $params[':body'] = [null, SQLITE3_NULL];
+        } else {
+            $params[':body'] = [$body, SQLITE3_TEXT];
         }
     }
 

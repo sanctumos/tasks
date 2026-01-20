@@ -16,10 +16,15 @@ if ($id <= 0) {
 }
 
 $fields = [];
+if (array_key_exists('title', $_POST)) $fields['title'] = $_POST['title'];
 if (array_key_exists('status', $_POST)) $fields['status'] = $_POST['status'];
 if (array_key_exists('assigned_to_user_id', $_POST)) {
     $auid = $_POST['assigned_to_user_id'];
     $fields['assigned_to_user_id'] = ($auid === '' ? null : $auid);
+}
+if (array_key_exists('body', $_POST)) {
+    $body = $_POST['body'];
+    $fields['body'] = ($body === '' ? null : $body);
 }
 
 updateTask($id, $fields);

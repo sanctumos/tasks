@@ -17,6 +17,7 @@ $fields = [];
 if (array_key_exists('title', $body)) $fields['title'] = $body['title'];
 if (array_key_exists('status', $body)) $fields['status'] = $body['status'];
 if (array_key_exists('assigned_to_user_id', $body)) $fields['assigned_to_user_id'] = $body['assigned_to_user_id'];
+if (array_key_exists('body', $body)) $fields['body'] = $body['body'];
 
 $result = updateTask($id, $fields);
 if (!$result['success']) {

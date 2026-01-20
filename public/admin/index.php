@@ -58,29 +58,35 @@ require __DIR__ . '/_layout_top.php';
 <div class="card shadow-sm mb-4">
     <div class="card-body">
         <h2 class="h5 mb-3">Create task</h2>
-        <form class="row g-2" method="post" action="/admin/create.php">
-            <div class="col-md-6">
-                <label class="form-label">Title</label>
-                <input class="form-control" name="title" required>
+        <form method="post" action="/admin/create.php">
+            <div class="row g-2 mb-2">
+                <div class="col-md-6">
+                    <label class="form-label">Title</label>
+                    <input class="form-control" name="title" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" name="status">
+                        <option value="todo">todo</option>
+                        <option value="doing">doing</option>
+                        <option value="done">done</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Assign to</label>
+                    <select class="form-select" name="assigned_to_user_id">
+                        <option value="">Unassigned</option>
+                        <?php foreach ($users as $u): ?>
+                            <option value="<?= (int)$u['id'] ?>"><?= htmlspecialchars($u['username']) ?> (<?= (int)$u['id'] ?>)</option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
-            <div class="col-md-2">
-                <label class="form-label">Status</label>
-                <select class="form-select" name="status">
-                    <option value="todo">todo</option>
-                    <option value="doing">doing</option>
-                    <option value="done">done</option>
-                </select>
+            <div class="mb-2">
+                <label class="form-label">Body</label>
+                <textarea class="form-control" name="body" rows="4" placeholder="Task description/details..."></textarea>
             </div>
-            <div class="col-md-4">
-                <label class="form-label">Assign to</label>
-                <select class="form-select" name="assigned_to_user_id">
-                    <option value="">Unassigned</option>
-                    <?php foreach ($users as $u): ?>
-                        <option value="<?= (int)$u['id'] ?>"><?= htmlspecialchars($u['username']) ?> (<?= (int)$u['id'] ?>)</option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-12">
+            <div>
                 <button class="btn btn-success" type="submit">Create</button>
             </div>
         </form>

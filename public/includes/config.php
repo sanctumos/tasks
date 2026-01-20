@@ -104,6 +104,9 @@ function initializeDatabase() {
         )
     ");
 
+    // Schema migrations - add body field if it doesn't exist
+    ensureColumnExists($db, 'tasks', 'body', 'TEXT DEFAULT NULL');
+
     // Helpful indexes
     ensureIndexExists($db, 'idx_tasks_status', 'CREATE INDEX idx_tasks_status ON tasks(status)');
     ensureIndexExists($db, 'idx_tasks_assigned_to', 'CREATE INDEX idx_tasks_assigned_to ON tasks(assigned_to_user_id)');

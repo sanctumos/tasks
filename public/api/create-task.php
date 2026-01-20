@@ -11,8 +11,9 @@ if ($body === null) {
 $title = $body['title'] ?? '';
 $status = $body['status'] ?? null;
 $assignedToUserId = $body['assigned_to_user_id'] ?? null;
+$taskBody = $body['body'] ?? null;
 
-$result = createTask($title, $status, (int)$user['id'], $assignedToUserId);
+$result = createTask($title, $status, (int)$user['id'], $assignedToUserId, $taskBody);
 if (!$result['success']) {
     jsonResponse(['success' => false, 'error' => $result['error'] ?? 'Create failed'], 400);
 }
