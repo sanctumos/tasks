@@ -1,0 +1,19 @@
+# Local reference clones / scratch
+tmp/
+
+# SQLite DBs (production DB should live on server; don't commit)
+db/*.db
+db/*.sqlite
+db/*.sqlite3
+
+# Local secrets (persist on server under db/, but never commit)
+db/api_key.txt
+db/secrets.php
+public/includes/secrets.php
+
+# OS / tooling
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
