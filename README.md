@@ -1,6 +1,13 @@
-# tasks.technonomicon.net
+# Sanctum Tasks
 
-`tasks.technonomicon.net` is an API-first task management system with a Bootstrap admin UI, API keys, role-labeled user management, and automation-friendly SDK/plugin integrations.
+Sanctum Tasks is an API-first task management system with a Bootstrap admin UI, API keys, role-labeled user management, and automation-friendly SDK/plugin integrations.
+
+This repository is a fork of a prior task management application. The codebase was a full tasks app before the fork; this repo continues that application under the Sanctum project.
+
+## Licensing
+
+- **All code** in this repository is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [LICENSE](LICENSE) for the full text.
+- **All other content** (documentation, images, and any non-code material) is licensed under **Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)**. See [LICENSE-DOCS](LICENSE-DOCS) for details and links to the full license.
 
 ## What the app does (user-facing)
 

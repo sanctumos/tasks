@@ -1,6 +1,6 @@
 # Development / Operations Guide
 
-This document covers local development, schema migrations, testing/CI, and backup/restore for `tasks.technonomicon.net`.
+This document covers local development, schema migrations, testing/CI, and backup/restore for Sanctum Tasks.
 
 ## Local development
 

@@ -1,6 +1,6 @@
 # Integration Guide (Admin -> API Key -> SDK/Plugin)
 
-This is an end-to-end workflow for connecting automation agents to `tasks.technonomicon.net`.
+This is an end-to-end workflow for connecting automation agents to Sanctum Tasks.
 
 ## 1) Create API key in admin UI
 
@@ -18,7 +18,7 @@ from tasks_sdk import TasksClient
 
 client = TasksClient(
     api_key="YOUR_API_KEY",
-    base_url="https://tasks.technonomicon.net",
+    base_url="https://tasks.example.com",
 )
 
 # Create
