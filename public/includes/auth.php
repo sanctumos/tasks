@@ -123,6 +123,14 @@ function logout(): bool {
     if (session_status() === PHP_SESSION_ACTIVE) {
         $_SESSION = [];
         @session_destroy();
+        // Expire session cookie so client removes it (M-09)
+        setcookie(SESSION_NAME, '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => SESSION_COOKIE_SECURE,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
     }
     return true;
 }
