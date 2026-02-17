@@ -1,5 +1,7 @@
 # Sanctum Tasks
 
+![Sanctum Tasks logo](docs/logo.png)
+
 Sanctum Tasks is an API-first task management system with a Bootstrap admin UI, API keys, role-labeled user management, and automation-friendly SDK/plugin integrations.
 
 This repository is a fork of a prior task management application. The codebase was a full tasks app before the fork; this repo continues that application under the Sanctum project.
