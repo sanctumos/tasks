@@ -13,8 +13,7 @@ if ($mineOnly || !isAdminRole((string)$apiUser['role'])) {
 }
 
 foreach ($keys as &$k) {
-    $k['api_key_preview'] = substr((string)$k['api_key'], 0, 12) . '...';
-    unset($k['api_key']);
+    $k['api_key_preview'] = ($k['api_key_preview'] ?? '') . '...';
 }
 unset($k);
 
