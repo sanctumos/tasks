@@ -1,7 +1,7 @@
 """
 Tasks Python SDK
 
-A Python client library for tasks.technonomicon.net API.
+A Python client library for the Sanctum Tasks API.
 """
 
 from .client import TasksClient

@@ -1,7 +1,7 @@
 """
 Tasks API Client
 
-Main client class for interacting with tasks.technonomicon.net API.
+Main client class for interacting with the Sanctum Tasks API.
 """
 
 import json
@@ -18,11 +18,11 @@ from .exceptions import (
 
 class TasksClient:
     """
-    Client for interacting with tasks.technonomicon.net API.
+    Client for interacting with the Sanctum Tasks API.
     
     Args:
         api_key: Your API key from the admin panel
-        base_url: Base URL of the tasks site (default: https://tasks.technonomicon.net)
+        base_url: Base URL of the Sanctum Tasks server (default: https://tasks.example.com)
     
     Example:
         >>> client = TasksClient(api_key="your_api_key_here")
@@ -33,13 +33,13 @@ class TasksClient:
         ... )
     """
     
-    def __init__(self, api_key: str, base_url: str = "https://tasks.technonomicon.net"):
+    def __init__(self, api_key: str, base_url: str = "https://tasks.example.com"):
         """
         Initialize the Tasks client.
         
         Args:
             api_key: Your API key from the admin panel
-            base_url: Base URL of the tasks site (default: https://tasks.technonomicon.net)
+            base_url: Base URL of the Sanctum Tasks server (default: https://tasks.example.com)
         """
         self.api_key = api_key
         self.base_url = base_url.rstrip('/')
