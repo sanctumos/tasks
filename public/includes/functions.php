@@ -780,7 +780,7 @@ function getAllApiKeys(bool $includeRevoked = false): array {
             ak.id,
             ak.user_id,
             ak.key_name,
-            ak.api_key,
+            SUBSTR(ak.api_key, 1, 12) AS api_key_preview,
             ak.created_at,
             ak.last_used,
             ak.revoked_at,
@@ -801,7 +801,7 @@ function getAllApiKeys(bool $includeRevoked = false): array {
 function listApiKeysForUser(int $userId, bool $includeRevoked = false): array {
     $db = getDbConnection();
     $sql = "
-        SELECT id, user_id, key_name, api_key, created_at, last_used, revoked_at
+        SELECT id, user_id, key_name, SUBSTR(api_key, 1, 12) AS api_key_preview, created_at, last_used, revoked_at
         FROM api_keys
         WHERE user_id = :uid
           " . ($includeRevoked ? "" : "AND revoked_at IS NULL") . "
@@ -822,6 +822,9 @@ function revokeApiKey(int $id): bool {
     $stmt = $db->prepare("UPDATE api_keys SET revoked_at = CURRENT_TIMESTAMP WHERE id = :id");
     $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
     $stmt->execute();
+    if ($db->changes() === 0) {
+        return false;
+    }
     createAuditLog(null, 'api_key.revoke', 'api_key', (string)$id);
     return true;
 }

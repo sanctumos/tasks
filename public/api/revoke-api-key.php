@@ -31,7 +31,9 @@ if (!isAdminRole((string)$apiUser['role'])) {
     }
 }
 
-revokeApiKey($keyId);
+if (!revokeApiKey($keyId)) {
+    apiError('not_found', 'API key not found or already revoked', 404);
+}
 createAuditLog((int)$apiUser['id'], 'api.api_key_revoke', 'api_key', (string)$keyId);
 
 apiSuccess(['revoked' => true, 'id' => $keyId]);
