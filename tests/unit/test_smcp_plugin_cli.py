@@ -7,6 +7,11 @@ import pytest
 from smcp_plugin.tasks import cli
 
 
+@pytest.fixture(autouse=True)
+def reset_debug_tracebacks(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(cli, "DEBUG_TRACEBACKS", False)
+
+
 def test_create_task_maps_new_arguments(monkeypatch: pytest.MonkeyPatch):
     fake_client = Mock()
     fake_client.create_task.return_value = {"id": 1, "title": "Task A"}
@@ -123,7 +128,7 @@ def test_main_describe_outputs_valid_json(monkeypatch: pytest.MonkeyPatch, capsy
     stdout = capsys.readouterr().out
     payload = json.loads(stdout)
     assert payload["plugin"]["name"] == "tasks"
-    assert payload["plugin"]["version"] == "0.2.0"
+    assert payload["plugin"]["version"] == "0.2.1"
 
 
 def test_main_parses_create_task_extended_options(monkeypatch: pytest.MonkeyPatch):
@@ -167,3 +172,137 @@ def test_main_parses_create_task_extended_options(monkeypatch: pytest.MonkeyPatc
     assert captured["args"]["tags"] == "a,b"
     assert captured["args"]["rank"] == 9
     assert captured["args"]["recurrence-rule"] == "FREQ=WEEKLY"
+
+
+def test_get_plugin_description_tracks_parser_arguments():
+    payload = cli.get_plugin_description(cli.build_parser())
+    commands = {item["name"]: item for item in payload["commands"]}
+
+    create_params = {param["name"] for param in commands["create-task"]["parameters"]}
+    update_params = {param["name"] for param in commands["update-task"]["parameters"]}
+    list_params = {param["name"] for param in commands["list-tasks"]["parameters"]}
+
+    assert {
+        "api-key",
+        "title",
+        "priority",
+        "project",
+        "tags",
+        "rank",
+        "due-at",
+        "recurrence-rule",
+    }.issubset(create_params)
+    assert {"task-id", "clear-body", "unassign", "priority", "project"}.issubset(update_params)
+    assert {"q", "sort-by", "sort-dir", "priority", "project", "limit", "offset"}.issubset(list_params)
+
+    api_key_param = next(
+        param for param in commands["create-task"]["parameters"] if param["name"] == "api-key"
+    )
+    assert api_key_param["required"] is True
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["cli.py", "--help"],
+        ["cli.py", "create-task", "--help"],
+    ],
+)
+def test_main_help_exits_zero_without_argument_error_json(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture,
+    argv,
+):
+    monkeypatch.setattr(sys, "argv", argv)
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 0
+    captured = capsys.readouterr()
+    assert '"error_type": "argument_error"' not in captured.out
+    assert '"error_type": "argument_error"' not in captured.err
+
+
+def test_main_invalid_arguments_emit_argument_error_json(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture,
+):
+    monkeypatch.setattr(sys, "argv", ["cli.py", "create-task", "--api-key", "k"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 2
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert payload["status"] == "error"
+    assert payload["error_type"] == "argument_error"
+    assert "traceback" not in payload
+
+
+def test_list_tasks_error_hides_traceback_by_default(monkeypatch: pytest.MonkeyPatch):
+    def fake_get_client(api_key):
+        raise cli.APIError("boom")
+
+    monkeypatch.setattr(cli, "get_client", fake_get_client)
+    result = cli.list_tasks({}, "k")
+    assert result["status"] == "error"
+    assert result["error_type"] == "api_error"
+    assert "traceback" not in result
+
+
+def test_list_tasks_error_includes_traceback_in_debug(monkeypatch: pytest.MonkeyPatch):
+    def fake_get_client(api_key):
+        raise RuntimeError("explode")
+
+    monkeypatch.setattr(cli, "get_client", fake_get_client)
+    monkeypatch.setattr(cli, "DEBUG_TRACEBACKS", True)
+    result = cli.list_tasks({}, "k")
+    assert result["status"] == "error"
+    assert result["error_type"] == "unknown_error"
+    assert "traceback" in result
+    assert "RuntimeError: explode" in result["traceback"]
+
+
+def test_main_debug_flag_enables_traceback_in_error_output(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture,
+):
+    def exploding_create_task(args, api_key):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(cli, "create_task", exploding_create_task)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["cli.py", "--debug", "create-task", "--api-key", "k", "--title", "x"],
+    )
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 1
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "error"
+    assert payload["error_type"] == "unknown_error"
+    assert "traceback" in payload
+
+
+def test_main_default_error_output_omits_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture,
+):
+    def exploding_create_task(args, api_key):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(cli, "create_task", exploding_create_task)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["cli.py", "create-task", "--api-key", "k", "--title", "x"],
+    )
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 1
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "error"
+    assert payload["error_type"] == "unknown_error"
+    assert "traceback" not in payload
