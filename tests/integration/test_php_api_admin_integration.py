@@ -6,6 +6,7 @@ import re
 import struct
 import time
 import uuid
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 import requests
@@ -224,6 +225,64 @@ def test_task_crud_search_sort_and_collaboration_endpoints(php_server):
     )
     assert missing_resp.status_code == 404
     assert missing_resp.json()["error_object"]["code"] == "task.not_found"
+
+
+def test_search_pagination_preserves_filters_and_uses_trusted_origin(php_server):
+    base_url = php_server.base_url
+    headers = _auth_headers(php_server.api_key)
+    token = uuid.uuid4().hex[:8]
+
+    for idx in range(3):
+        create_resp = requests.post(
+            _api_url(base_url, "/api/create-task.php"),
+            headers=headers,
+            json={
+                "title": f"Pagination token {token}-{idx}",
+                "status": "todo",
+                "priority": "high",
+                "assigned_to_user_id": 1,
+            },
+            timeout=5,
+        )
+        assert create_resp.status_code == 201
+
+    search_resp = requests.get(
+        _api_url(base_url, "/api/search-tasks.php"),
+        headers={**headers, "Host": "evil.example"},
+        params={
+            "q": token,
+            "status": "todo",
+            "priority": "high",
+            "assigned_to_user_id": 1,
+            "sort_by": "created_at",
+            "sort_dir": "ASC",
+            "limit": 1,
+            "offset": 0,
+        },
+        timeout=5,
+    )
+    assert search_resp.status_code == 200
+    payload = search_resp.json()
+    assert payload["count"] == 1
+
+    next_url = payload["pagination"]["next_url"]
+    assert isinstance(next_url, str) and next_url
+    assert "evil.example" not in next_url
+
+    parsed_next = urlparse(next_url)
+    parsed_base = urlparse(base_url)
+    assert parsed_next.scheme == parsed_base.scheme
+    assert parsed_next.netloc == parsed_base.netloc
+
+    next_query = parse_qs(parsed_next.query)
+    assert next_query["q"] == [token]
+    assert next_query["status"] == ["todo"]
+    assert next_query["priority"] == ["high"]
+    assert next_query["assigned_to_user_id"] == ["1"]
+    assert next_query["sort_by"] == ["created_at"]
+    assert next_query["sort_dir"] == ["ASC"]
+    assert next_query["limit"] == ["1"]
+    assert next_query["offset"] == ["1"]
 
 
 def test_bulk_status_user_and_api_key_lifecycle_endpoints(php_server):
