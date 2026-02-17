@@ -16,6 +16,8 @@ public/includes/secrets.php
 python/venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.coverage
 
 # OS / tooling
 .DS_Store
