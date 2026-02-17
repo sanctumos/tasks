@@ -65,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $pendingSecret = (string)($_SESSION['pending_mfa_secret'] ?? '');
 $otpauthUri = '';
 if ($pendingSecret !== '') {
-    $issuer = rawurlencode('tasks.technonomicon.net');
-    $label = rawurlencode('tasks.technonomicon.net:' . (string)$currentUser['username']);
+    $issuer = rawurlencode('Sanctum Tasks');
+    $label = rawurlencode('Sanctum Tasks:' . (string)$currentUser['username']);
     $otpauthUri = "otpauth://totp/{$label}?secret={$pendingSecret}&issuer={$issuer}&algorithm=SHA1&digits=6&period=30";
 }
 

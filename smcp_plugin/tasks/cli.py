@@ -2,7 +2,7 @@
 """
 Tasks SMCP Plugin
 
-Provides MCP tools for interacting with tasks.technonomicon.net API.
+Provides MCP tools for interacting with the Sanctum Tasks API.
 Allows AI agents to create, update, list, and manage tasks.
 
 Copyright (c) 2025
@@ -26,8 +26,8 @@ except ImportError:  # pragma: no cover - used in standalone plugin layouts
     from exceptions import APIError, NotFoundError, ValidationError
 
 
-# Hard-coded base URL for the live site
-BASE_URL = "https://tasks.technonomicon.net"
+# Hard-coded base URL; override via env or set to your Sanctum Tasks server
+BASE_URL = "https://tasks.example.com"
 try:
     from smcp_plugin.tasks import __version__ as PLUGIN_VERSION
 except ImportError:  # pragma: no cover - fallback when executed outside package context
@@ -303,7 +303,7 @@ Available commands:
 
 Configuration:
   --api-key         API key from the admin panel (required for all commands)
-  Base URL is hard-coded to: https://tasks.technonomicon.net
+  Base URL is hard-coded to: https://tasks.example.com (set to your Sanctum Tasks server)
 
 Examples:
   python cli.py create-task --api-key "YOUR_KEY" --title "Fix deployment bug" --body "Check logs" --status "todo" --assigned-to-user-id 1

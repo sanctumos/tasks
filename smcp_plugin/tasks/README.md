@@ -1,6 +1,6 @@
 # Tasks SMCP Plugin
 
-SMCP plugin for interacting with tasks.technonomicon.net API. This plugin provides MCP tools that allow AI agents to create, update, list, and manage tasks.
+SMCP plugin for interacting with the Sanctum Tasks API. This plugin provides MCP tools that allow AI agents to create, update, list, and manage tasks.
 
 ## Installation
 
@@ -23,7 +23,7 @@ SMCP plugin for interacting with tasks.technonomicon.net API. This plugin provid
 ## Configuration
 
 The plugin is configured with:
-- **Base URL**: Hard-coded to `https://tasks.technonomicon.net`
+- **Base URL**: Hard-coded to `https://tasks.example.com` (set to your Sanctum Tasks server)
 - **API Key**: Must be provided as `--api-key` argument for all commands
 
 ## Available Commands

@@ -22,9 +22,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete') {
     requireCsrfToken();
     if (isset($_POST['id'])) {
-        revokeApiKey((int)$_POST['id']);
-        $message = "API key deleted successfully";
-        $messageType = 'success';
+        if (revokeApiKey((int)$_POST['id'])) {
+            $message = "API key deleted successfully";
+            $messageType = 'success';
+        } else {
+            $message = "Key not found or already revoked";
+            $messageType = 'danger';
+        }
     }
 }
 
@@ -96,7 +100,7 @@ require __DIR__ . '/_layout_top.php';
                             <td><?= htmlspecialchars($key['key_name']) ?></td>
                             <td><?= htmlspecialchars($key['user_username'] ?? '') ?></td>
                             <td class="font-monospace small text-muted">
-                                <?= htmlspecialchars(substr($key['api_key'], 0, 16)) ?>...
+                                <?= htmlspecialchars($key['api_key_preview'] ?? '') ?>...
                             </td>
                             <td class="small text-muted"><?= htmlspecialchars($key['created_at']) ?></td>
                             <td class="small text-muted">

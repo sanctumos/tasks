@@ -1,6 +1,6 @@
 # Tasks SDK
 
-Python SDK for tasks.technonomicon.net API.
+Python SDK for Sanctum Tasks API.
 
 ## Installation
 
@@ -22,7 +22,7 @@ from tasks_sdk import TasksClient
 # Initialize client
 client = TasksClient(
     api_key="your_api_key_here",
-    base_url="https://tasks.technonomicon.net"
+    base_url="https://tasks.example.com"
 )
 
 # Create a task
