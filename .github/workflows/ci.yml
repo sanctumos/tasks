@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          python -m pip install -e './tasks_sdk[dev]'
+          python -m pip install requests pytest pytest-cov
 
       - name: PHP syntax lint
         run: |
