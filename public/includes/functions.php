@@ -1041,13 +1041,28 @@ function getTaskById($id, bool $includeRelations = true): ?array {
           ts.is_done AS status_is_done,
           cu.username AS created_by_username,
           au.username AS assigned_to_username,
-          (SELECT COUNT(*) FROM task_comments tc WHERE tc.task_id = t.id) AS comment_count,
-          (SELECT COUNT(*) FROM task_attachments ta WHERE ta.task_id = t.id) AS attachment_count,
-          (SELECT COUNT(*) FROM task_watchers tw WHERE tw.task_id = t.id) AS watcher_count
+          COALESCE(tc_counts.comment_count, 0) AS comment_count,
+          COALESCE(ta_counts.attachment_count, 0) AS attachment_count,
+          COALESCE(tw_counts.watcher_count, 0) AS watcher_count
         FROM tasks t
         JOIN users cu ON cu.id = t.created_by_user_id
         LEFT JOIN users au ON au.id = t.assigned_to_user_id
         LEFT JOIN task_statuses ts ON ts.slug = t.status
+        LEFT JOIN (
+            SELECT task_id, COUNT(*) AS comment_count
+            FROM task_comments
+            GROUP BY task_id
+        ) tc_counts ON tc_counts.task_id = t.id
+        LEFT JOIN (
+            SELECT task_id, COUNT(*) AS attachment_count
+            FROM task_attachments
+            GROUP BY task_id
+        ) ta_counts ON ta_counts.task_id = t.id
+        LEFT JOIN (
+            SELECT task_id, COUNT(*) AS watcher_count
+            FROM task_watchers
+            GROUP BY task_id
+        ) tw_counts ON tw_counts.task_id = t.id
         WHERE t.id = :id
         LIMIT 1
     ");
@@ -1070,11 +1085,7 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
     $db = getDbConnection();
 
     $where = [];
-    $joins = [
-        'JOIN users cu ON cu.id = t.created_by_user_id',
-        'LEFT JOIN users au ON au.id = t.assigned_to_user_id',
-        'LEFT JOIN task_statuses ts ON ts.slug = t.status',
-    ];
+    $filterJoins = [];
     $params = [];
 
     if (!empty($filters['status'])) {
@@ -1109,7 +1120,7 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
     }
 
     if (array_key_exists('watcher_user_id', $filters) && $filters['watcher_user_id'] !== null && $filters['watcher_user_id'] !== '') {
-        $joins[] = 'JOIN task_watchers tw_filter ON tw_filter.task_id = t.id';
+        $filterJoins[] = 'JOIN task_watchers tw_filter ON tw_filter.task_id = t.id';
         $where[] = 'tw_filter.user_id = :watcher_user_id';
         $params[':watcher_user_id'] = [(int)$filters['watcher_user_id'], SQLITE3_INTEGER];
     }
@@ -1157,7 +1168,7 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
     $orderBy = taskOrderByClause($sortBy, $sortDir);
 
     $whereSql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
-    $joinsSql = implode("\n", array_unique($joins));
+    $filterJoinsSql = implode("\n", array_unique($filterJoins));
 
     $selectSql = "
         SELECT
@@ -1167,11 +1178,29 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
           ts.is_done AS status_is_done,
           cu.username AS created_by_username,
           au.username AS assigned_to_username,
-          (SELECT COUNT(*) FROM task_comments tc WHERE tc.task_id = t.id) AS comment_count,
-          (SELECT COUNT(*) FROM task_attachments ta WHERE ta.task_id = t.id) AS attachment_count,
-          (SELECT COUNT(*) FROM task_watchers tw WHERE tw.task_id = t.id) AS watcher_count
+          COALESCE(tc_counts.comment_count, 0) AS comment_count,
+          COALESCE(ta_counts.attachment_count, 0) AS attachment_count,
+          COALESCE(tw_counts.watcher_count, 0) AS watcher_count
         FROM tasks t
-        $joinsSql
+        JOIN users cu ON cu.id = t.created_by_user_id
+        LEFT JOIN users au ON au.id = t.assigned_to_user_id
+        LEFT JOIN task_statuses ts ON ts.slug = t.status
+        LEFT JOIN (
+            SELECT task_id, COUNT(*) AS comment_count
+            FROM task_comments
+            GROUP BY task_id
+        ) tc_counts ON tc_counts.task_id = t.id
+        LEFT JOIN (
+            SELECT task_id, COUNT(*) AS attachment_count
+            FROM task_attachments
+            GROUP BY task_id
+        ) ta_counts ON ta_counts.task_id = t.id
+        LEFT JOIN (
+            SELECT task_id, COUNT(*) AS watcher_count
+            FROM task_watchers
+            GROUP BY task_id
+        ) tw_counts ON tw_counts.task_id = t.id
+        $filterJoinsSql
         $whereSql
         ORDER BY $orderBy
         LIMIT :limit OFFSET :offset
@@ -1197,7 +1226,7 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
     $countSql = "
         SELECT COUNT(*) AS total_count
         FROM tasks t
-        $joinsSql
+        $filterJoinsSql
         $whereSql
     ";
     $countStmt = $db->prepare($countSql);
