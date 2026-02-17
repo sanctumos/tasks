@@ -5,12 +5,27 @@ $user = requireApiUser();
 
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 100;
 $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+$statusFilter = $_GET['status'] ?? null;
+if ($statusFilter !== null && trim((string)$statusFilter) !== '') {
+    $statusFilter = sanitizeStatus((string)$statusFilter);
+    if ($statusFilter === null) {
+        apiError('validation.invalid_status', 'Invalid status filter', 400, ['field' => 'status']);
+    }
+}
+
+$priorityFilter = $_GET['priority'] ?? null;
+if ($priorityFilter !== null && trim((string)$priorityFilter) !== '') {
+    $priorityFilter = normalizePriority((string)$priorityFilter);
+    if ($priorityFilter === null) {
+        apiError('validation.invalid_priority', 'Invalid priority filter', 400, ['field' => 'priority']);
+    }
+}
 
 $filters = [
-    'status' => $_GET['status'] ?? null,
+    'status' => $statusFilter,
     'assigned_to_user_id' => $_GET['assigned_to_user_id'] ?? null,
     'created_by_user_id' => $_GET['created_by_user_id'] ?? null,
-    'priority' => $_GET['priority'] ?? null,
+    'priority' => $priorityFilter,
     'project' => $_GET['project'] ?? null,
     'q' => $_GET['q'] ?? null,
     'due_before' => $_GET['due_before'] ?? null,

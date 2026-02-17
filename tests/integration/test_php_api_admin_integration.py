@@ -237,6 +237,166 @@ def test_task_crud_search_sort_and_collaboration_endpoints(php_server):
     assert missing_resp.json()["error_object"]["code"] == "task.not_found"
 
 
+def test_list_and_search_reject_invalid_enum_filters(php_server):
+    base_url = php_server.base_url
+    headers = _auth_headers(php_server.api_key)
+
+    invalid_list_status = requests.get(
+        _api_url(base_url, "/api/list-tasks.php"),
+        headers=headers,
+        params={"status": "not-a-real-status"},
+        timeout=5,
+    )
+    assert invalid_list_status.status_code == 400
+    invalid_list_status_payload = invalid_list_status.json()
+    assert invalid_list_status_payload["success"] is False
+    assert invalid_list_status_payload["error_object"]["code"] == "validation.invalid_status"
+    assert invalid_list_status_payload["error_object"]["details"]["field"] == "status"
+
+    invalid_list_priority = requests.get(
+        _api_url(base_url, "/api/list-tasks.php"),
+        headers=headers,
+        params={"priority": "super-urgent"},
+        timeout=5,
+    )
+    assert invalid_list_priority.status_code == 400
+    invalid_list_priority_payload = invalid_list_priority.json()
+    assert invalid_list_priority_payload["success"] is False
+    assert invalid_list_priority_payload["error_object"]["code"] == "validation.invalid_priority"
+    assert invalid_list_priority_payload["error_object"]["details"]["field"] == "priority"
+
+    invalid_search_status = requests.get(
+        _api_url(base_url, "/api/search-tasks.php"),
+        headers=headers,
+        params={"q": "deploy", "status": "not-a-real-status"},
+        timeout=5,
+    )
+    assert invalid_search_status.status_code == 400
+    invalid_search_status_payload = invalid_search_status.json()
+    assert invalid_search_status_payload["success"] is False
+    assert invalid_search_status_payload["error_object"]["code"] == "validation.invalid_status"
+    assert invalid_search_status_payload["error_object"]["details"]["field"] == "status"
+
+    invalid_search_priority = requests.get(
+        _api_url(base_url, "/api/search-tasks.php"),
+        headers=headers,
+        params={"q": "deploy", "priority": "super-urgent"},
+        timeout=5,
+    )
+    assert invalid_search_priority.status_code == 400
+    invalid_search_priority_payload = invalid_search_priority.json()
+    assert invalid_search_priority_payload["success"] is False
+    assert invalid_search_priority_payload["error_object"]["code"] == "validation.invalid_priority"
+    assert invalid_search_priority_payload["error_object"]["details"]["field"] == "priority"
+
+
+def test_task_count_fields_are_exact_with_multiple_related_rows(php_server):
+    base_url = php_server.base_url
+    headers = _auth_headers(php_server.api_key)
+    token = uuid.uuid4().hex[:8]
+
+    create_resp = requests.post(
+        _api_url(base_url, "/api/create-task.php"),
+        headers=headers,
+        json={
+            "title": f"Count verification task {token}",
+            "body": "Verify count fields",
+            "status": "todo",
+            "priority": "normal",
+            "project": f"Counts-{token}",
+        },
+        timeout=5,
+    )
+    assert create_resp.status_code == 201
+    task_id = int(create_resp.json()["task"]["id"])
+
+    for idx in range(2):
+        comment_resp = requests.post(
+            _api_url(base_url, "/api/create-comment.php"),
+            headers=headers,
+            json={"task_id": task_id, "comment": f"Comment {idx} {token}"},
+            timeout=5,
+        )
+        assert comment_resp.status_code == 201
+
+    for idx in range(2):
+        attachment_resp = requests.post(
+            _api_url(base_url, "/api/add-attachment.php"),
+            headers=headers,
+            json={
+                "task_id": task_id,
+                "file_name": f"evidence-{idx}.txt",
+                "file_url": f"https://example.com/{token}/evidence-{idx}.txt",
+                "mime_type": "text/plain",
+                "size_bytes": 10 + idx,
+            },
+            timeout=5,
+        )
+        assert attachment_resp.status_code == 201
+
+    admin_watch_resp = requests.post(
+        _api_url(base_url, "/api/watch-task.php"),
+        headers=headers,
+        json={"task_id": task_id},
+        timeout=5,
+    )
+    assert admin_watch_resp.status_code == 200
+    assert admin_watch_resp.json()["watching"] is True
+
+    watcher_user_resp = requests.post(
+        _api_url(base_url, "/api/create-user.php"),
+        headers=headers,
+        json={
+            "username": f"watcher_{token}",
+            "password": "StrongPass123!",
+            "role": "member",
+            "create_api_key": True,
+            "api_key_name": f"watch-{token}",
+        },
+        timeout=5,
+    )
+    assert watcher_user_resp.status_code == 201
+    watcher_api_key = watcher_user_resp.json()["api_key"]
+
+    second_watch_resp = requests.post(
+        _api_url(base_url, "/api/watch-task.php"),
+        headers=_auth_headers(watcher_api_key),
+        json={"task_id": task_id},
+        timeout=5,
+    )
+    assert second_watch_resp.status_code == 200
+    assert second_watch_resp.json()["watching"] is True
+
+    list_resp = requests.get(
+        _api_url(base_url, "/api/list-tasks.php"),
+        headers=headers,
+        params={"project": f"Counts-{token}", "q": token, "limit": 20},
+        timeout=5,
+    )
+    assert list_resp.status_code == 200
+    list_payload = list_resp.json()
+    listed_task = next((task for task in list_payload["tasks"] if int(task["id"]) == task_id), None)
+    assert listed_task is not None
+    assert int(listed_task["comment_count"]) == 2
+    assert int(listed_task["attachment_count"]) == 2
+    assert int(listed_task["watcher_count"]) == 2
+
+    get_resp = requests.get(
+        _api_url(base_url, "/api/get-task.php"),
+        headers=headers,
+        params={"id": task_id, "include_relations": 1},
+        timeout=5,
+    )
+    assert get_resp.status_code == 200
+    task_payload = get_resp.json()["task"]
+    assert int(task_payload["comment_count"]) == 2
+    assert int(task_payload["attachment_count"]) == 2
+    assert int(task_payload["watcher_count"]) == 2
+    assert len(task_payload["comments"]) == 2
+    assert len(task_payload["attachments"]) == 2
+    assert len(task_payload["watchers"]) == 2
+
+
 def test_search_pagination_preserves_filters_and_uses_trusted_origin(php_server):
     base_url = php_server.base_url
     headers = _auth_headers(php_server.api_key)

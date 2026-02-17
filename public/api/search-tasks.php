@@ -10,10 +10,26 @@ if ($q === '') {
 
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
 $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+$statusFilter = $_GET['status'] ?? null;
+if ($statusFilter !== null && trim((string)$statusFilter) !== '') {
+    $statusFilter = sanitizeStatus((string)$statusFilter);
+    if ($statusFilter === null) {
+        apiError('validation.invalid_status', 'Invalid status filter', 400, ['field' => 'status']);
+    }
+}
+
+$priorityFilter = $_GET['priority'] ?? null;
+if ($priorityFilter !== null && trim((string)$priorityFilter) !== '') {
+    $priorityFilter = normalizePriority((string)$priorityFilter);
+    if ($priorityFilter === null) {
+        apiError('validation.invalid_priority', 'Invalid priority filter', 400, ['field' => 'priority']);
+    }
+}
+
 $filters = [
     'q' => $q,
-    'status' => $_GET['status'] ?? null,
-    'priority' => $_GET['priority'] ?? null,
+    'status' => $statusFilter,
+    'priority' => $priorityFilter,
     'assigned_to_user_id' => $_GET['assigned_to_user_id'] ?? null,
     'sort_by' => $_GET['sort_by'] ?? 'updated_at',
     'sort_dir' => $_GET['sort_dir'] ?? 'DESC',

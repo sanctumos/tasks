@@ -93,6 +93,7 @@ Convenience fields:
 
 - `GET /api/list-tasks.php`
   - filters: `status`, `assigned_to_user_id`, `created_by_user_id`, `priority`, `project`, `q`, `due_before`, `due_after`, `watcher_user_id`
+  - invalid non-empty `status` or `priority` values return `400` (`validation.invalid_status` / `validation.invalid_priority`)
   - sorting: `sort_by`, `sort_dir`
   - pagination: `limit`, `offset`
   - returns `pagination` object with `next_url`/`prev_url`
@@ -104,6 +105,8 @@ Convenience fields:
 - `POST /api/delete-task.php`
   - fields: `id`
 - `GET /api/search-tasks.php?q=<query>`
+  - optional filters: `status`, `priority`, `assigned_to_user_id`, `sort_by`, `sort_dir`, `limit`, `offset`
+  - invalid non-empty `status` or `priority` values return `400` (`validation.invalid_status` / `validation.invalid_priority`)
 
 ## Bulk operations
 
