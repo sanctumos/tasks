@@ -319,8 +319,10 @@ def python_api_app() -> PythonApiAppContext:
         os.environ[k] = str(v)
 
     try:
+        from api_python import config as api_config
         from api_python import db
         from api_python.main import app
+        api_config.DB_PATH = str(db_path)
         db.init_schema()
         client = TestClient(app, base_url="http://testserver")
         yield PythonApiAppContext(

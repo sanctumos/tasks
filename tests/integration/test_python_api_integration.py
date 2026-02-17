@@ -106,9 +106,189 @@ def test_python_session_login_and_me(python_api_app):
     assert "user" in login_data
     assert login_data["user"]["username"] == python_api_app.admin_username
     assert "csrf_token" in login_data
-    assert "sanctum_tasks_py_session" in login_resp.cookies
+    session_cookie = login_resp.cookies.get("sanctum_tasks_py_session")
+    assert session_cookie
 
-    me_resp = client.get("/api/session-me.php")
-    assert me_resp.status_code == 200
+    # TestClient persists cookies; send session-me with same cookie if needed
+    me_resp = client.get("/api/session-me.php", cookies=dict(sanctum_tasks_py_session=session_cookie))
+    assert me_resp.status_code == 200, me_resp.text
     me_data = me_resp.json().get("data") or me_resp.json()
     assert me_data["user"]["username"] == python_api_app.admin_username
+
+
+def test_python_search_tasks_bulk_create_update(python_api_app):
+    client = python_api_app.client
+    headers = _auth_headers(python_api_app.api_key)
+    # search
+    r = client.get("/api/search-tasks.php", headers=headers, params={"q": "test", "limit": 5})
+    assert r.status_code == 200
+    # bulk create
+    r = client.post(
+        "/api/bulk-create-tasks.php",
+        headers=headers,
+        json={"tasks": [{"title": "B1", "status": "todo"}, {"title": "B2", "status": "todo"}]},
+    )
+    assert r.status_code in (200, 201)
+    data = r.json().get("data") or r.json()
+    tasks = data.get("tasks") or []
+    ids = [t["id"] for t in tasks]
+    if len(ids) >= 2:
+        r = client.post(
+            "/api/bulk-update-tasks.php",
+            headers=headers,
+            json={"task_ids": ids[:2], "updates": {"status": "doing"}},
+        )
+        assert r.status_code == 200
+
+
+def test_python_create_status(python_api_app):
+    client = python_api_app.client
+    headers = _auth_headers(python_api_app.api_key)
+    r = client.post(
+        "/api/create-status.php",
+        headers=headers,
+        json={"slug": "review", "label": "In Review", "is_done": 0},
+    )
+    assert r.status_code == 201
+    data = r.json().get("data") or r.json()
+    assert data.get("status", {}).get("slug") == "review"
+
+
+def test_python_comments_attachments_watchers(python_api_app):
+    client = python_api_app.client
+    headers = _auth_headers(python_api_app.api_key)
+    # create task
+    cr = client.post("/api/create-task.php", headers=headers, json={"title": "CW", "status": "todo"})
+    assert cr.status_code == 201
+    task_id = (cr.json().get("data") or cr.json()).get("task", {}).get("id")
+    if not task_id:
+        task_id = (cr.json().get("data") or cr.json()).get("id")
+    task_id = int(task_id)
+    # comment
+    r = client.post("/api/create-comment.php", headers=headers, json={"task_id": task_id, "comment": "Hello"})
+    assert r.status_code == 201
+    r = client.get("/api/list-comments.php", headers=headers, params={"task_id": task_id})
+    assert r.status_code == 200
+    # attachment
+    r = client.post(
+        "/api/add-attachment.php",
+        headers=headers,
+        json={"task_id": task_id, "file_name": "f.txt", "file_url": "https://example.com/f.txt"},
+    )
+    assert r.status_code == 201
+    r = client.get("/api/list-attachments.php", headers=headers, params={"task_id": task_id})
+    assert r.status_code == 200
+    # watch
+    r = client.post("/api/watch-task.php", headers=headers, json={"task_id": task_id})
+    assert r.status_code == 200
+    r = client.get("/api/list-watchers.php", headers=headers, params={"task_id": task_id})
+    assert r.status_code == 200
+    r = client.post("/api/unwatch-task.php", headers=headers, json={"task_id": task_id})
+    assert r.status_code == 200
+    client.post("/api/delete-task.php", headers=headers, json={"id": task_id})
+
+
+def test_python_list_tags(python_api_app):
+    client = python_api_app.client
+    headers = _auth_headers(python_api_app.api_key)
+    r = client.get("/api/list-tags.php", headers=headers)
+    assert r.status_code == 200
+
+
+def test_python_create_user_disable_reset_password(python_api_app):
+    import uuid
+    client = python_api_app.client
+    headers = _auth_headers(python_api_app.api_key)
+    username = f"newuser_{uuid.uuid4().hex[:8]}"
+    r = client.post(
+        "/api/create-user.php",
+        headers=headers,
+        json={"username": username, "password": "NewUser123!Ab", "role": "member", "must_change_password": True},
+    )
+    assert r.status_code == 201, (r.status_code, r.json())
+    data = r.json().get("data") or r.json()
+    uid = data.get("user", {}).get("id")
+    assert uid
+    r = client.post("/api/disable-user.php", headers=headers, json={"id": uid, "is_active": False})
+    assert r.status_code == 200
+    r = client.post("/api/disable-user.php", headers=headers, json={"id": uid, "is_active": True})
+    assert r.status_code == 200
+    r = client.post("/api/reset-user-password.php", headers=headers, json={"id": uid, "must_change_password": False})
+    assert r.status_code == 200
+    data = r.json().get("data") or r.json()
+    assert "temporary_password" in data
+
+
+def test_python_api_keys(python_api_app):
+    client = python_api_app.client
+    headers = _auth_headers(python_api_app.api_key)
+    r = client.get("/api/list-api-keys.php", headers=headers)
+    assert r.status_code == 200
+    r = client.post("/api/create-api-key.php", headers=headers, json={"key_name": "test-key"})
+    assert r.status_code == 201
+    list_data = client.get("/api/list-api-keys.php", headers=headers).json().get("data") or {}
+    keys = list_data.get("api_keys") or []
+    key_id = next((k["id"] for k in keys if k.get("key_name") == "test-key"), keys[0]["id"] if keys else None)
+    if key_id:
+        r = client.post("/api/revoke-api-key.php", headers=headers, json={"id": key_id})
+        assert r.status_code == 200
+
+
+def test_python_admin_only_returns_403_for_member(python_api_app):
+    """Member user cannot access admin-only endpoints."""
+    import uuid
+    client = python_api_app.client
+    admin_headers = _auth_headers(python_api_app.api_key)
+    username = f"member_{uuid.uuid4().hex[:8]}"
+    r = client.post(
+        "/api/create-user.php",
+        headers=admin_headers,
+        json={"username": username, "password": "Member123!Ab", "role": "member", "create_api_key": True, "api_key_name": "m2"},
+    )
+    assert r.status_code == 201, (r.status_code, r.json())
+    data = r.json().get("data") or r.json()
+    member_key = data.get("api_key")
+    assert member_key, "create_api_key=True should return api_key"
+    member_headers = _auth_headers(member_key)
+    r = client.get("/api/list-users.php", headers=member_headers)
+    assert r.status_code == 403
+
+
+def test_python_invalid_json_returns_400(python_api_app):
+    client = python_api_app.client
+    headers = _auth_headers(python_api_app.api_key)
+    r = client.post("/api/create-task.php", headers=headers, data="not json")
+    assert r.status_code == 400
+    r = client.post("/api/create-user.php", headers=headers, data="invalid")
+    assert r.status_code == 400
+
+
+def test_python_get_task_404(python_api_app):
+    client = python_api_app.client
+    headers = _auth_headers(python_api_app.api_key)
+    r = client.get("/api/get-task.php", headers=headers, params={"id": 99999})
+    assert r.status_code == 404
+
+
+def test_python_update_task_validation(python_api_app):
+    client = python_api_app.client
+    headers = _auth_headers(python_api_app.api_key)
+    r = client.post("/api/update-task.php", headers=headers, json={"id": 99999, "title": "x"})
+    assert r.status_code == 404
+
+
+def test_python_session_logout(python_api_app):
+    client = python_api_app.client
+    login_resp = client.post(
+        "/api/session-login.php",
+        json={"username": python_api_app.admin_username, "password": python_api_app.admin_password},
+    )
+    assert login_resp.status_code == 200
+    session_cookie = login_resp.cookies.get("sanctum_tasks_py_session")
+    csrf = (login_resp.json().get("data") or login_resp.json()).get("csrf_token")
+    r = client.post(
+        "/api/session-logout.php",
+        cookies=dict(sanctum_tasks_py_session=session_cookie),
+        json={"csrf_token": csrf},
+    )
+    assert r.status_code == 200
