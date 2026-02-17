@@ -39,12 +39,12 @@
 
 ### Configuration
 
-- **Base URL**: Hard-coded to `https://tasks.technonomicon.net`
+- **Base URL**: Hard-coded to `https://tasks.example.com` (set to your Sanctum Tasks server)
 - **API Key**: Must be provided as `--api-key` argument for all commands
 
 ### Getting an API Key
 
-1. Navigate to your tasks admin panel: `https://tasks.technonomicon.net/admin/login.php`
+1. Navigate to your Sanctum Tasks admin panel (e.g. `https://tasks.example.com/admin/login.php`)
 2. Login with your admin credentials (bootstrap password is configured or generated at first run)
 3. Bootstrap API key may be present in `db/api_key.txt` on the server
 4. Create dedicated API keys through the admin interface
@@ -94,7 +94,7 @@ Once installed, the plugin will be automatically discovered by SMCP. The followi
 ### API errors
 
 - Verify API key is provided correctly with `--api-key` argument
-- Base URL is hard-coded to `https://tasks.technonomicon.net`
+- Base URL is hard-coded to `https://tasks.example.com`
 - Test the API directly with curl to verify connectivity
 
 ### Command execution errors

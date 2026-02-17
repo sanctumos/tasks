@@ -7,14 +7,14 @@ initializeDatabase();
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>tasks.technonomicon.net</title>
+    <title>Sanctum Tasks</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 <div class="container py-5">
     <div class="card shadow-sm">
         <div class="card-body">
-            <h1 class="h3 mb-3">tasks.technonomicon.net</h1>
+            <h1 class="h3 mb-3">Sanctum Tasks</h1>
             <p class="mb-4">Internal task management system (API-first) with admin UI, API key automation, and rich task metadata.</p>
             <div class="d-flex gap-2">
                 <a class="btn btn-primary" href="/admin/">Admin UI</a>

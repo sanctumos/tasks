@@ -1,5 +1,5 @@
 <?php
-// tasks.technonomicon.net - Configuration + DB bootstrap
+// Sanctum Tasks - Configuration + DB bootstrap
 
 $secretsFile = __DIR__ . '/secrets.php';
 if (is_file($secretsFile)) {
@@ -25,7 +25,7 @@ define('DB_PATH', envOrDefault('TASKS_DB_PATH', __DIR__ . '/../../db/tasks.db'))
 define('DB_TIMEOUT', (int)envOrDefault('TASKS_DB_TIMEOUT', 30));
 
 // Security settings
-define('SESSION_NAME', envOrDefault('TASKS_SESSION_NAME', 'technonomicon_tasks'));
+define('SESSION_NAME', envOrDefault('TASKS_SESSION_NAME', 'sanctum_tasks'));
 define('SESSION_LIFETIME', (int)envOrDefault('TASKS_SESSION_LIFETIME', 3600));
 define('PASSWORD_COST', (int)envOrDefault('TASKS_PASSWORD_COST', 12));
 define('PASSWORD_MIN_LENGTH', (int)envOrDefault('TASKS_PASSWORD_MIN_LENGTH', 12));

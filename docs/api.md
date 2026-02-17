@@ -1,4 +1,4 @@
-# tasks.technonomicon.net API (v1)
+# Sanctum Tasks API (v1)
 
 ## Authentication
 
@@ -176,14 +176,14 @@ curl -sS -X POST \
     "due_at":"2026-02-20T16:00:00Z",
     "rank":10
   }' \
-  https://tasks.technonomicon.net/api/create-task.php
+  https://tasks.example.com/api/create-task.php
 ```
 
 ### Search tasks
 
 ```bash
 curl -sS -H "X-API-Key: $TASKS_API_KEY" \
-  "https://tasks.technonomicon.net/api/search-tasks.php?q=deployment&limit=20"
+  "https://tasks.example.com/api/search-tasks.php?q=deployment&limit=20"
 ```
 
 ### Bulk update
@@ -193,5 +193,5 @@ curl -sS -X POST \
   -H "X-API-Key: $TASKS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"updates":[{"id":101,"status":"doing"},{"id":102,"priority":"urgent"}]}' \
-  https://tasks.technonomicon.net/api/bulk-update-tasks.php
+  https://tasks.example.com/api/bulk-update-tasks.php
 ```
