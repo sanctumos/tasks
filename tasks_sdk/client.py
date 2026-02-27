@@ -85,7 +85,7 @@ class TasksClient:
         # Parse response
         try:
             response_data = response.json()
-        except json.JSONDecodeError:
+        except ValueError:
             raise APIError(f"Invalid JSON response: {response.text[:200]}")
 
         error_obj = response_data.get("error_object") if isinstance(response_data, dict) else None
