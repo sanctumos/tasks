@@ -359,6 +359,7 @@ function initializeDatabase() {
     ensureIndexExists($db, 'idx_api_keys_revoked_at', 'CREATE INDEX idx_api_keys_revoked_at ON api_keys(revoked_at)');
     ensureIndexExists($db, 'idx_login_attempts_username_time', 'CREATE INDEX idx_login_attempts_username_time ON login_attempts(username, attempted_at)');
     ensureIndexExists($db, 'idx_login_attempts_ip_time', 'CREATE INDEX idx_login_attempts_ip_time ON login_attempts(ip_address, attempted_at)');
+    ensureIndexExists($db, 'idx_login_attempts_user_ip_time', 'CREATE INDEX idx_login_attempts_user_ip_time ON login_attempts(username, ip_address, attempted_at)');
     ensureIndexExists($db, 'idx_comments_task', 'CREATE INDEX idx_comments_task ON task_comments(task_id)');
     ensureIndexExists($db, 'idx_watchers_user', 'CREATE INDEX idx_watchers_user ON task_watchers(user_id)');
     ensureIndexExists($db, 'idx_attachments_task', 'CREATE INDEX idx_attachments_task ON task_attachments(task_id)');

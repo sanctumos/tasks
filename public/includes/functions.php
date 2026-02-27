@@ -638,7 +638,7 @@ function getLoginLockState(string $username): array {
         FROM login_attempts
         WHERE success = 0
           AND attempted_at >= datetime('now', :window_modifier)
-          AND (username = :username OR ip_address = :ip)
+          AND username = :username AND ip_address = :ip
     ");
     $stmt->bindValue(':window_modifier', $windowModifier, SQLITE3_TEXT);
     $stmt->bindValue(':username', $username, SQLITE3_TEXT);
@@ -665,7 +665,7 @@ function resetLoginAttempts(string $username): void {
         return;
     }
     $db = getDbConnection();
-    $stmt = $db->prepare("DELETE FROM login_attempts WHERE username = :username OR ip_address = :ip");
+    $stmt = $db->prepare("DELETE FROM login_attempts WHERE username = :username AND ip_address = :ip");
     $stmt->bindValue(':username', $username, SQLITE3_TEXT);
     $stmt->bindValue(':ip', requestIpAddress(), SQLITE3_TEXT);
     $stmt->execute();

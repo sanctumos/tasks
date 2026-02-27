@@ -30,7 +30,7 @@ def get_login_lock_state(username: str, request=None) -> dict:
         """SELECT COUNT(*) AS failed_count, MAX(CAST(strftime('%s', attempted_at) AS INTEGER)) AS last_failed_epoch
            FROM login_attempts
            WHERE success = 0 AND attempted_at >= datetime('now', ?)
-             AND (username = ? OR ip_address = ?)""",
+             AND username = ? AND ip_address = ?""",
         (f"-{window_sec} seconds", u, ip),
     )
     row = cur.fetchone()
@@ -53,6 +53,6 @@ def reset_login_attempts(username: str, request=None) -> None:
         return
     ip = request_ip_address(request) if request else "unknown"
     conn = db.get_connection()
-    conn.execute("DELETE FROM login_attempts WHERE username = ? OR ip_address = ?", (u, ip))
+    conn.execute("DELETE FROM login_attempts WHERE username = ? AND ip_address = ?", (u, ip))
     conn.commit()
     conn.close()
