@@ -12,8 +12,10 @@ db/bootstrap_admin_password.txt
 db/secrets.php
 public/includes/secrets.php
 
-# Python virtual environments
+# Python virtual environments and build artifacts
 python/venv/
+*.egg-info/
+*.egg
 __pycache__/
 *.pyc
 .pytest_cache/
