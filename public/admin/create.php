@@ -46,6 +46,12 @@ $res = createTask(
     ]
 );
 
+if (!empty($res['success'])) {
+    $_SESSION['admin_flash_success'] = 'Task created.';
+} else {
+    $_SESSION['admin_flash_error'] = $res['error'] ?? 'Create failed.';
+}
+
 header('Location: /admin/');
 exit();
 

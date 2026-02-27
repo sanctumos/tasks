@@ -32,10 +32,26 @@ $projects = listProjects(200);
 require __DIR__ . '/_layout_top.php';
 ?>
 
+<?php
+$flashError = $_SESSION['admin_flash_error'] ?? null;
+$flashSuccess = $_SESSION['admin_flash_success'] ?? null;
+if (isset($_SESSION['admin_flash_error'])) unset($_SESSION['admin_flash_error']);
+if (isset($_SESSION['admin_flash_success'])) unset($_SESSION['admin_flash_success']);
+?>
 <div class="d-flex align-items-center justify-content-between mb-3">
     <h1 class="h3 mb-0">Tasks</h1>
     <a class="btn btn-sm btn-outline-secondary" href="/">Home</a>
 </div>
+<?php if ($flashError): ?>
+<div class="alert alert-danger alert-dismissible fade show" role="alert"><?= htmlspecialchars($flashError) ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+<?php endif; ?>
+<?php if ($flashSuccess): ?>
+<div class="alert alert-success alert-dismissible fade show" role="alert"><?= htmlspecialchars($flashSuccess) ?>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+<?php endif; ?>
 
 <div class="card shadow-sm mb-4">
     <div class="card-body">

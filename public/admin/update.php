@@ -50,7 +50,13 @@ if (array_key_exists('tags', $_POST)) {
     $fields['tags'] = ($tagsRaw === '') ? [] : preg_split('/[,]+/', $tagsRaw);
 }
 
-updateTask($id, $fields);
+$res = updateTask($id, $fields);
+
+if (!empty($res['success'])) {
+    $_SESSION['admin_flash_success'] = 'Task updated.';
+} else {
+    $_SESSION['admin_flash_error'] = $res['error'] ?? 'Update failed.';
+}
 
 header('Location: /admin/');
 exit();
