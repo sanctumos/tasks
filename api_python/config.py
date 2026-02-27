@@ -108,6 +108,10 @@ LOGIN_LOCK_THRESHOLD: int = _env_int("TASKS_LOGIN_LOCK_THRESHOLD", 5)
 LOGIN_LOCK_WINDOW_SECONDS: int = _env_int("TASKS_LOGIN_LOCK_WINDOW_SECONDS", 900)
 LOGIN_LOCK_SECONDS: int = _env_int("TASKS_LOGIN_LOCK_SECONDS", 900)
 
+# Proxy (H-02): only use X-Forwarded-For / CF-Connecting-IP when behind trusted proxy
+TRUST_PROXY: bool = _env_bool("TASKS_TRUST_PROXY", False)
+TRUSTED_PROXY_IPS: str = str(_env("TASKS_TRUSTED_PROXY_IPS", "")).strip()
+
 # App base URL for pagination links (optional)
 def get_app_base_url() -> str | None:
     v = str(_env("TASKS_APP_BASE_URL", "")).strip()

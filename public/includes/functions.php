@@ -9,7 +9,20 @@ function nowUtc(): string {
 }
 
 function requestIpAddress(): string {
-    $keys = ['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'];
+    $remoteAddr = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    if ($remoteAddr === '') {
+        return 'unknown';
+    }
+
+    if (!TRUST_PROXY) {
+        return $remoteAddr;
+    }
+    $trustedList = array_map('trim', array_filter(explode(',', (string)TRUSTED_PROXY_IPS)));
+    if ($trustedList === [] || !in_array($remoteAddr, $trustedList, true)) {
+        return $remoteAddr;
+    }
+
+    $keys = ['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR'];
     foreach ($keys as $k) {
         if (!empty($_SERVER[$k])) {
             $raw = trim((string)$_SERVER[$k]);
@@ -22,7 +35,7 @@ function requestIpAddress(): string {
             }
         }
     }
-    return 'unknown';
+    return $remoteAddr;
 }
 
 function truncateString(string $value, int $max): string {

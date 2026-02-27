@@ -37,6 +37,9 @@ define('LOGIN_LOCK_SECONDS', (int)envOrDefault('TASKS_LOGIN_LOCK_SECONDS', 900))
 define('API_RATE_LIMIT_REQUESTS', (int)envOrDefault('TASKS_API_RATE_LIMIT_REQUESTS', 240));
 define('API_RATE_LIMIT_WINDOW_SECONDS', (int)envOrDefault('TASKS_API_RATE_LIMIT_WINDOW_SECONDS', 60));
 define('APP_DEBUG', envBool('TASKS_APP_DEBUG', false));
+// Only use X-Forwarded-For / CF-Connecting-IP when behind a trusted proxy (H-02)
+define('TRUST_PROXY', envBool('TASKS_TRUST_PROXY', false));
+define('TRUSTED_PROXY_IPS', envOrDefault('TASKS_TRUSTED_PROXY_IPS', ''));
 
 // Initialize session (admin UI uses session auth)
 if (session_status() === PHP_SESSION_NONE) {
