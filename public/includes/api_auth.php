@@ -214,6 +214,11 @@ function requireApiUser(bool $requireAdmin = false): array {
         apiError('auth.invalid_api_key', 'Invalid or missing API key', 401);
     }
 
+    $user = validateApiKeyAndGetUser($apiKey);
+    if (!$user) {
+        apiError('auth.invalid_api_key', 'Invalid or missing API key', 401);
+    }
+
     $rateState = checkApiRateLimit($apiKey);
     setRateLimitHeaders($rateState);
     if (empty($rateState['allowed'])) {
@@ -225,11 +230,6 @@ function requireApiUser(bool $requireAdmin = false): array {
             ['retry_after' => (int)($rateState['retry_after'] ?? 1)],
             ['rate_limit' => $rateState]
         );
-    }
-
-    $user = validateApiKeyAndGetUser($apiKey);
-    if (!$user) {
-        apiError('auth.invalid_api_key', 'Invalid or missing API key', 401);
     }
 
     if ($requireAdmin && !isAdminRole((string)$user['role'])) {
