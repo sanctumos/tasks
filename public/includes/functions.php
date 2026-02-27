@@ -440,6 +440,9 @@ function setUserActive(int $userId, bool $isActive): array {
     $stmt->bindValue(':active', $isActive ? 1 : 0, SQLITE3_INTEGER);
     $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
     $stmt->execute();
+    if ($db->changes() === 0) {
+        return ['success' => false, 'error' => 'User not found'];
+    }
     createAuditLog(null, $isActive ? 'user.enable' : 'user.disable', 'user', (string)$userId);
     return ['success' => true];
 }
@@ -463,6 +466,9 @@ function resetUserPassword(int $userId, string $newPassword, bool $mustChangePas
     $stmt->bindValue(':must_change_password', $mustChangePassword ? 1 : 0, SQLITE3_INTEGER);
     $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
     $stmt->execute();
+    if ($db->changes() === 0) {
+        return ['success' => false, 'error' => 'User not found'];
+    }
     createAuditLog(null, 'user.password_reset', 'user', (string)$userId, ['must_change_password' => $mustChangePassword ? 1 : 0]);
     return ['success' => true];
 }

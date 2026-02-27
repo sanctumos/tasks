@@ -66,7 +66,10 @@ def set_user_active(user_id: int, is_active: bool) -> dict:
     if user_id <= 0:
         return {"success": False, "error": "Invalid user id"}
     conn = db.get_connection()
-    conn.execute("UPDATE users SET is_active = ? WHERE id = ?", (1 if is_active else 0, user_id))
+    cur = conn.execute("UPDATE users SET is_active = ? WHERE id = ?", (1 if is_active else 0, user_id))
+    if cur.rowcount == 0:
+        conn.close()
+        return {"success": False, "error": "User not found"}
     conn.commit()
     conn.close()
     audit.create_audit_log(None, "user.enable" if is_active else "user.disable", "user", str(user_id))
@@ -79,10 +82,13 @@ def reset_user_password(user_id: int, new_password: str, must_change_password: b
         return {"success": False, "error": err}
     conn = db.get_connection()
     pw_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt(rounds=config.PASSWORD_COST)).decode()
-    conn.execute(
+    cur = conn.execute(
         "UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?",
         (pw_hash, 1 if must_change_password else 0, user_id),
     )
+    if cur.rowcount == 0:
+        conn.close()
+        return {"success": False, "error": "User not found"}
     conn.commit()
     conn.close()
     audit.create_audit_log(None, "user.password_reset", "user", str(user_id), {"must_change_password": 1 if must_change_password else 0})
