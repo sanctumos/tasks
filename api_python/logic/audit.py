@@ -1,11 +1,25 @@
 """Audit logging mirroring PHP createAuditLog."""
 import json
+
+from .. import config as app_config
 from .. import db
 from .helpers import truncate_string
 
 
 def request_ip_address(request) -> str:
-    """Get client IP from request (mirror PHP requestIpAddress)."""
+    """Get client IP from request (mirror PHP requestIpAddress, H-02)."""
+    remote = "unknown"
+    if getattr(request, "client", None) and getattr(request.client, "host", None):
+        remote = str(request.client.host).strip() or "unknown"
+    if not remote or remote == "unknown":
+        return "unknown"
+
+    if not app_config.TRUST_PROXY:
+        return truncate_string(remote, 128)
+    trusted_list = [x.strip() for x in app_config.TRUSTED_PROXY_IPS.split(",") if x.strip()]
+    if not trusted_list or remote not in trusted_list:
+        return truncate_string(remote, 128)
+
     for key in ("cf-connecting-ip", "x-forwarded-for", "x-real-ip"):
         v = request.headers.get(key) if hasattr(request, "headers") else None
         if v:
@@ -14,7 +28,7 @@ def request_ip_address(request) -> str:
                 v = v.split(",")[0].strip()
             if v:
                 return truncate_string(v, 128)
-    return getattr(request, "client", None) and str(getattr(request.client, "host", "unknown")) or "unknown"
+    return truncate_string(remote, 128)
 
 
 def create_audit_log(
