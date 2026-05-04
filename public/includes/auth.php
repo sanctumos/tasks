@@ -44,6 +44,24 @@ function isLoggedIn(): bool {
     return true;
 }
 
+/**
+ * Whether this request may proceed while must_change_password is set.
+ * Match by path suffix so subdirectory / multihost docroots (SCRIPT_NAME like /app/admin/settings.php) work.
+ */
+function authScriptAllowedDuringPasswordChange(?string $scriptName): bool {
+    if ($scriptName === null || $scriptName === '') {
+        return false;
+    }
+    $scriptName = str_replace('\\', '/', $scriptName);
+    foreach (['/admin/change-password.php', '/admin/settings.php', '/admin/logout.php'] as $suffix) {
+        $len = strlen($suffix);
+        if ($len > 0 && substr($scriptName, -$len) === $suffix) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function requireAuth(): void {
     if (!isLoggedIn()) {
         header('Location: /admin/login.php');
@@ -52,13 +70,9 @@ function requireAuth(): void {
 
     if (!empty($_SESSION['must_change_password'])) {
         $script = $_SERVER['SCRIPT_NAME'] ?? '';
-        $allowed = [
-            '/admin/change-password.php',
-            '/admin/settings.php',
-            '/admin/logout.php',
-        ];
-        if (!in_array($script, $allowed, true)) {
-            header('Location: /admin/change-password.php');
+        if (!authScriptAllowedDuringPasswordChange($script)) {
+            // Relative URL: works when the app lives under a subpath (avoids /admin/... at host root).
+            header('Location: settings.php?tab=password');
             exit();
         }
     }

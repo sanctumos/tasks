@@ -2,7 +2,8 @@
 require_once __DIR__ . '/../includes/auth.php';
 
 if (isLoggedIn()) {
-    header('Location: /admin/');
+    // Relative: works when the app is mounted under a subpath (not only at domain root).
+    header('Location: index.php');
     exit();
 }
 
@@ -16,7 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mfaCode = $_POST['mfa_code'] ?? null;
     $result = login($username, $password, $mfaCode);
     if ($result['success']) {
-        header('Location: /admin/');
+        if (!empty($result['must_change_password'])) {
+            header('Location: settings.php?tab=password');
+            exit();
+        }
+        header('Location: index.php');
         exit();
     }
     $error = $result['error'] ?? 'Login failed';
