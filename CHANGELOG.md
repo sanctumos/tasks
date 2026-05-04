@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Forced password change / multihost login** — `requireAuth()` now treats password-change allow paths by **suffix** (`…/admin/settings.php`, etc.) so `SCRIPT_NAME` with a subdirectory prefix no longer traps users in redirect loops or `.Err` pages. Redirect targets use **relative** `settings.php?tab=password`; legacy `change-password.php` and successful login with `must_change_password` go straight to the Password tab. Login “already signed in” / default landing use relative `index.php` for subpath installs.
+
 ### Added
 
 - **Organizational controls (admin UI + enforcement)** — `users.limited_project_access` (idempotent column; see `tools/migrations/sanctum_002_limited_project_access.sql`). **Admins** see the full org project directory; **managers** do by default but can be toggled to **limit projects** (same rules as members: `project_members` + `projects.all_access`). **Organizations** admin (`/admin/organizations.php`): create/rename orgs, counts. **Users** (`/admin/users.php`): assign organization, limit toggle, link to **project membership** editor (`/admin/user-projects.php`). Task list/search/API scope (`listTasks` 4th argument / merged API user row) and **task read access** align with workspace visibility (`userCanAccessTaskForViewer`). Navbar adds **Organizations**. FastAPI mirror updated (`user_has_unrestricted_org_directory_access`, `list_tasks` scope).
