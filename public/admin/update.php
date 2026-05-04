@@ -52,12 +52,29 @@ if (array_key_exists('tags', $_POST)) {
 
 $res = updateTask($id, $fields);
 
+require_once __DIR__ . '/_helpers.php';
+if (st_is_ajax()) {
+    header('Content-Type: application/json');
+    if (!empty($res['success'])) {
+        echo json_encode(['success' => true, 'task' => $res['task'] ?? null]);
+    } else {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => $res['error'] ?? 'Update failed.']);
+    }
+    exit();
+}
+
+$redirectTo = (string)($_POST['redirect_to'] ?? '/admin/');
+if ($redirectTo === '' || strpos($redirectTo, '/') !== 0) {
+    $redirectTo = '/admin/';
+}
+
 if (!empty($res['success'])) {
     $_SESSION['admin_flash_success'] = 'Task updated.';
 } else {
     $_SESSION['admin_flash_error'] = $res['error'] ?? 'Update failed.';
 }
 
-header('Location: /admin/');
+header('Location: ' . $redirectTo);
 exit();
 

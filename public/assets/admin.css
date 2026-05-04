@@ -1,0 +1,327 @@
+/* Sanctum Tasks admin design layer
+ * Built on Bootstrap 5.3 + Bootstrap Icons. Adds tokens, status pills,
+ * priority chips, page headers, swimlanes, and the metadata rail used by
+ * task detail.
+ */
+
+:root {
+    --st-bg-app: #f4f6fa;
+    --st-bg-surface: #ffffff;
+    --st-bg-soft: #f8f9fc;
+    --st-bg-elevated: #ffffff;
+    --st-border-subtle: #e4e7ee;
+    --st-border-strong: #cfd4de;
+    --st-text-primary: #14161a;
+    --st-text-secondary: #4a5260;
+    --st-text-muted: #8a93a3;
+    --st-accent: #2c5cff;
+    --st-accent-soft: #e9efff;
+    --st-accent-hover: #1f47cc;
+    --st-shadow-sm: 0 1px 2px rgba(20, 22, 26, 0.04);
+    --st-shadow-md: 0 4px 12px rgba(20, 22, 26, 0.06);
+    --st-radius: 10px;
+    --st-radius-sm: 6px;
+
+    /* Status palette */
+    --st-status-todo: #4a5260;
+    --st-status-todo-soft: #eef0f4;
+    --st-status-doing: #b45309;
+    --st-status-doing-soft: #fef4d6;
+    --st-status-done: #15803d;
+    --st-status-done-soft: #dcfce7;
+    --st-status-blocked: #b91c1c;
+    --st-status-blocked-soft: #fee2e2;
+
+    /* Priority palette */
+    --st-pri-low: #6b7280;
+    --st-pri-low-soft: #eef0f3;
+    --st-pri-normal: #2c5cff;
+    --st-pri-normal-soft: #e9efff;
+    --st-pri-high: #b45309;
+    --st-pri-high-soft: #fef4d6;
+    --st-pri-urgent: #b91c1c;
+    --st-pri-urgent-soft: #fee2e2;
+}
+
+body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-text-primary); }
+
+/* ---------- Navbar ---------- */
+.admin-nav { box-shadow: var(--st-shadow-sm); }
+.admin-nav .navbar-brand { letter-spacing: -0.01em; }
+.admin-nav .btn-outline-light {
+    border-color: rgba(255,255,255,0.25);
+    font-weight: 500;
+}
+.admin-nav .btn-outline-light:hover { background-color: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.4); color: #fff; }
+.admin-nav .navbar-text { font-size: 0.85rem; }
+.admin-shell { max-width: 1400px; }
+
+/* ---------- Page header ---------- */
+.page-header {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: 0.75rem; margin-bottom: 1.5rem;
+}
+.page-header__title h1 {
+    font-size: 1.5rem; line-height: 1.2; margin: 0; font-weight: 600; color: var(--st-text-primary);
+    letter-spacing: -0.01em;
+}
+.page-header__title .subtitle { color: var(--st-text-muted); font-size: 0.9rem; margin-top: 0.15rem; }
+.page-header__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.page-back {
+    display: inline-flex; align-items: center; gap: 0.4rem; color: var(--st-text-secondary);
+    font-size: 0.85rem; text-decoration: none; padding: 0.25rem 0; margin-bottom: 0.5rem;
+}
+.page-back:hover { color: var(--st-text-primary); }
+.page-back i { font-size: 0.75rem; }
+
+/* ---------- Section ---------- */
+.section { margin-bottom: 1.75rem; }
+.section-title {
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--st-text-muted); margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.5rem;
+}
+.section-title .count {
+    background: var(--st-bg-soft); border: 1px solid var(--st-border-subtle);
+    color: var(--st-text-secondary); border-radius: 999px; padding: 0 0.5rem; font-size: 0.7rem;
+}
+
+/* ---------- Surface (subtler card) ---------- */
+.surface {
+    background: var(--st-bg-surface); border: 1px solid var(--st-border-subtle);
+    border-radius: var(--st-radius); box-shadow: var(--st-shadow-sm);
+}
+.surface-pad { padding: 1.25rem; }
+.surface-pad-sm { padding: 0.85rem 1rem; }
+.surface + .surface { margin-top: 1rem; }
+
+/* ---------- Status pill ---------- */
+.status-pill {
+    display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.6rem;
+    border-radius: 999px; font-size: 0.75rem; font-weight: 600; line-height: 1.2;
+    border: 1px solid transparent; white-space: nowrap;
+}
+.status-pill::before {
+    content: ""; display: inline-block; width: 0.45rem; height: 0.45rem; border-radius: 50%;
+    background: currentColor; opacity: 0.85;
+}
+.status-pill--todo, .status-pill--default {
+    color: var(--st-status-todo); background: var(--st-status-todo-soft); border-color: rgba(74,82,96,0.18);
+}
+.status-pill--doing, .status-pill--in_progress, .status-pill--inprogress {
+    color: var(--st-status-doing); background: var(--st-status-doing-soft); border-color: rgba(180,83,9,0.18);
+}
+.status-pill--done, .status-pill--complete, .status-pill--completed {
+    color: var(--st-status-done); background: var(--st-status-done-soft); border-color: rgba(21,128,61,0.18);
+}
+.status-pill--blocked {
+    color: var(--st-status-blocked); background: var(--st-status-blocked-soft); border-color: rgba(185,28,28,0.18);
+}
+
+/* ---------- Priority chip ---------- */
+.priority-chip {
+    display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.5rem;
+    border-radius: var(--st-radius-sm); font-size: 0.72rem; font-weight: 600; line-height: 1.2;
+    border: 1px solid transparent;
+}
+.priority-chip i { font-size: 0.7rem; }
+.priority-chip--low { color: var(--st-pri-low); background: var(--st-pri-low-soft); }
+.priority-chip--normal { color: var(--st-pri-normal); background: var(--st-pri-normal-soft); }
+.priority-chip--high { color: var(--st-pri-high); background: var(--st-pri-high-soft); }
+.priority-chip--urgent { color: var(--st-pri-urgent); background: var(--st-pri-urgent-soft); }
+
+/* ---------- Tag chip ---------- */
+.tag-chip {
+    display: inline-flex; padding: 0.1rem 0.5rem; font-size: 0.7rem; font-weight: 500;
+    background: var(--st-bg-soft); border: 1px solid var(--st-border-subtle);
+    color: var(--st-text-secondary); border-radius: var(--st-radius-sm);
+}
+.tag-chip + .tag-chip { margin-left: 0.25rem; }
+
+/* ---------- Icon stat group (signals) ---------- */
+.icon-stats { display: inline-flex; align-items: center; gap: 0.6rem; color: var(--st-text-muted); font-size: 0.8rem; }
+.icon-stats span { display: inline-flex; align-items: center; gap: 0.2rem; }
+.icon-stats i { font-size: 0.85rem; }
+
+/* ---------- Filter bar (compact) ---------- */
+.filter-bar {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: stretch;
+    padding: 0.6rem; background: var(--st-bg-surface);
+    border: 1px solid var(--st-border-subtle); border-radius: var(--st-radius);
+    box-shadow: var(--st-shadow-sm); margin-bottom: 1rem;
+}
+.filter-bar .form-control, .filter-bar .form-select {
+    border-radius: var(--st-radius-sm); border-color: var(--st-border-subtle);
+    background: var(--st-bg-soft);
+}
+.filter-bar .form-control:focus, .filter-bar .form-select:focus {
+    background: var(--st-bg-surface); border-color: var(--st-accent);
+    box-shadow: 0 0 0 3px var(--st-accent-soft);
+}
+.filter-bar__search { flex: 2 1 280px; min-width: 200px; }
+.filter-bar__field { flex: 1 1 140px; min-width: 130px; }
+.filter-bar__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* ---------- Swimlanes (status board) ---------- */
+.board {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem; align-items: start;
+}
+.swimlane {
+    background: var(--st-bg-soft); border: 1px solid var(--st-border-subtle);
+    border-radius: var(--st-radius); padding: 0.85rem; min-height: 4rem;
+}
+.swimlane__header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--st-border-subtle);
+}
+.swimlane__header .status-pill { font-size: 0.78rem; }
+.swimlane__count { font-size: 0.75rem; color: var(--st-text-muted); font-weight: 500; }
+.swimlane__body { display: flex; flex-direction: column; gap: 0.6rem; }
+.swimlane__empty { color: var(--st-text-muted); font-size: 0.82rem; padding: 0.5rem 0.25rem; }
+
+/* ---------- Task card (board view + mobile) ---------- */
+.task-card {
+    display: block; background: var(--st-bg-surface); border: 1px solid var(--st-border-subtle);
+    border-radius: var(--st-radius-sm); padding: 0.7rem 0.85rem; text-decoration: none;
+    color: inherit; box-shadow: var(--st-shadow-sm); transition: border-color 120ms, box-shadow 120ms, transform 120ms;
+}
+.task-card:hover { border-color: var(--st-border-strong); box-shadow: var(--st-shadow-md); color: inherit; }
+.task-card__title { font-weight: 600; color: var(--st-text-primary); margin-bottom: 0.35rem; line-height: 1.3; }
+.task-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: var(--st-text-muted); }
+.task-card__meta a { color: var(--st-text-secondary); text-decoration: none; }
+.task-card__meta a:hover { color: var(--st-accent); text-decoration: underline; }
+.task-card__footer { display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem; }
+.task-card__assignee { font-size: 0.72rem; color: var(--st-text-secondary); }
+.task-card__assignee i { color: var(--st-text-muted); }
+
+/* Inline edit dropdown inside a task card */
+.task-card .form-select-sm.js-autosave {
+    background: transparent; border: 1px dashed transparent; padding: 0 0.25rem; height: auto;
+    font-size: 0.75rem; font-weight: 600; color: inherit;
+    -webkit-appearance: none; appearance: none; cursor: pointer;
+}
+.task-card .form-select-sm.js-autosave:hover, .task-card .form-select-sm.js-autosave:focus {
+    border-color: var(--st-border-subtle); background: var(--st-bg-soft); box-shadow: none;
+}
+
+/* ---------- Flat list view ---------- */
+.task-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.9rem; }
+.task-table thead th {
+    text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--st-text-muted); padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--st-border-subtle);
+    background: var(--st-bg-soft); font-weight: 600;
+}
+.task-table thead th:first-child { border-top-left-radius: var(--st-radius); }
+.task-table thead th:last-child { border-top-right-radius: var(--st-radius); text-align: right; }
+.task-table tbody td {
+    padding: 0.65rem 0.75rem; border-bottom: 1px solid var(--st-border-subtle); vertical-align: middle;
+    background: var(--st-bg-surface);
+}
+.task-table tbody tr:last-child td { border-bottom: 0; }
+.task-table tbody tr:hover td { background: var(--st-bg-soft); }
+.task-table .task-title-cell a { color: var(--st-text-primary); font-weight: 500; text-decoration: none; }
+.task-table .task-title-cell a:hover { color: var(--st-accent); }
+.task-table .task-actions { text-align: right; white-space: nowrap; }
+.task-table .form-select-sm.js-autosave {
+    border: 1px dashed transparent; background: transparent; min-width: 110px; cursor: pointer;
+}
+.task-table .form-select-sm.js-autosave:hover, .task-table .form-select-sm.js-autosave:focus {
+    border-color: var(--st-border-subtle); background: var(--st-bg-soft); box-shadow: none;
+}
+
+/* ---------- Metadata rail (task detail right column) ---------- */
+.metadata-rail {
+    display: flex; flex-direction: column; gap: 0.5rem;
+    background: var(--st-bg-surface); border: 1px solid var(--st-border-subtle);
+    border-radius: var(--st-radius); padding: 1rem; box-shadow: var(--st-shadow-sm);
+    position: sticky; top: 1rem;
+}
+.metadata-rail__row {
+    display: grid; grid-template-columns: 84px 1fr; align-items: start; gap: 0.5rem;
+    padding: 0.4rem 0; border-bottom: 1px solid var(--st-border-subtle);
+}
+.metadata-rail__row:last-child { border-bottom: 0; }
+.metadata-rail__row label {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--st-text-muted);
+    margin: 0.4rem 0 0; font-weight: 600;
+}
+.metadata-rail__row .form-select, .metadata-rail__row .form-control {
+    border-color: var(--st-border-subtle); background: var(--st-bg-soft); font-size: 0.88rem;
+}
+.metadata-rail__row .form-select:focus, .metadata-rail__row .form-control:focus {
+    background: var(--st-bg-surface); border-color: var(--st-accent); box-shadow: 0 0 0 3px var(--st-accent-soft);
+}
+.metadata-rail__value { font-size: 0.88rem; color: var(--st-text-primary); padding: 0.4rem 0; }
+
+/* ---------- Activity / collaboration ---------- */
+.activity-list { display: flex; flex-direction: column; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.activity-list li {
+    display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.88rem; color: var(--st-text-primary);
+    padding: 0.5rem 0.65rem; background: var(--st-bg-soft); border-radius: var(--st-radius-sm);
+}
+.activity-list li strong { color: var(--st-text-primary); margin-right: 0.25rem; }
+.activity-list .text-muted { color: var(--st-text-muted) !important; }
+
+/* ---------- Tabbar (project workspace) ---------- */
+.tabbar {
+    display: flex; flex-wrap: wrap; gap: 0.25rem; border-bottom: 1px solid var(--st-border-subtle);
+    margin-bottom: 1.25rem;
+}
+.tabbar a {
+    padding: 0.55rem 0.9rem; color: var(--st-text-secondary); text-decoration: none;
+    border-bottom: 2px solid transparent; font-weight: 500; font-size: 0.92rem;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+}
+.tabbar a:hover { color: var(--st-text-primary); }
+.tabbar a.active {
+    color: var(--st-accent); border-bottom-color: var(--st-accent); font-weight: 600;
+}
+.tabbar a .count {
+    background: var(--st-bg-soft); border: 1px solid var(--st-border-subtle);
+    color: var(--st-text-muted); border-radius: 999px; padding: 0 0.45rem; font-size: 0.7rem;
+}
+
+/* ---------- Toast for autosave ---------- */
+.st-toast-host {
+    position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 1080;
+    display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;
+    pointer-events: none;
+}
+.st-toast {
+    background: #14161a; color: #fff; padding: 0.55rem 0.9rem; border-radius: var(--st-radius-sm);
+    font-size: 0.85rem; box-shadow: var(--st-shadow-md); display: inline-flex; align-items: center; gap: 0.5rem;
+    opacity: 0; transform: translateY(8px); transition: opacity 160ms, transform 160ms;
+}
+.st-toast.is-visible { opacity: 1; transform: translateY(0); }
+.st-toast--err { background: var(--st-pri-urgent); }
+.st-toast i { font-size: 0.95rem; }
+
+/* ---------- Helpers ---------- */
+.fine-print { color: var(--st-text-muted); font-size: 0.78rem; }
+.empty-hint {
+    color: var(--st-text-muted); font-size: 0.85rem; padding: 0.65rem 0;
+    border: 1px dashed var(--st-border-subtle); border-radius: var(--st-radius-sm);
+    text-align: center;
+}
+.kbd-shortcut {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+    background: var(--st-bg-soft); border: 1px solid var(--st-border-subtle);
+    border-radius: 4px; padding: 1px 5px; font-size: 0.72rem; color: var(--st-text-secondary);
+}
+
+/* ---------- Mobile tweaks ---------- */
+@media (max-width: 767.98px) {
+    .page-header { align-items: flex-start; }
+    .metadata-rail { position: static; }
+    .filter-bar { padding: 0.5rem; }
+    .filter-bar__field, .filter-bar__search, .filter-bar__actions { flex: 1 1 100%; }
+    .filter-bar__actions .btn { flex: 1 1 0; }
+    .task-table { font-size: 0.85rem; }
+}
+
+/* Hide table view on small viewports, show cards instead */
+.task-list-cards { display: none; }
+@media (max-width: 767.98px) {
+    .task-list-table { display: none; }
+    .task-list-cards { display: flex; flex-direction: column; gap: 0.5rem; }
+}
