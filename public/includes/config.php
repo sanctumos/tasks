@@ -171,7 +171,32 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
     if (tableExists($db, 'tasks')) {
         ensureColumnExists($db, 'tasks', 'project_id', 'INTEGER DEFAULT NULL');
         ensureIndexExists($db, 'idx_tasks_project_id', 'CREATE INDEX idx_tasks_project_id ON tasks(project_id)');
+        ensureColumnExists($db, 'tasks', 'list_id', 'INTEGER DEFAULT NULL');
+        ensureIndexExists($db, 'idx_tasks_list_id', 'CREATE INDEX idx_tasks_list_id ON tasks(list_id)');
     }
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS todo_lists (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+    ");
+    ensureIndexExists($db, 'idx_todo_lists_project', 'CREATE INDEX idx_todo_lists_project ON todo_lists(project_id)');
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS user_project_pins (
+            user_id INTEGER NOT NULL,
+            project_id INTEGER NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(user_id, project_id),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+    ");
+    ensureIndexExists($db, 'idx_user_project_pins_user', 'CREATE INDEX idx_user_project_pins_user ON user_project_pins(user_id)');
 }
 
 /** Ensure at least one organization and attach users without org_id (idempotent). */

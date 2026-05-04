@@ -143,8 +143,23 @@ Convenience fields:
 First-class **organizations** and **projects** (Basecamp-shaped directory). Users gain `org_id` and `person_kind` (`team_member` \| `client`); API responses include these fields where users are returned.
 
 - `GET /api/list-organizations.php` — organizations visible to the caller (admins/managers: all; others: their org only).
-- `GET /api/list-directory-projects.php` — project rows in the user’s org (`limit` query param); visibility uses `all_access`, `project_members`, or admin/manager override.
+- `GET /api/list-directory-projects.php` — project rows in the user’s org (`limit` query param); visibility uses `all_access`, `project_members`, or admin/manager override. Users with `person_kind=client` only see projects with `client_visible=1` (plus membership / all-access rules).
 - `POST /api/create-directory-project.php` — JSON: `name`, optional `description`, optional `client_visible`, optional `all_access`; creator becomes project **lead** in `project_members`.
+- `GET /api/get-directory-project.php?id=<id>` — one directory project (404 if not visible).
+- `POST /api/update-directory-project.php` — JSON: `id`, plus any of `name`, `description`, `status` (`active`|`archived`|`trashed`), `client_visible`, `all_access` (admin/manager or project **lead**).
+- `GET /api/list-project-members.php?project_id=<id>`
+- `POST /api/add-project-member.php` — `project_id`, `user_id`, optional `role` (`lead`|`member`|`client`)
+- `POST /api/remove-project-member.php` — `project_id`, `user_id`
+- `GET /api/list-todo-lists.php?project_id=<id>` — to-do list rows for a project.
+- `POST /api/create-todo-list.php` — `project_id`, `name` (lead / admin / manager).
+- `GET /api/list-project-pins.php` — pinned projects for the current user (`limit`).
+- `POST /api/set-project-pin.php` — `project_id`, `pinned` (bool), optional `sort_order` (unpin with `pinned: false`).
+
+### Tasks ↔ directory project
+
+- `POST /api/create-task.php` — optional `project_id` (sets legacy `project` name from directory when valid), optional `list_id` (must belong to the same project; can imply `project_id` if omitted).
+- `POST /api/update-task.php` — optional `project_id` (null clears link and legacy `project`), optional `list_id`.
+- `GET /api/list-tasks.php` — filter by `project_id` and/or `list_id`.
 
 ## Users (admin)
 
@@ -182,7 +197,7 @@ curl -sS -X POST \
     "body":"Check logs and deployment status",
     "status":"todo",
     "priority":"high",
-    "project":"Platform",
+    "project_id":3,
     "tags":["infra","release"],
     "due_at":"2026-02-20T16:00:00Z",
     "rank":10

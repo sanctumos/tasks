@@ -27,6 +27,8 @@ $filters = [
     'created_by_user_id' => $_GET['created_by_user_id'] ?? null,
     'priority' => $priorityFilter,
     'project' => $_GET['project'] ?? null,
+    'project_id' => $_GET['project_id'] ?? null,
+    'list_id' => $_GET['list_id'] ?? null,
     'q' => $_GET['q'] ?? null,
     'due_before' => $_GET['due_before'] ?? null,
     'due_after' => $_GET['due_after'] ?? null,
@@ -44,7 +46,7 @@ $limit = (int)$result['limit'];
 $offset = (int)$result['offset'];
 
 $baseQueryParams = [];
-foreach (['status', 'assigned_to_user_id', 'created_by_user_id', 'priority', 'project', 'q', 'due_before', 'due_after', 'watcher_user_id', 'sort_by', 'sort_dir'] as $k) {
+foreach (['status', 'assigned_to_user_id', 'created_by_user_id', 'priority', 'project', 'project_id', 'list_id', 'q', 'due_before', 'due_after', 'watcher_user_id', 'sort_by', 'sort_dir'] as $k) {
     if (isset($_GET[$k]) && trim((string)$_GET[$k]) !== '') {
         $baseQueryParams[$k] = (string)$_GET[$k];
     }

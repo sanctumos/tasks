@@ -15,6 +15,8 @@ from .exceptions import (
     ValidationError,
 )
 
+_OMIT = object()
+
 
 class TasksClient:
     """
@@ -32,7 +34,7 @@ class TasksClient:
         ...     assigned_to_user_id=1
         ... )
     """
-    
+
     def __init__(self, api_key: str, base_url: str = "https://tasks.example.com"):
         """
         Initialize the Tasks client.
@@ -156,6 +158,8 @@ class TasksClient:
         due_at: Optional[str] = None,
         priority: Optional[str] = None,
         project: Optional[str] = None,
+        project_id: Optional[int] = None,
+        list_id: Optional[int] = None,
         tags: Optional[List[str]] = None,
         rank: Optional[int] = None,
         recurrence_rule: Optional[str] = None,
@@ -196,6 +200,10 @@ class TasksClient:
             data['priority'] = priority
         if project is not None:
             data['project'] = project
+        if project_id is not None:
+            data['project_id'] = project_id
+        if list_id is not None:
+            data['list_id'] = list_id
         if tags is not None:
             data['tags'] = tags
         if rank is not None:
@@ -216,6 +224,8 @@ class TasksClient:
         due_at: Optional[str] = None,
         priority: Optional[str] = None,
         project: Optional[str] = None,
+        project_id: Any = _OMIT,
+        list_id: Any = _OMIT,
         tags: Optional[List[str]] = None,
         rank: Optional[int] = None,
         recurrence_rule: Optional[str] = None,
@@ -263,6 +273,10 @@ class TasksClient:
             data['priority'] = priority
         if project is not None:
             data['project'] = project
+        if project_id is not _OMIT:
+            data['project_id'] = project_id
+        if list_id is not _OMIT:
+            data['list_id'] = list_id
         if tags is not None:
             data['tags'] = tags
         if rank is not None:
@@ -302,6 +316,8 @@ class TasksClient:
         created_by_user_id: Optional[int] = None,
         priority: Optional[str] = None,
         project: Optional[str] = None,
+        project_id: Optional[int] = None,
+        list_id: Optional[int] = None,
         q: Optional[str] = None,
         due_before: Optional[str] = None,
         due_after: Optional[str] = None,
@@ -339,6 +355,10 @@ class TasksClient:
             params['priority'] = priority
         if project is not None:
             params['project'] = project
+        if project_id is not None:
+            params['project_id'] = project_id
+        if list_id is not None:
+            params['list_id'] = list_id
         if q is not None:
             params['q'] = q
         if due_before is not None:
@@ -569,6 +589,74 @@ class TasksClient:
         response = self._request('POST', 'create-directory-project.php', data=payload)
         data = response.get('data') or response
         return data.get('project', data) if isinstance(data, dict) else data
+
+    def get_directory_project(self, project_id: int) -> Dict[str, Any]:
+        response = self._request('GET', 'get-directory-project.php', params={'id': project_id})
+        return response.get('project', {})
+
+    def update_directory_project(
+        self,
+        project_id: int,
+        *,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        status: Optional[str] = None,
+        client_visible: Optional[bool] = None,
+        all_access: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {'id': project_id}
+        if name is not None:
+            payload['name'] = name
+        if description is not None:
+            payload['description'] = description
+        if status is not None:
+            payload['status'] = status
+        if client_visible is not None:
+            payload['client_visible'] = client_visible
+        if all_access is not None:
+            payload['all_access'] = all_access
+        response = self._request('POST', 'update-directory-project.php', data=payload)
+        return response.get('project', {})
+
+    def list_project_members(self, project_id: int) -> List[Dict[str, Any]]:
+        response = self._request('GET', 'list-project-members.php', params={'project_id': project_id})
+        return response.get('members', [])
+
+    def add_project_member(self, project_id: int, user_id: int, role: str = 'member') -> List[Dict[str, Any]]:
+        response = self._request(
+            'POST',
+            'add-project-member.php',
+            data={'project_id': project_id, 'user_id': user_id, 'role': role},
+        )
+        return response.get('members', [])
+
+    def remove_project_member(self, project_id: int, user_id: int) -> List[Dict[str, Any]]:
+        response = self._request(
+            'POST',
+            'remove-project-member.php',
+            data={'project_id': project_id, 'user_id': user_id},
+        )
+        return response.get('members', [])
+
+    def list_todo_lists(self, project_id: int) -> List[Dict[str, Any]]:
+        response = self._request('GET', 'list-todo-lists.php', params={'project_id': project_id})
+        return response.get('todo_lists', [])
+
+    def create_todo_list(self, project_id: int, name: str) -> Dict[str, Any]:
+        response = self._request('POST', 'create-todo-list.php', data={'project_id': project_id, 'name': name})
+        return response
+
+    def list_project_pins(self, limit: int = 200) -> List[Dict[str, Any]]:
+        response = self._request('GET', 'list-project-pins.php', params={'limit': limit})
+        return response.get('pins', [])
+
+    def set_project_pin(self, project_id: int, pinned: bool = True, sort_order: int = 0) -> List[Dict[str, Any]]:
+        response = self._request(
+            'POST',
+            'set-project-pin.php',
+            data={'project_id': project_id, 'pinned': pinned, 'sort_order': sort_order},
+        )
+        return response.get('pins', [])
 
     def list_tags(self, limit: int = 200) -> List[Dict[str, Any]]:
         response = self._request('GET', 'list-tags.php', params={'limit': limit})

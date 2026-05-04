@@ -48,7 +48,7 @@ require __DIR__ . '/_layout_top.php';
 
 <p class="text-muted small">
     These are <strong>project records</strong> in your organization (for access and the project directory).
-    Task list filters still use the text <strong>Project</strong> field on each task until you link tasks to a project id in a later update.
+    Tasks can link via <code>project_id</code> / legacy text <strong>Project</strong>; API and FastAPI expose both.
 </p>
 
 <?php if ($message): ?>
@@ -102,6 +102,7 @@ require __DIR__ . '/_layout_top.php';
                         <th>Client vis.</th>
                         <th>All-access</th>
                         <th>Updated</th>
+                        <th></th>
                     </tr>
                     </thead>
                     <tbody>
@@ -113,6 +114,7 @@ require __DIR__ . '/_layout_top.php';
                             <td><?= !empty($p['client_visible']) ? 'Yes' : 'No' ?></td>
                             <td><?= !empty($p['all_access']) ? 'Yes' : 'No' ?></td>
                             <td class="small text-muted"><?= htmlspecialchars($p['updated_at'] ?? '') ?></td>
+                            <td><a class="btn btn-sm btn-outline-primary" href="/admin/workspace-project.php?id=<?= (int)$p['id'] ?>">Open</a></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
