@@ -5,6 +5,7 @@
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/_helpers.php';
 
 requireAuth();
 $currentUser = getCurrentUser();
@@ -27,8 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $allAccess = isset($_POST['all_access']);
         $result = createDirectoryProject((int)$currentUser['id'], $name, $description, $clientVisible, $allAccess);
         if ($result['success']) {
+            $newProjectId = (int)($result['id'] ?? 0);
+            if ($newProjectId > 0) {
+                header('Location: /admin/project.php?id=' . $newProjectId);
+                exit();
+            }
             $message = 'Project created.';
-            $messageType = 'success';
         } else {
             $message = $result['error'] ?? 'Could not create project';
             $messageType = 'danger';
@@ -38,89 +43,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $projects = listDirectoryProjectsForUser($currentUser, 300);
 
+$pageTitle = 'Projects';
 require __DIR__ . '/_layout_top.php';
 ?>
 
-<div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-2 mb-4">
-    <h1 class="h3 mb-0">Workspace projects</h1>
-    <a class="btn btn-outline-secondary" href="/admin/">Back to Tasks</a>
-</div>
+<?= st_back_link('/admin/', 'Tasks') ?>
 
-<p class="text-muted small">
-    These are <strong>project records</strong> in your organization (for access and the project directory).
-    Tasks can link via <code>project_id</code> / legacy text <strong>Project</strong>; API and FastAPI expose both.
-</p>
+<div class="page-header">
+    <div class="page-header__title">
+        <h1>Projects</h1>
+        <div class="subtitle"><?= count($projects) ?> in your directory</div>
+    </div>
+    <div class="page-header__actions">
+        <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#newProjectModal"><i class="bi bi-plus-lg me-1"></i>New project</button>
+    </div>
+</div>
 
 <?php if ($message): ?>
     <div class="alert alert-<?= htmlspecialchars($messageType) ?>"><?= htmlspecialchars($message) ?></div>
 <?php endif; ?>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <h2 class="h5 mb-3">Create project</h2>
-        <form method="post" action="/admin/workspace-projects.php">
-            <?= csrfInputField() ?>
-            <input type="hidden" name="action" value="create">
-            <div class="row g-3 align-items-end">
-                <div class="col-12 col-md-4">
-                    <label class="form-label">Name</label>
-                    <input class="form-control" name="name" required maxlength="200" placeholder="e.g. Website redesign">
-                </div>
-                <div class="col-12 col-md-5">
-                    <label class="form-label">Description (optional)</label>
-                    <input class="form-control" name="description" placeholder="Short summary">
-                </div>
-                <div class="col-12 col-md-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="client_visible" id="cv" value="1">
-                        <label class="form-check-label" for="cv">Client-visible flag</label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="all_access" id="aa" value="1">
-                        <label class="form-check-label" for="aa">All-access (everyone in org sees it)</label>
-                    </div>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary mt-2">Create project</button>
-        </form>
+<?php if (!$projects): ?>
+    <div class="surface surface-pad text-center">
+        <div class="mb-3" style="font-size: 2rem; color: var(--st-text-muted);"><i class="bi bi-kanban"></i></div>
+        <h2 class="h5 mb-1">No projects yet</h2>
+        <p class="text-muted small mb-3">Group related tasks under a project to give collaborators a workspace.</p>
+        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newProjectModal"><i class="bi bi-plus-lg me-1"></i>Create your first project</button>
     </div>
-</div>
+<?php else: ?>
+    <div class="board" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));">
+        <?php foreach ($projects as $p): ?>
+            <a class="task-card" href="/admin/project.php?id=<?= (int)$p['id'] ?>" style="display: flex; flex-direction: column; gap: 0.4rem;">
+                <div class="d-flex align-items-center justify-content-between">
+                    <span class="task-card__title mb-0"><?= htmlspecialchars($p['name']) ?></span>
+                    <span class="status-pill status-pill--<?= $p['status'] === 'active' ? 'doing' : ($p['status'] === 'archived' ? 'todo' : 'blocked') ?>"><?= htmlspecialchars($p['status']) ?></span>
+                </div>
+                <?php if (!empty($p['description'])): ?>
+                    <div class="text-muted small" style="line-height: 1.35;"><?= htmlspecialchars($p['description']) ?></div>
+                <?php endif; ?>
+                <div class="task-card__meta">
+                    <?php if (!empty($p['all_access'])): ?>
+                        <span><i class="bi bi-globe"></i> all-access</span>
+                    <?php endif; ?>
+                    <?php if (!empty($p['client_visible'])): ?>
+                        <span><i class="bi bi-eye"></i> client-visible</span>
+                    <?php endif; ?>
+                </div>
+                <div class="task-card__footer mt-auto">
+                    <span class="text-muted small">Updated <?= st_relative_time($p['updated_at'] ?? null) ?></span>
+                    <span class="small" style="color: var(--st-accent);">Open <i class="bi bi-arrow-right-short"></i></span>
+                </div>
+            </a>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
 
-<div class="card shadow-sm">
-    <div class="card-body">
-        <h2 class="h5 mb-3">Your project directory</h2>
-        <?php if (!$projects): ?>
-            <p class="text-muted mb-0">No projects yet — create one above or use the API.</p>
-        <?php else: ?>
-            <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Status</th>
-                        <th>Client vis.</th>
-                        <th>All-access</th>
-                        <th>Updated</th>
-                        <th></th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <?php foreach ($projects as $p): ?>
-                        <tr>
-                            <td><?= (int)$p['id'] ?></td>
-                            <td><?= htmlspecialchars($p['name']) ?></td>
-                            <td><?= htmlspecialchars($p['status']) ?></td>
-                            <td><?= !empty($p['client_visible']) ? 'Yes' : 'No' ?></td>
-                            <td><?= !empty($p['all_access']) ? 'Yes' : 'No' ?></td>
-                            <td class="small text-muted"><?= htmlspecialchars($p['updated_at'] ?? '') ?></td>
-                            <td><a class="btn btn-sm btn-outline-primary" href="/admin/workspace-project.php?id=<?= (int)$p['id'] ?>">Open</a></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    </tbody>
-                </table>
-            </div>
-        <?php endif; ?>
+<?php /* New project modal */ ?>
+<div class="modal fade" id="newProjectModal" tabindex="-1" aria-labelledby="newProjectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="/admin/workspace-projects.php">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newProjectModalLabel">New project</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <?= csrfInputField() ?>
+                    <input type="hidden" name="action" value="create">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input class="form-control form-control-lg" name="name" required maxlength="200" placeholder="e.g. Website redesign" autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description <span class="fine-print">(optional)</span></label>
+                        <input class="form-control" name="description" placeholder="Short summary so the team knows what this is">
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="client_visible" id="cvm" value="1">
+                        <label class="form-check-label" for="cvm">Client-visible</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="all_access" id="aam" value="1">
+                        <label class="form-check-label" for="aam">All-access (everyone in the org sees it)</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg me-1"></i>Create project</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
