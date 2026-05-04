@@ -56,6 +56,8 @@ async def list_tasks(
     created_by_user_id: str | None = None,
     priority: str | None = None,
     project: str | None = None,
+    project_id: str | None = None,
+    list_id: str | None = None,
     q: str | None = None,
     due_before: str | None = None,
     due_after: str | None = None,
@@ -73,6 +75,8 @@ async def list_tasks(
         "created_by_user_id": int(created_by_user_id) if created_by_user_id not in (None, "") else None,
         "priority": priority,
         "project": project,
+        "project_id": int(project_id) if project_id not in (None, "") else None,
+        "list_id": int(list_id) if list_id not in (None, "") else None,
         "q": q,
         "due_before": due_before,
         "due_after": due_after,
@@ -83,7 +87,7 @@ async def list_tasks(
         "offset": offset,
     }
     result = logic.tasks.list_tasks(filters, with_pagination=True, api_user=user)
-    base_params = {k: v for k, v in [("status", status), ("assigned_to_user_id", assigned_to_user_id), ("created_by_user_id", created_by_user_id), ("priority", priority), ("project", project), ("q", q), ("due_before", due_before), ("due_after", due_after), ("watcher_user_id", watcher_user_id), ("sort_by", sort_by), ("sort_dir", sort_dir)] if v is not None and str(v).strip() != ""}
+    base_params = {k: v for k, v in [("status", status), ("assigned_to_user_id", assigned_to_user_id), ("created_by_user_id", created_by_user_id), ("priority", priority), ("project", project), ("project_id", project_id), ("list_id", list_id), ("q", q), ("due_before", due_before), ("due_after", due_after), ("watcher_user_id", watcher_user_id), ("sort_by", sort_by), ("sort_dir", sort_dir)] if v is not None and str(v).strip() != ""}
     pagination = response.pagination_meta(request, "/api/list-tasks.php", base_params, result["limit"], result["offset"], result["total"])
     payload = {
         "tasks": result["tasks"],
@@ -145,6 +149,8 @@ async def create_task(request: Request, user: dict = Depends(auth.require_api_us
         "due_at": body.get("due_at"),
         "priority": body.get("priority", "normal"),
         "project": body.get("project"),
+        "project_id": body.get("project_id"),
+        "list_id": body.get("list_id"),
         "tags": body.get("tags", []),
         "rank": body.get("rank", 0),
         "recurrence_rule": body.get("recurrence_rule"),
@@ -181,6 +187,47 @@ async def update_task(request: Request, user: dict = Depends(auth.require_api_us
     for key in ["title", "status", "assigned_to_user_id", "body", "due_at", "priority", "project", "tags", "rank", "recurrence_rule"]:
         if key in body:
             fields[key] = body[key]
+    full_user = logic.users.get_user_by_id(int(user["id"]), False)
+    if not full_user:
+        payload, _ = response.api_error("auth.invalid_user", "User not found", 401)
+        raise HTTPException(status_code=401, detail=payload)
+    if "project_id" in body:
+        res_p = logic.workspace.resolve_task_directory_project_id(full_user, body.get("project_id"), True)
+        if not res_p.get("success"):
+            payload, _ = response.api_error("validation.project_id", res_p.get("error", "Invalid project_id"), 400)
+            raise HTTPException(status_code=400, detail=payload)
+        fields["project_id"] = res_p.get("project_id")
+        if res_p.get("project_id") is None:
+            fields["project"] = None
+        else:
+            fields["project"] = res_p.get("project")
+    if "list_id" in body:
+        lid = body.get("list_id")
+        if lid is None or lid == "":
+            fields["list_id"] = None
+        else:
+            list_id = int(lid)
+            if list_id <= 0:
+                payload, _ = response.api_error("validation.list_id", "Invalid list_id", 400)
+                raise HTTPException(status_code=400, detail=payload)
+            conn = db.get_connection()
+            try:
+                lr = conn.execute("SELECT project_id FROM todo_lists WHERE id = ? LIMIT 1", (list_id,)).fetchone()
+            finally:
+                conn.close()
+            if not lr:
+                payload, _ = response.api_error("validation.list_id", "Invalid list_id", 400)
+                raise HTTPException(status_code=400, detail=payload)
+            lpid = int(lr[0])
+            p_row = logic.workspace.get_directory_project_by_id(lpid)
+            if not p_row or not logic.workspace.user_can_access_directory_project(full_user, p_row):
+                payload, _ = response.api_error("validation.list_id", "Invalid list_id", 400)
+                raise HTTPException(status_code=400, detail=payload)
+            t_pid = int(existing.get("project_id") or 0) if existing.get("project_id") is not None else 0
+            if t_pid > 0 and t_pid != lpid:
+                payload, _ = response.api_error("validation.list_id", "list_id does not match task project", 400)
+                raise HTTPException(status_code=400, detail=payload)
+            fields["list_id"] = list_id
     result = logic.tasks.update_task(task_id, fields)
     if not result.get("success"):
         sc = 404 if (result.get("error") == "Task not found") else 400
@@ -392,6 +439,186 @@ async def create_directory_project_route(request: Request, user: dict = Depends(
         raise HTTPException(status_code=400, detail=payload)
     proj = logic.workspace.get_directory_project_by_id(int(res["id"]))
     return response.json_success(request, {"project": proj}, status_code=201)
+
+
+@app.get("/api/get-directory-project.php")
+async def get_directory_project(request: Request, user: dict = Depends(auth.require_api_user), id: int = 0):
+    from . import logic
+
+    if id <= 0:
+        payload, _ = response.api_error("validation.invalid_id", "Missing or invalid id", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    proj = logic.workspace.get_directory_project_by_id(id)
+    full = logic.users.get_user_by_id(int(user["id"]), False)
+    if not proj or not full or not logic.workspace.user_can_access_directory_project(full, proj):
+        payload, _ = response.api_error("project.not_found", "Project not found", 404)
+        raise HTTPException(status_code=404, detail=payload)
+    return response.json_success(request, {"project": proj})
+
+
+@app.post("/api/update-directory-project.php")
+async def update_directory_project_api(request: Request, user: dict = Depends(auth.require_api_user)):
+    from . import logic
+
+    body = await _read_json_body(request)
+    if body is None:
+        payload, _ = response.api_error("validation.invalid_json", "Invalid JSON body", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    body = body or {}
+    pid = int(body.get("id", 0))
+    if pid <= 0:
+        payload, _ = response.api_error("validation.invalid_id", "Missing or invalid id", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    fields = {k: body[k] for k in ("name", "description", "status", "client_visible", "all_access") if k in body}
+    if not fields:
+        payload, _ = response.api_error("validation.no_fields", "No updatable fields supplied", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    res = logic.workspace.update_directory_project(int(user["id"]), pid, fields)
+    if not res.get("success"):
+        payload, _ = response.api_error("project.update_failed", res.get("error", "Update failed"), 400)
+        raise HTTPException(status_code=400, detail=payload)
+    proj = logic.workspace.get_directory_project_by_id(pid)
+    return response.json_success(request, {"project": proj})
+
+
+@app.get("/api/list-project-members.php")
+async def list_project_members_api(
+    request: Request, user: dict = Depends(auth.require_api_user), project_id: int = 0
+):
+    from . import logic
+
+    if project_id <= 0:
+        payload, _ = response.api_error("validation.invalid_project_id", "Missing or invalid project_id", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    proj = logic.workspace.get_directory_project_by_id(project_id)
+    full = logic.users.get_user_by_id(int(user["id"]), False)
+    if not proj or not full or not logic.workspace.user_can_access_directory_project(full, proj):
+        payload, _ = response.api_error("project.not_found", "Project not found", 404)
+        raise HTTPException(status_code=404, detail=payload)
+    members = logic.workspace.list_project_members(project_id)
+    return response.json_success(request, {"members": members})
+
+
+@app.post("/api/add-project-member.php")
+async def add_project_member_api(request: Request, user: dict = Depends(auth.require_api_user)):
+    from . import logic
+
+    body = await _read_json_body(request)
+    if body is None:
+        payload, _ = response.api_error("validation.invalid_json", "Invalid JSON body", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    body = body or {}
+    project_id = int(body.get("project_id", 0))
+    target_uid = int(body.get("user_id", 0))
+    if project_id <= 0 or target_uid <= 0:
+        payload, _ = response.api_error("validation.invalid_payload", "project_id and user_id required", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    role = str(body.get("role", "member"))
+    res = logic.workspace.add_project_member(int(user["id"]), project_id, target_uid, role)
+    if not res.get("success"):
+        payload, _ = response.api_error("project.member_failed", res.get("error", "Could not add member"), 400)
+        raise HTTPException(status_code=400, detail=payload)
+    members = logic.workspace.list_project_members(project_id)
+    return response.json_success(request, {"members": members})
+
+
+@app.post("/api/remove-project-member.php")
+async def remove_project_member_api(request: Request, user: dict = Depends(auth.require_api_user)):
+    from . import logic
+
+    body = await _read_json_body(request)
+    if body is None:
+        payload, _ = response.api_error("validation.invalid_json", "Invalid JSON body", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    body = body or {}
+    project_id = int(body.get("project_id", 0))
+    target_uid = int(body.get("user_id", 0))
+    if project_id <= 0 or target_uid <= 0:
+        payload, _ = response.api_error("validation.invalid_payload", "project_id and user_id required", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    res = logic.workspace.remove_project_member(int(user["id"]), project_id, target_uid)
+    if not res.get("success"):
+        payload, _ = response.api_error("project.member_failed", res.get("error", "Could not remove member"), 400)
+        raise HTTPException(status_code=400, detail=payload)
+    members = logic.workspace.list_project_members(project_id)
+    return response.json_success(request, {"members": members})
+
+
+@app.get("/api/list-todo-lists.php")
+async def list_todo_lists_api(request: Request, user: dict = Depends(auth.require_api_user), project_id: int = 0):
+    from . import logic
+
+    if project_id <= 0:
+        payload, _ = response.api_error("validation.invalid_project_id", "Missing or invalid project_id", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    full = logic.users.get_user_by_id(int(user["id"]), False)
+    if not full:
+        payload, _ = response.api_error("auth.invalid_user", "User not found", 401)
+        raise HTTPException(status_code=401, detail=payload)
+    lists = logic.workspace.list_todo_lists_for_project(full, project_id)
+    return response.json_success(request, {"todo_lists": lists})
+
+
+@app.post("/api/create-todo-list.php")
+async def create_todo_list_api(request: Request, user: dict = Depends(auth.require_api_user)):
+    from . import logic
+
+    body = await _read_json_body(request)
+    if body is None:
+        payload, _ = response.api_error("validation.invalid_json", "Invalid JSON body", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    body = body or {}
+    project_id = int(body.get("project_id", 0))
+    name = str(body.get("name", ""))
+    if project_id <= 0:
+        payload, _ = response.api_error("validation.invalid_project_id", "Missing or invalid project_id", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    res = logic.workspace.create_todo_list(int(user["id"]), project_id, name)
+    if not res.get("success"):
+        payload, _ = response.api_error("todo_list.create_failed", res.get("error", "Create failed"), 400)
+        raise HTTPException(status_code=400, detail=payload)
+    full = logic.users.get_user_by_id(int(user["id"]), False)
+    lists = logic.workspace.list_todo_lists_for_project(full, project_id) if full else []
+    return response.json_success(request, {"todo_lists": lists, "id": res.get("id")})
+
+
+@app.get("/api/list-project-pins.php")
+async def list_project_pins_api(request: Request, user: dict = Depends(auth.require_api_user), limit: int = 200):
+    from . import logic
+
+    full = logic.users.get_user_by_id(int(user["id"]), False)
+    if not full:
+        payload, _ = response.api_error("auth.invalid_user", "User not found", 401)
+        raise HTTPException(status_code=401, detail=payload)
+    pins = logic.workspace.list_user_project_pins_for_user(full, limit)
+    return response.json_success(request, {"pins": pins})
+
+
+@app.post("/api/set-project-pin.php")
+async def set_project_pin_api(request: Request, user: dict = Depends(auth.require_api_user)):
+    from . import logic
+
+    body = await _read_json_body(request)
+    if body is None:
+        payload, _ = response.api_error("validation.invalid_json", "Invalid JSON body", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    body = body or {}
+    project_id = int(body.get("project_id", 0))
+    if project_id <= 0:
+        payload, _ = response.api_error("validation.invalid_project_id", "Missing or invalid project_id", 400)
+        raise HTTPException(status_code=400, detail=payload)
+    pinned = bool(body.get("pinned", True))
+    sort_order = int(body.get("sort_order", 0))
+    if not pinned:
+        logic.workspace.remove_user_project_pin(int(user["id"]), project_id)
+    else:
+        res = logic.workspace.set_user_project_pin(int(user["id"]), project_id, sort_order)
+        if not res.get("success"):
+            payload, _ = response.api_error("project.pin_failed", res.get("error", "Could not pin project"), 400)
+            raise HTTPException(status_code=400, detail=payload)
+    full = logic.users.get_user_by_id(int(user["id"]), False)
+    pins = logic.workspace.list_user_project_pins_for_user(full, 200) if full else []
+    return response.json_success(request, {"pins": pins})
 
 
 @app.get("/api/list-tags.php")

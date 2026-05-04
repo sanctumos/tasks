@@ -16,6 +16,7 @@ from .helpers import (
 from .statuses import sanitize_status, get_default_task_status_slug
 from .users import get_user_by_id
 from . import audit
+from . import workspace as workspace_module
 from .. import auth as auth_module
 
 
@@ -44,6 +45,21 @@ def hydrate_task_row(row: dict) -> dict:
     row["comment_count"] = int(row.get("comment_count", 0))
     row["attachment_count"] = int(row.get("attachment_count", 0))
     row["watcher_count"] = int(row.get("watcher_count", 0))
+    if "project_id" in row and row.get("project_id") is not None and row.get("project_id") != "":
+        row["project_id"] = int(row["project_id"])
+    else:
+        row["project_id"] = None
+    if "list_id" in row and row.get("list_id") is not None and row.get("list_id") != "":
+        row["list_id"] = int(row["list_id"])
+    else:
+        row["list_id"] = None
+    dname = row.get("directory_project_name")
+    if dname is not None and str(dname).strip() != "":
+        row["directory_project"] = {"id": row.get("project_id"), "name": str(dname)}
+    else:
+        row["directory_project"] = None
+    if "directory_project_name" in row:
+        del row["directory_project_name"]
     return row
 
 
@@ -51,7 +67,8 @@ def get_task_by_id(task_id: int, include_relations: bool = True) -> dict | None:
     db.init_schema()
     conn = db.get_connection()
     cur = conn.execute(
-        """SELECT t.*, ts.label AS status_label, ts.sort_order AS status_sort_order, ts.is_done AS status_is_done,
+        """SELECT t.*, dp.name AS directory_project_name,
+           ts.label AS status_label, ts.sort_order AS status_sort_order, ts.is_done AS status_is_done,
            cu.username AS created_by_username, au.username AS assigned_to_username,
            (SELECT COUNT(*) FROM task_comments tc WHERE tc.task_id = t.id) AS comment_count,
            (SELECT COUNT(*) FROM task_attachments ta WHERE ta.task_id = t.id) AS attachment_count,
@@ -59,6 +76,7 @@ def get_task_by_id(task_id: int, include_relations: bool = True) -> dict | None:
            FROM tasks t
            JOIN users cu ON cu.id = t.created_by_user_id
            LEFT JOIN users au ON au.id = t.assigned_to_user_id
+           LEFT JOIN projects dp ON dp.id = t.project_id
            LEFT JOIN task_statuses ts ON ts.slug = t.status
            WHERE t.id = ? LIMIT 1""",
         (int(task_id),),
@@ -137,6 +155,7 @@ def list_tasks(
     joins = [
         "JOIN users cu ON cu.id = t.created_by_user_id",
         "LEFT JOIN users au ON au.id = t.assigned_to_user_id",
+        "LEFT JOIN projects dp ON dp.id = t.project_id",
         "LEFT JOIN task_statuses ts ON ts.slug = t.status",
     ]
 
@@ -155,6 +174,14 @@ def list_tasks(
     if filters.get("project") and str(filters["project"]).strip():
         where_clauses.append("t.project = ?")
         params.append(str(filters["project"]).strip())
+
+    if filters.get("project_id") is not None and filters["project_id"] != "":
+        where_clauses.append("t.project_id = ?")
+        params.append(int(filters["project_id"]))
+
+    if filters.get("list_id") is not None and filters["list_id"] != "":
+        where_clauses.append("t.list_id = ?")
+        params.append(int(filters["list_id"]))
 
     if filters.get("assigned_to_user_id") is not None and filters["assigned_to_user_id"] != "":
         where_clauses.append("t.assigned_to_user_id = ?")
@@ -208,7 +235,8 @@ def list_tasks(
     where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
 
     select_sql = f"""
-        SELECT t.*, ts.label AS status_label, ts.sort_order AS status_sort_order, ts.is_done AS status_is_done,
+        SELECT t.*, dp.name AS directory_project_name,
+        ts.label AS status_label, ts.sort_order AS status_sort_order, ts.is_done AS status_is_done,
         cu.username AS created_by_username, au.username AS assigned_to_username,
         (SELECT COUNT(*) FROM task_comments tc WHERE tc.task_id = t.id) AS comment_count,
         (SELECT COUNT(*) FROM task_attachments ta WHERE ta.task_id = t.id) AS attachment_count,
@@ -257,7 +285,18 @@ def create_task(
         status_slug = get_default_task_status_slug()
 
     body = normalize_task_body(body)
+    creator_user = get_user_by_id(created_by_user_id, False)
     project = normalize_task_project(options.get("project"))
+    project_fk = None
+    if options.get("project_id") is not None and str(options.get("project_id")).strip() != "":
+        if not creator_user:
+            return {"success": False, "error": "Invalid creator user"}
+        resolved = workspace_module.resolve_task_directory_project_id(creator_user, options.get("project_id"), False)
+        if not resolved.get("success"):
+            return {"success": False, "error": resolved.get("error", "Invalid project_id")}
+        project_fk = resolved.get("project_id")
+        if resolved.get("project"):
+            project = resolved["project"]
     due_at = parse_datetime_or_null(options.get("due_at"))
     if options.get("due_at") is not None and due_at is None:
         return {"success": False, "error": "Invalid due_at datetime"}
@@ -277,11 +316,44 @@ def create_task(
     else:
         auid = None
 
+    list_id_opt = int(options.get("list_id") or 0)
+    if list_id_opt > 0:
+        if not creator_user:
+            return {"success": False, "error": "Invalid creator user"}
+        conn_pre = db.get_connection()
+        lr = conn_pre.execute("SELECT project_id FROM todo_lists WHERE id = ? LIMIT 1", (list_id_opt,)).fetchone()
+        conn_pre.close()
+        if not lr:
+            return {"success": False, "error": "Invalid list_id"}
+        lpid = int(lr[0])
+        p_row = workspace_module.get_directory_project_by_id(lpid)
+        if not p_row or not workspace_module.user_can_access_directory_project(creator_user, p_row):
+            return {"success": False, "error": "Invalid list_id"}
+        if project_fk is not None and project_fk != lpid:
+            return {"success": False, "error": "list_id does not belong to the selected project"}
+        if project_fk is None:
+            project_fk = lpid
+            project = str(p_row["name"])
+
     conn = db.get_connection()
     conn.execute(
-        """INSERT INTO tasks (title, body, status, due_at, priority, project, tags_json, rank, recurrence_rule, created_by_user_id, assigned_to_user_id, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))""",
-        (title, body, status_slug, due_at, priority, project, tags_json, rank, rrule, created_by_user_id, auid),
+        """INSERT INTO tasks (title, body, status, due_at, priority, project, project_id, list_id, tags_json, rank, recurrence_rule, created_by_user_id, assigned_to_user_id, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))""",
+        (
+            title,
+            body,
+            status_slug,
+            due_at,
+            priority,
+            project,
+            project_fk,
+            list_id_opt if list_id_opt > 0 else None,
+            tags_json,
+            rank,
+            rrule,
+            created_by_user_id,
+            auid,
+        ),
     )
     task_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.commit()
@@ -352,6 +424,24 @@ def update_task(task_id: int, fields: dict) -> dict:
         sets.append("project = ?")
         params.append(project)
 
+    if "project_id" in fields:
+        v = fields["project_id"]
+        if v is None or v == "":
+            sets.append("project_id = ?")
+            params.append(None)
+        else:
+            sets.append("project_id = ?")
+            params.append(int(v))
+
+    if "list_id" in fields:
+        v = fields["list_id"]
+        if v is None or v == "":
+            sets.append("list_id = ?")
+            params.append(None)
+        else:
+            sets.append("list_id = ?")
+            params.append(int(v))
+
     if "tags" in fields:
         tags_json = encode_tags_json(normalize_tags(fields["tags"]))
         sets.append("tags_json = ?")
@@ -411,6 +501,8 @@ def bulk_create_tasks(items: list[dict], created_by_user_id: int) -> dict:
                 "due_at": item.get("due_at"),
                 "priority": item.get("priority", "normal"),
                 "project": item.get("project"),
+                "project_id": item.get("project_id"),
+                "list_id": item.get("list_id"),
                 "tags": item.get("tags", []),
                 "rank": item.get("rank", 0),
                 "recurrence_rule": item.get("recurrence_rule"),

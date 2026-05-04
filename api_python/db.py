@@ -124,6 +124,47 @@ def _apply_workspace_schema(conn: sqlite3.Connection) -> None:
             "idx_tasks_project_id",
             "CREATE INDEX idx_tasks_project_id ON tasks(project_id)",
         )
+        _ensure_column_exists(conn, "tasks", "list_id", "INTEGER DEFAULT NULL")
+        _ensure_index_exists(
+            conn,
+            "idx_tasks_list_id",
+            "CREATE INDEX idx_tasks_list_id ON tasks(list_id)",
+        )
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS todo_lists (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+        """
+    )
+    _ensure_index_exists(
+        conn,
+        "idx_todo_lists_project",
+        "CREATE INDEX idx_todo_lists_project ON todo_lists(project_id)",
+    )
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS user_project_pins (
+            user_id INTEGER NOT NULL,
+            project_id INTEGER NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY(user_id, project_id),
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+        """
+    )
+    _ensure_index_exists(
+        conn,
+        "idx_user_project_pins_user",
+        "CREATE INDEX idx_user_project_pins_user ON user_project_pins(user_id)",
+    )
 
 
 def _ensure_default_organization_and_users(conn: sqlite3.Connection) -> None:

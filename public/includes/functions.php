@@ -990,6 +990,25 @@ function hydrateTaskRow(array $row): array {
     $row['comment_count'] = isset($row['comment_count']) ? (int)$row['comment_count'] : 0;
     $row['attachment_count'] = isset($row['attachment_count']) ? (int)$row['attachment_count'] : 0;
     $row['watcher_count'] = isset($row['watcher_count']) ? (int)$row['watcher_count'] : 0;
+    if (array_key_exists('project_id', $row)) {
+        $row['project_id'] = $row['project_id'] !== null && $row['project_id'] !== '' ? (int)$row['project_id'] : null;
+    }
+    if (array_key_exists('list_id', $row)) {
+        $row['list_id'] = $row['list_id'] !== null && $row['list_id'] !== '' ? (int)$row['list_id'] : null;
+    } else {
+        $row['list_id'] = null;
+    }
+    if (isset($row['directory_project_name']) && $row['directory_project_name'] !== null && (string)$row['directory_project_name'] !== '') {
+        $row['directory_project'] = [
+            'id' => $row['project_id'],
+            'name' => (string)$row['directory_project_name'],
+        ];
+    } else {
+        $row['directory_project'] = null;
+    }
+    if (array_key_exists('directory_project_name', $row)) {
+        unset($row['directory_project_name']);
+    }
     return $row;
 }
 
@@ -1017,7 +1036,22 @@ function createTask($title, $status, $createdByUserId, $assignedToUserId = null,
     }
 
     $body = normalizeTaskBody($body);
+    $creatorUser = getUserById($createdByUserId, false);
     $project = normalizeTaskProject($options['project'] ?? null);
+    $projectFk = null;
+    if (array_key_exists('project_id', $options) && $options['project_id'] !== null && $options['project_id'] !== '') {
+        if (!$creatorUser) {
+            return ['success' => false, 'error' => 'Invalid creator user'];
+        }
+        $resolved = resolveTaskDirectoryProjectId($creatorUser, $options['project_id'], false);
+        if (!$resolved['success']) {
+            return ['success' => false, 'error' => $resolved['error'] ?? 'Invalid project_id'];
+        }
+        $projectFk = $resolved['project_id'];
+        if ($resolved['project'] !== null && $resolved['project'] !== '') {
+            $project = $resolved['project'];
+        }
+    }
     $dueAt = parseDateTimeOrNull($options['due_at'] ?? null);
     if (($options['due_at'] ?? null) !== null && $dueAt === null) {
         return ['success' => false, 'error' => 'Invalid due_at datetime'];
@@ -1041,16 +1075,42 @@ function createTask($title, $status, $createdByUserId, $assignedToUserId = null,
         $assignedToUserId = null;
     }
 
+    $listIdOpt = isset($options['list_id']) ? (int)$options['list_id'] : 0;
+    if ($listIdOpt > 0) {
+        if (!$creatorUser) {
+            return ['success' => false, 'error' => 'Invalid creator user'];
+        }
+        $dbPre = getDbConnection();
+        $ls = $dbPre->prepare('SELECT project_id FROM todo_lists WHERE id = :i LIMIT 1');
+        $ls->bindValue(':i', $listIdOpt, SQLITE3_INTEGER);
+        $lr = $ls->execute()->fetchArray(SQLITE3_ASSOC);
+        if (!$lr) {
+            return ['success' => false, 'error' => 'Invalid list_id'];
+        }
+        $lpid = (int)$lr['project_id'];
+        $pRow = getDirectoryProjectById($lpid);
+        if (!$pRow || !userCanAccessDirectoryProject($creatorUser, $pRow)) {
+            return ['success' => false, 'error' => 'Invalid list_id'];
+        }
+        if ($projectFk !== null && $projectFk !== $lpid) {
+            return ['success' => false, 'error' => 'list_id does not belong to the selected project'];
+        }
+        if ($projectFk === null) {
+            $projectFk = $lpid;
+            $project = (string)$pRow['name'];
+        }
+    }
+
     $db = getDbConnection();
     $stmt = $db->prepare("
         INSERT INTO tasks
         (
-            title, body, status, due_at, priority, project, tags_json, rank, recurrence_rule,
+            title, body, status, due_at, priority, project, project_id, list_id, tags_json, rank, recurrence_rule,
             created_by_user_id, assigned_to_user_id, created_at, updated_at
         )
         VALUES
         (
-            :title, :body, :status, :due_at, :priority, :project, :tags_json, :rank, :recurrence_rule,
+            :title, :body, :status, :due_at, :priority, :project, :project_id, :list_id, :tags_json, :rank, :recurrence_rule,
             :cuid, :auid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         )
     ");
@@ -1060,6 +1120,12 @@ function createTask($title, $status, $createdByUserId, $assignedToUserId = null,
     $stmt->bindValue(':due_at', $dueAt, $dueAt === null ? SQLITE3_NULL : SQLITE3_TEXT);
     $stmt->bindValue(':priority', $priority, SQLITE3_TEXT);
     $stmt->bindValue(':project', $project, $project === null ? SQLITE3_NULL : SQLITE3_TEXT);
+    $stmt->bindValue(':project_id', $projectFk, $projectFk === null ? SQLITE3_NULL : SQLITE3_INTEGER);
+    if ($listIdOpt > 0) {
+        $stmt->bindValue(':list_id', $listIdOpt, SQLITE3_INTEGER);
+    } else {
+        $stmt->bindValue(':list_id', null, SQLITE3_NULL);
+    }
     $stmt->bindValue(':tags_json', $tagsJson, $tagsJson === null ? SQLITE3_NULL : SQLITE3_TEXT);
     $stmt->bindValue(':rank', $rank, SQLITE3_INTEGER);
     $stmt->bindValue(':recurrence_rule', $rrule, $rrule === null ? SQLITE3_NULL : SQLITE3_TEXT);
@@ -1091,6 +1157,7 @@ function getTaskById($id, bool $includeRelations = true): ?array {
     $stmt = $db->prepare("
         SELECT
           t.*,
+          dp.name AS directory_project_name,
           ts.label AS status_label,
           ts.sort_order AS status_sort_order,
           ts.is_done AS status_is_done,
@@ -1102,6 +1169,7 @@ function getTaskById($id, bool $includeRelations = true): ?array {
         FROM tasks t
         JOIN users cu ON cu.id = t.created_by_user_id
         LEFT JOIN users au ON au.id = t.assigned_to_user_id
+        LEFT JOIN projects dp ON dp.id = t.project_id
         LEFT JOIN task_statuses ts ON ts.slug = t.status
         LEFT JOIN (
             SELECT task_id, COUNT(*) AS comment_count
@@ -1162,6 +1230,16 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
     if (isset($filters['project']) && trim((string)$filters['project']) !== '') {
         $where[] = 't.project = :project';
         $params[':project'] = [trim((string)$filters['project']), SQLITE3_TEXT];
+    }
+
+    if (array_key_exists('project_id', $filters) && $filters['project_id'] !== null && $filters['project_id'] !== '') {
+        $where[] = 't.project_id = :project_id';
+        $params[':project_id'] = [(int)$filters['project_id'], SQLITE3_INTEGER];
+    }
+
+    if (array_key_exists('list_id', $filters) && $filters['list_id'] !== null && $filters['list_id'] !== '') {
+        $where[] = 't.list_id = :list_id';
+        $params[':list_id'] = [(int)$filters['list_id'], SQLITE3_INTEGER];
     }
 
     if (array_key_exists('assigned_to_user_id', $filters) && $filters['assigned_to_user_id'] !== null && $filters['assigned_to_user_id'] !== '') {
@@ -1228,6 +1306,7 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
     $selectSql = "
         SELECT
           t.*,
+          dp.name AS directory_project_name,
           ts.label AS status_label,
           ts.sort_order AS status_sort_order,
           ts.is_done AS status_is_done,
@@ -1239,6 +1318,7 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
         FROM tasks t
         JOIN users cu ON cu.id = t.created_by_user_id
         LEFT JOIN users au ON au.id = t.assigned_to_user_id
+        LEFT JOIN projects dp ON dp.id = t.project_id
         LEFT JOIN task_statuses ts ON ts.slug = t.status
         LEFT JOIN (
             SELECT task_id, COUNT(*) AS comment_count
@@ -1376,6 +1456,28 @@ function updateTask($id, $fields = []): array {
         $params[':project'] = [$project, $project === null ? SQLITE3_NULL : SQLITE3_TEXT];
     }
 
+    if (array_key_exists('project_id', $fields)) {
+        $pidRaw = $fields['project_id'];
+        if ($pidRaw === null || $pidRaw === '') {
+            $sets[] = 'project_id = :project_id';
+            $params[':project_id'] = [null, SQLITE3_NULL];
+        } else {
+            $sets[] = 'project_id = :project_id';
+            $params[':project_id'] = [(int)$pidRaw, SQLITE3_INTEGER];
+        }
+    }
+
+    if (array_key_exists('list_id', $fields)) {
+        $lidRaw = $fields['list_id'];
+        if ($lidRaw === null || $lidRaw === '') {
+            $sets[] = 'list_id = :list_id';
+            $params[':list_id'] = [null, SQLITE3_NULL];
+        } else {
+            $sets[] = 'list_id = :list_id';
+            $params[':list_id'] = [(int)$lidRaw, SQLITE3_INTEGER];
+        }
+    }
+
     if (array_key_exists('tags', $fields)) {
         $tagsJson = encodeTagsJson(normalizeTags($fields['tags']));
         $sets[] = 'tags_json = :tags_json';
@@ -1434,6 +1536,113 @@ function listOrganizations(): array {
     return $rows;
 }
 
+/** Valid directory project lifecycle status values. */
+function normalizeDirectoryProjectStatus(?string $status): ?string {
+    $s = strtolower(trim((string)$status));
+    if (in_array($s, ['active', 'archived', 'trashed'], true)) {
+        return $s;
+    }
+    return null;
+}
+
+/** lead | member | client */
+function normalizeProjectMemberRole(?string $role): ?string {
+    $r = strtolower(trim((string)$role));
+    if (in_array($r, ['lead', 'member', 'client'], true)) {
+        return $r;
+    }
+    return null;
+}
+
+function getProjectMemberRole(int $userId, int $projectId): ?string {
+    if ($userId <= 0 || $projectId <= 0) {
+        return null;
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare('SELECT role FROM project_members WHERE project_id = :p AND user_id = :u LIMIT 1');
+    $stmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $stmt->bindValue(':u', $userId, SQLITE3_INTEGER);
+    $res = $stmt->execute();
+    $row = $res->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        return null;
+    }
+    return normalizeProjectMemberRole($row['role']) ?? 'member';
+}
+
+/**
+ * Whether the user may see this project row in the directory (non-trashed; org match; client_visible for clients; membership or staff).
+ */
+function userCanAccessDirectoryProject(array $userRow, ?array $project): bool {
+    if (!$project) {
+        return false;
+    }
+    $orgId = isset($userRow['org_id']) ? (int)$userRow['org_id'] : 0;
+    if ($orgId <= 0 || (int)($project['org_id'] ?? 0) !== $orgId) {
+        return false;
+    }
+    if (($project['status'] ?? '') === 'trashed') {
+        return false;
+    }
+    $pk = normalizePersonKind($userRow['person_kind'] ?? 'team_member');
+    if ($pk === 'client' && empty((int)($project['client_visible'] ?? 0))) {
+        return false;
+    }
+    $role = (string)($userRow['role'] ?? 'member');
+    if (in_array($role, ['admin', 'manager'], true) && $pk !== 'client') {
+        return true;
+    }
+    if (!empty((int)($project['all_access'] ?? 0))) {
+        return true;
+    }
+    $uid = (int)$userRow['id'];
+    $pid = (int)$project['id'];
+    $db = getDbConnection();
+    $stmt = $db->prepare('SELECT 1 FROM project_members WHERE project_id = :p AND user_id = :u LIMIT 1');
+    $stmt->bindValue(':p', $pid, SQLITE3_INTEGER);
+    $stmt->bindValue(':u', $uid, SQLITE3_INTEGER);
+    $res = $stmt->execute();
+    return (bool)$res->fetchArray(SQLITE3_ASSOC);
+}
+
+/** Team users who are project lead or org admin/manager may change project settings and membership. */
+function userCanManageDirectoryProject(array $userRow, array $project): bool {
+    if (!userCanAccessDirectoryProject($userRow, $project)) {
+        return false;
+    }
+    if (normalizePersonKind($userRow['person_kind'] ?? 'team_member') === 'client') {
+        return false;
+    }
+    $role = (string)($userRow['role'] ?? 'member');
+    if (in_array($role, ['admin', 'manager'], true)) {
+        return true;
+    }
+    return getProjectMemberRole((int)$userRow['id'], (int)$project['id']) === 'lead';
+}
+
+/**
+ * Resolve optional project_id for task create/update: must be in user's org and visible in directory.
+ *
+ * @return array{success:bool, project_id:?int, project:?string, error?:string}
+ */
+function resolveTaskDirectoryProjectId(array $userRow, $projectIdRaw, bool $allowNull = true): array {
+    if ($projectIdRaw === null || $projectIdRaw === '') {
+        if (!$allowNull) {
+            return ['success' => false, 'error' => 'project_id is required'];
+        }
+        return ['success' => true, 'project_id' => null, 'project' => null];
+    }
+    $pid = (int)$projectIdRaw;
+    if ($pid <= 0) {
+        return ['success' => false, 'error' => 'Invalid project_id'];
+    }
+    $proj = getDirectoryProjectById($pid);
+    if (!$proj || !userCanAccessDirectoryProject($userRow, $proj)) {
+        return ['success' => false, 'error' => 'Project not found or not accessible'];
+    }
+    return ['success' => true, 'project_id' => $pid, 'project' => (string)$proj['name']];
+}
+
 /**
  * Project entities (directory) visible to the given user within their org.
  */
@@ -1442,16 +1651,20 @@ function listDirectoryProjectsForUser(array $userRow, int $limit = 200): array {
     $uid = (int)$userRow['id'];
     $orgId = isset($userRow['org_id']) ? (int)$userRow['org_id'] : 0;
     $role = (string)($userRow['role'] ?? 'member');
+    $pk = normalizePersonKind($userRow['person_kind'] ?? 'team_member');
+    $clientOnly = ($pk === 'client');
     if ($orgId <= 0) {
         return [];
     }
     $db = getDbConnection();
-    $canSeeAll = in_array($role, ['admin', 'manager'], true);
+    $cvClause = $clientOnly ? ' AND client_visible = 1' : '';
+    $cvClauseP = $clientOnly ? ' AND p.client_visible = 1' : '';
+    $canSeeAll = in_array($role, ['admin', 'manager'], true) && !$clientOnly;
     if ($canSeeAll) {
         $stmt = $db->prepare("
             SELECT id, org_id, name, description, status, client_visible, all_access, created_at, updated_at
             FROM projects
-            WHERE org_id = :org AND status != 'trashed'
+            WHERE org_id = :org AND status != 'trashed'{$cvClause}
             ORDER BY name COLLATE NOCASE ASC
             LIMIT :lim
         ");
@@ -1463,7 +1676,7 @@ function listDirectoryProjectsForUser(array $userRow, int $limit = 200): array {
             FROM projects p
             LEFT JOIN project_members pm ON pm.project_id = p.id AND pm.user_id = :uid
             WHERE p.org_id = :org
-              AND p.status != 'trashed'
+              AND p.status != 'trashed'{$cvClauseP}
               AND (p.all_access = 1 OR pm.user_id IS NOT NULL)
             ORDER BY p.name COLLATE NOCASE ASC
             LIMIT :lim
@@ -1562,6 +1775,338 @@ function createDirectoryProject(int $userId, string $name, ?string $description 
         }
         return ['success' => false, 'error' => 'Could not create project'];
     }
+}
+
+/**
+ * Update directory project fields (admin/manager org-wide or project lead).
+ *
+ * @param array<string,mixed> $fields
+ */
+function updateDirectoryProject(int $userId, int $projectId, array $fields): array {
+    $proj = getDirectoryProjectById($projectId);
+    $actor = getUserById($userId, false);
+    if (!$proj || !$actor) {
+        return ['success' => false, 'error' => 'Project not found'];
+    }
+    if (!userCanManageDirectoryProject($actor, $proj)) {
+        return ['success' => false, 'error' => 'Insufficient permission to update this project'];
+    }
+
+    $sets = [];
+    $params = [':id' => [$projectId, SQLITE3_INTEGER]];
+
+    if (array_key_exists('name', $fields)) {
+        $name = trim((string)$fields['name']);
+        if ($name === '') {
+            return ['success' => false, 'error' => 'Project name cannot be empty'];
+        }
+        $sets[] = 'name = :name';
+        $params[':name'] = [$name, SQLITE3_TEXT];
+    }
+    if (array_key_exists('description', $fields)) {
+        $d = $fields['description'];
+        $descr = ($d === null || $d === '') ? null : trim((string)$d);
+        $sets[] = 'description = :description';
+        $params[':description'] = [$descr, $descr === null ? SQLITE3_NULL : SQLITE3_TEXT];
+    }
+    if (array_key_exists('status', $fields)) {
+        $st = normalizeDirectoryProjectStatus((string)$fields['status']);
+        if ($st === null) {
+            return ['success' => false, 'error' => 'Invalid status (use active, archived, or trashed)'];
+        }
+        $sets[] = 'status = :status';
+        $params[':status'] = [$st, SQLITE3_TEXT];
+    }
+    if (array_key_exists('client_visible', $fields)) {
+        $sets[] = 'client_visible = :client_visible';
+        $params[':client_visible'] = [empty($fields['client_visible']) ? 0 : 1, SQLITE3_INTEGER];
+    }
+    if (array_key_exists('all_access', $fields)) {
+        $sets[] = 'all_access = :all_access';
+        $params[':all_access'] = [empty($fields['all_access']) ? 0 : 1, SQLITE3_INTEGER];
+    }
+
+    if (!$sets) {
+        return ['success' => false, 'error' => 'No fields to update'];
+    }
+
+    $now = gmdate('Y-m-d H:i:s');
+    $sets[] = 'updated_at = :u_at';
+    $params[':u_at'] = [$now, SQLITE3_TEXT];
+
+    $db = getDbConnection();
+    $sql = 'UPDATE projects SET ' . implode(', ', $sets) . ' WHERE id = :id';
+    try {
+        $stmt = $db->prepare($sql);
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v[0], $v[1]);
+        }
+        $stmt->execute();
+    } catch (Throwable $e) {
+        if (strpos($e->getMessage(), 'UNIQUE') !== false) {
+            return ['success' => false, 'error' => 'A project with this name already exists in your organization'];
+        }
+        return ['success' => false, 'error' => 'Could not update project'];
+    }
+
+    createAuditLog($userId, 'project.update', 'project', (string)$projectId, ['fields' => array_keys($fields)]);
+    return ['success' => true];
+}
+
+/** Members of a project with username (same-org users only). */
+function listProjectMembers(int $projectId): array {
+    if ($projectId <= 0) {
+        return [];
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare("
+        SELECT pm.project_id, pm.user_id, pm.role, pm.created_at,
+               u.username, u.role AS user_role, u.person_kind
+        FROM project_members pm
+        JOIN users u ON u.id = pm.user_id
+        WHERE pm.project_id = :p
+        ORDER BY u.username COLLATE NOCASE ASC
+    ");
+    $stmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $res = $stmt->execute();
+    $rows = [];
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $row['project_id'] = (int)$row['project_id'];
+        $row['user_id'] = (int)$row['user_id'];
+        $row['person_kind'] = normalizePersonKind($row['person_kind'] ?? 'team_member');
+        $rows[] = $row;
+    }
+    return $rows;
+}
+
+function addProjectMember(int $actorUserId, int $projectId, int $targetUserId, string $memberRole = 'member'): array {
+    $proj = getDirectoryProjectById($projectId);
+    $actor = getUserById($actorUserId, false);
+    $target = getUserById($targetUserId, false);
+    if (!$proj || !$actor || !$target) {
+        return ['success' => false, 'error' => 'User or project not found'];
+    }
+    if (!userCanManageDirectoryProject($actor, $proj)) {
+        return ['success' => false, 'error' => 'Insufficient permission to manage members'];
+    }
+    $orgId = (int)$proj['org_id'];
+    if ((int)($target['org_id'] ?? 0) !== $orgId) {
+        return ['success' => false, 'error' => 'User is not in this organization'];
+    }
+    $mr = normalizeProjectMemberRole($memberRole);
+    if ($mr === null) {
+        return ['success' => false, 'error' => 'Invalid member role'];
+    }
+
+    $db = getDbConnection();
+    if ($mr === 'lead') {
+        $demote = $db->prepare("UPDATE project_members SET role = 'member' WHERE project_id = :p AND role = 'lead'");
+        $demote->bindValue(':p', $projectId, SQLITE3_INTEGER);
+        $demote->execute();
+    }
+
+    try {
+        $ins = $db->prepare('INSERT INTO project_members (project_id, user_id, role) VALUES (:p, :u, :r)');
+        $ins->bindValue(':p', $projectId, SQLITE3_INTEGER);
+        $ins->bindValue(':u', $targetUserId, SQLITE3_INTEGER);
+        $ins->bindValue(':r', $mr, SQLITE3_TEXT);
+        $ins->execute();
+    } catch (Throwable $e) {
+        if (strpos($e->getMessage(), 'UNIQUE') !== false) {
+            $up = $db->prepare('UPDATE project_members SET role = :r WHERE project_id = :p AND user_id = :u');
+            $up->bindValue(':r', $mr, SQLITE3_TEXT);
+            $up->bindValue(':p', $projectId, SQLITE3_INTEGER);
+            $up->bindValue(':u', $targetUserId, SQLITE3_INTEGER);
+            $up->execute();
+        } else {
+            return ['success' => false, 'error' => 'Could not add project member'];
+        }
+    }
+
+    createAuditLog($actorUserId, 'project.member_add', 'project', (string)$projectId, ['user_id' => $targetUserId, 'role' => $mr]);
+    return ['success' => true];
+}
+
+function removeProjectMember(int $actorUserId, int $projectId, int $targetUserId): array {
+    $proj = getDirectoryProjectById($projectId);
+    $actor = getUserById($actorUserId, false);
+    if (!$proj || !$actor) {
+        return ['success' => false, 'error' => 'Not found'];
+    }
+    if (!userCanManageDirectoryProject($actor, $proj)) {
+        return ['success' => false, 'error' => 'Insufficient permission'];
+    }
+    $current = getProjectMemberRole($targetUserId, $projectId);
+    if ($current === null) {
+        return ['success' => false, 'error' => 'User is not on this project'];
+    }
+    if ($current === 'lead') {
+        $db = getDbConnection();
+        $cnt = $db->prepare('SELECT COUNT(*) AS c FROM project_members WHERE project_id = :p');
+        $cnt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+        $crow = $cnt->execute()->fetchArray(SQLITE3_ASSOC);
+        $n = (int)($crow['c'] ?? 0);
+        if ($n <= 1) {
+            return ['success' => false, 'error' => 'Cannot remove the last member; trash the project or add another lead first'];
+        }
+    }
+
+    $db = getDbConnection();
+    $del = $db->prepare('DELETE FROM project_members WHERE project_id = :p AND user_id = :u');
+    $del->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $del->bindValue(':u', $targetUserId, SQLITE3_INTEGER);
+    $del->execute();
+
+    createAuditLog($actorUserId, 'project.member_remove', 'project', (string)$projectId, ['user_id' => $targetUserId]);
+    return ['success' => true];
+}
+
+/**
+ * Idempotent: set tasks.project_id where legacy tasks.project string matches a directory project name in the same org as the task creator (best-effort).
+ */
+function backfillTaskProjectIdsFromLegacyNames(): array {
+    $db = getDbConnection();
+    $updated = 0;
+    $res = $db->query("
+        SELECT t.id, t.project, t.created_by_user_id
+        FROM tasks t
+        WHERE t.project_id IS NULL
+          AND t.project IS NOT NULL
+          AND TRIM(t.project) <> ''
+    ");
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $creator = getUserById((int)$row['created_by_user_id'], false);
+        $orgId = $creator && isset($creator['org_id']) ? (int)$creator['org_id'] : 0;
+        if ($orgId <= 0) {
+            continue;
+        }
+        $name = trim((string)$row['project']);
+        $stmt = $db->prepare('SELECT id FROM projects WHERE org_id = :o AND name = :n AND status != \'trashed\' LIMIT 1');
+        $stmt->bindValue(':o', $orgId, SQLITE3_INTEGER);
+        $stmt->bindValue(':n', $name, SQLITE3_TEXT);
+        $q = $stmt->execute();
+        $prow = $q->fetchArray(SQLITE3_ASSOC);
+        if (!$prow) {
+            continue;
+        }
+        $pid = (int)$prow['id'];
+        $u = $db->prepare('UPDATE tasks SET project_id = :p WHERE id = :id AND project_id IS NULL');
+        $u->bindValue(':p', $pid, SQLITE3_INTEGER);
+        $u->bindValue(':id', (int)$row['id'], SQLITE3_INTEGER);
+        $u->execute();
+        if ($db->changes() > 0) {
+            $updated++;
+        }
+    }
+    return ['updated' => $updated];
+}
+
+/** To-do lists under a directory project (requires directory access). */
+function listTodoListsForProject(array $userRow, int $projectId): array {
+    if ($projectId <= 0) {
+        return [];
+    }
+    $proj = getDirectoryProjectById($projectId);
+    if (!$proj || !userCanAccessDirectoryProject($userRow, $proj)) {
+        return [];
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare('SELECT id, project_id, name, sort_order, created_at FROM todo_lists WHERE project_id = :p ORDER BY sort_order ASC, name COLLATE NOCASE ASC');
+    $stmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $res = $stmt->execute();
+    $rows = [];
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $row['id'] = (int)$row['id'];
+        $row['project_id'] = (int)$row['project_id'];
+        $row['sort_order'] = (int)$row['sort_order'];
+        $rows[] = $row;
+    }
+    return $rows;
+}
+
+function createTodoList(int $userId, int $projectId, string $name): array {
+    $proj = getDirectoryProjectById($projectId);
+    $actor = getUserById($userId, false);
+    if (!$proj || !$actor || !userCanManageDirectoryProject($actor, $proj)) {
+        return ['success' => false, 'error' => 'Insufficient permission'];
+    }
+    $name = trim($name);
+    if ($name === '') {
+        return ['success' => false, 'error' => 'List name is required'];
+    }
+    $db = getDbConnection();
+    $mxStmt = $db->prepare('SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_sort FROM todo_lists WHERE project_id = :p');
+    $mxStmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $mxRow = $mxStmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $maxSort = (int)($mxRow['next_sort'] ?? 0);
+    $stmt = $db->prepare('INSERT INTO todo_lists (project_id, name, sort_order) VALUES (:p, :n, :s)');
+    $stmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $stmt->bindValue(':n', $name, SQLITE3_TEXT);
+    $stmt->bindValue(':s', $maxSort, SQLITE3_INTEGER);
+    $stmt->execute();
+    $id = (int)$db->lastInsertRowID();
+    createAuditLog($userId, 'todo_list.create', 'todo_list', (string)$id, ['project_id' => $projectId, 'name' => $name]);
+    return ['success' => true, 'id' => $id];
+}
+
+function listUserProjectPinsForUser(array $userRow, int $limit = 200): array {
+    $uid = (int)$userRow['id'];
+    if ($uid <= 0) {
+        return [];
+    }
+    $limit = max(1, min(500, $limit));
+    $db = getDbConnection();
+    $stmt = $db->prepare("
+        SELECT upp.project_id, upp.sort_order, p.name, p.status, p.client_visible
+        FROM user_project_pins upp
+        JOIN projects p ON p.id = upp.project_id
+        WHERE upp.user_id = :u AND p.org_id = :o AND p.status != 'trashed'
+        ORDER BY upp.sort_order ASC, p.name COLLATE NOCASE ASC
+        LIMIT :lim
+    ");
+    $orgId = (int)($userRow['org_id'] ?? 0);
+    $stmt->bindValue(':u', $uid, SQLITE3_INTEGER);
+    $stmt->bindValue(':o', $orgId, SQLITE3_INTEGER);
+    $stmt->bindValue(':lim', $limit, SQLITE3_INTEGER);
+    $res = $stmt->execute();
+    $out = [];
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        if (!userCanAccessDirectoryProject($userRow, getDirectoryProjectById((int)$row['project_id']))) {
+            continue;
+        }
+        $row['project_id'] = (int)$row['project_id'];
+        $row['sort_order'] = (int)$row['sort_order'];
+        $row['client_visible'] = (int)$row['client_visible'];
+        $out[] = $row;
+    }
+    return $out;
+}
+
+function setUserProjectPin(int $userId, int $projectId, int $sortOrder = 0): array {
+    $u = getUserById($userId, false);
+    $proj = getDirectoryProjectById($projectId);
+    if (!$u || !$proj || !userCanAccessDirectoryProject($u, $proj)) {
+        return ['success' => false, 'error' => 'Project not accessible'];
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare('
+        INSERT INTO user_project_pins (user_id, project_id, sort_order) VALUES (:u, :p, :s)
+        ON CONFLICT(user_id, project_id) DO UPDATE SET sort_order = excluded.sort_order
+    ');
+    $stmt->bindValue(':u', $userId, SQLITE3_INTEGER);
+    $stmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $stmt->bindValue(':s', $sortOrder, SQLITE3_INTEGER);
+    $stmt->execute();
+    return ['success' => true];
+}
+
+function removeUserProjectPin(int $userId, int $projectId): array {
+    $db = getDbConnection();
+    $stmt = $db->prepare('DELETE FROM user_project_pins WHERE user_id = :u AND project_id = :p');
+    $stmt->bindValue(':u', $userId, SQLITE3_INTEGER);
+    $stmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $stmt->execute();
+    return ['success' => true];
 }
 
 function listProjects(int $limit = 100): array {

@@ -140,7 +140,7 @@ def create_task(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
         tags = args.get("tags")
         if isinstance(tags, str):
             tags = [t.strip() for t in tags.split(",") if t.strip()]
-        task = client.create_task(
+        call_kw: Dict[str, Any] = dict(
             title=cast(str, args.get("title")),
             status=args.get("status"),
             assigned_to_user_id=args.get("assigned-to-user-id"),
@@ -152,6 +152,11 @@ def create_task(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
             rank=args.get("rank"),
             recurrence_rule=args.get("recurrence-rule"),
         )
+        if "project-id" in args:
+            call_kw["project_id"] = args["project-id"]
+        if "list-id" in args:
+            call_kw["list_id"] = args["list-id"]
+        task = client.create_task(**call_kw)
         return _success(message=f"Task '{task['title']}' created successfully", task=task)
 
     return _wrap(run)
@@ -163,7 +168,7 @@ def update_task(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
         tags = args.get("tags")
         if isinstance(tags, str):
             tags = [t.strip() for t in tags.split(",") if t.strip()]
-        task = client.update_task(
+        kw: Dict[str, Any] = dict(
             task_id=args.get("task-id"),
             title=args.get("title"),
             status=args.get("status"),
@@ -178,6 +183,15 @@ def update_task(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
             unassign=bool(args.get("unassign", False)),
             clear_body=bool(args.get("clear-body", False)),
         )
+        if args.get("clear-project-link"):
+            kw["project_id"] = None
+            kw["list_id"] = None
+        else:
+            if args.get("project-id") is not None:
+                kw["project_id"] = int(args["project-id"])
+            if args.get("list-id") is not None:
+                kw["list_id"] = int(args["list-id"])
+        task = client.update_task(**kw)
         return _success(message=f"Task '{task['title']}' updated successfully", task=task)
 
     return _wrap(run)
@@ -194,6 +208,8 @@ def list_tasks(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
             ("created-by-user-id", "created_by_user_id"),
             ("priority", "priority"),
             ("project", "project"),
+            ("project-id", "project_id"),
+            ("list-id", "list_id"),
             ("q", "q"),
             ("due-before", "due_before"),
             ("due-after", "due_after"),
@@ -637,6 +653,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--due-at", dest="due_at")
     priority_arg(p)
     p.add_argument("--project")
+    p.add_argument("--project-id", type=int, dest="project_id")
+    p.add_argument("--list-id", type=int, dest="list_id")
     p.add_argument("--tags", help="Comma-separated tags")
     p.add_argument("--rank", type=int)
     p.add_argument("--recurrence-rule", dest="recurrence_rule")
@@ -653,6 +671,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--due-at", dest="due_at")
     priority_arg(p)
     p.add_argument("--project")
+    p.add_argument("--project-id", type=int, dest="project_id")
+    p.add_argument("--list-id", type=int, dest="list_id")
+    p.add_argument("--clear-project-link", action="store_true", dest="clear_project_link")
     p.add_argument("--tags")
     p.add_argument("--rank", type=int)
     p.add_argument("--recurrence-rule", dest="recurrence_rule")
@@ -664,6 +685,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--created-by-user-id", type=int, dest="created_by_user_id")
     priority_arg(p)
     p.add_argument("--project")
+    p.add_argument("--project-id", type=int, dest="project_id")
+    p.add_argument("--list-id", type=int, dest="list_id")
     p.add_argument("--q")
     p.add_argument("--due-before", dest="due_before")
     p.add_argument("--due-after", dest="due_after")

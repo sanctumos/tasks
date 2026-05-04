@@ -37,6 +37,30 @@ CREATE TABLE IF NOT EXISTS project_members (
 );
 
 CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
+
+CREATE TABLE IF NOT EXISTS todo_lists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_todo_lists_project ON todo_lists(project_id);
+
+CREATE TABLE IF NOT EXISTS user_project_pins (
+    user_id INTEGER NOT NULL,
+    project_id INTEGER NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(user_id, project_id),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_user_project_pins_user ON user_project_pins(user_id);
+
 -- After: ALTER TABLE users ADD COLUMN org_id ...; ADD COLUMN person_kind ...;
 -- After: ALTER TABLE tasks ADD COLUMN project_id INTEGER DEFAULT NULL;
+-- ALTER TABLE tasks ADD COLUMN list_id INTEGER DEFAULT NULL;
 -- CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
+-- CREATE INDEX IF NOT EXISTS idx_tasks_list_id ON tasks(list_id);
