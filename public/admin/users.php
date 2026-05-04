@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/_helpers.php';
 
 requireAdmin();
 $currentUser = getCurrentUser();
@@ -68,150 +69,134 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $users = listUsers(true);
-$auditLogs = listAuditLogs(50, 0);
 
+$pageTitle = 'Users';
 require __DIR__ . '/_layout_top.php';
 ?>
 
-<div class="d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center justify-content-between gap-2 mb-4">
-    <h1 class="h3 mb-0">Users</h1>
-    <a class="btn btn-outline-secondary" href="/admin/">Back to Tasks</a>
+<?= st_back_link('/admin/', 'Tasks') ?>
+
+<div class="page-header">
+    <div class="page-header__title">
+        <h1>Users</h1>
+        <div class="subtitle"><?= count($users) ?> in this workspace</div>
+    </div>
+    <div class="page-header__actions">
+        <a class="btn btn-sm btn-outline-secondary" href="/admin/audit.php"><i class="bi bi-shield-check me-1"></i>Audit log</a>
+        <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newUserModal"><i class="bi bi-person-plus me-1"></i>New user</button>
+    </div>
 </div>
 
 <?php if ($message): ?>
-    <div class="alert alert-<?= htmlspecialchars($messageType) ?>"><?= htmlspecialchars($message) ?></div>
+    <div class="alert alert-<?= htmlspecialchars($messageType) ?> alert-dismissible fade show"><?= htmlspecialchars($message) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
 <?php endif; ?>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <h2 class="h5 mb-3">Create User</h2>
-        <form method="post" action="/admin/users.php">
-            <?= csrfInputField() ?>
-            <input type="hidden" name="action" value="create">
-            <div class="row g-3">
-                <div class="col-12 col-sm-6 col-md-3">
-                    <label class="form-label">Username</label>
-                    <input class="form-control" name="username" required>
-                </div>
-                <div class="col-12 col-sm-6 col-md-3">
-                    <label class="form-label">Temporary Password</label>
-                    <input class="form-control" type="password" name="password" required>
-                </div>
-                <div class="col-12 col-sm-6 col-md-2">
-                    <label class="form-label">Role</label>
-                    <select class="form-select" name="role">
-                        <?php foreach (['member', 'manager', 'admin', 'api'] as $role): ?>
-                            <option value="<?= $role ?>" <?= $role === 'member' ? 'selected' : '' ?>><?= $role ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-12 col-sm-6 col-md-2">
-                    <label class="form-label">Person kind</label>
-                    <select class="form-select" name="person_kind" title="Team member vs client (Basecamp-style)">
-                        <option value="team_member" selected>team_member</option>
-                        <option value="client">client</option>
-                    </select>
-                </div>
-                <div class="col-12 col-sm-6 col-md-2 d-flex align-items-end">
-                    <button class="btn btn-primary w-100" type="submit">Create</button>
-                </div>
-            </div>
-            <div class="form-check mt-2">
-                <input class="form-check-input" type="checkbox" id="mustChangePassword" name="must_change_password" value="1" checked>
-                <label class="form-check-label" for="mustChangePassword">Require password change on first login</label>
-            </div>
-        </form>
-    </div>
+<div class="surface">
+    <table class="task-table">
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th style="width: 100px;">Role</th>
+                <th style="width: 130px;">Person kind</th>
+                <th style="width: 80px;">Active</th>
+                <th style="width: 90px;">MFA</th>
+                <th style="width: 130px;">Must change</th>
+                <th style="width: 130px;">Created</th>
+                <th style="width: 200px; text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($users as $u): ?>
+                <tr>
+                    <td>
+                        <strong><?= htmlspecialchars($u['username']) ?></strong>
+                        <div class="text-muted small">#<?= (int)$u['id'] ?> · org <?= isset($u['org_id']) && $u['org_id'] !== null ? (int)$u['org_id'] : '—' ?></div>
+                    </td>
+                    <td><span class="tag-chip"><?= htmlspecialchars($u['role']) ?></span></td>
+                    <td class="small"><?= htmlspecialchars($u['person_kind'] ?? 'team_member') ?></td>
+                    <td>
+                        <?php if ((int)$u['is_active'] === 1): ?>
+                            <span class="status-pill status-pill--done">Yes</span>
+                        <?php else: ?>
+                            <span class="status-pill status-pill--blocked">No</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="small"><?= (int)$u['mfa_enabled'] === 1 ? 'Enabled' : 'Disabled' ?></td>
+                    <td class="small"><?= (int)$u['must_change_password'] === 1 ? 'Yes' : 'No' ?></td>
+                    <td class="small text-muted"><?= htmlspecialchars($u['created_at']) ?></td>
+                    <td class="task-actions">
+                        <form method="post" action="/admin/users.php" class="d-inline m-0">
+                            <?= csrfInputField() ?>
+                            <input type="hidden" name="action" value="toggle_active">
+                            <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
+                            <input type="hidden" name="is_active" value="<?= (int)$u['is_active'] === 1 ? '0' : '1' ?>">
+                            <button class="btn btn-sm btn-outline-<?= (int)$u['is_active'] === 1 ? 'warning' : 'success' ?>" type="submit">
+                                <?= (int)$u['is_active'] === 1 ? 'Disable' : 'Enable' ?>
+                            </button>
+                        </form>
+                        <form method="post" action="/admin/users.php" class="d-inline m-0" onsubmit="return confirm('Reset password for <?= htmlspecialchars($u['username']) ?>?');">
+                            <?= csrfInputField() ?>
+                            <input type="hidden" name="action" value="reset_password">
+                            <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
+                            <input type="hidden" name="new_password" value="">
+                            <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-key me-1"></i>Reset</button>
+                        </form>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
 </div>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <h2 class="h5 mb-3">Existing Users</h2>
-        <div class="table-responsive">
-            <table class="table table-sm align-middle">
-                <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Username</th>
-                    <th>Role</th>
-                    <th>Org</th>
-                    <th>Person kind</th>
-                    <th>Active</th>
-                    <th>MFA</th>
-                    <th>Must Change Password</th>
-                    <th>Created</th>
-                    <th class="text-end">Actions</th>
-                </tr>
-                </thead>
-                <tbody>
-                <?php foreach ($users as $u): ?>
-                    <tr>
-                        <td><?= (int)$u['id'] ?></td>
-                        <td><?= htmlspecialchars($u['username']) ?></td>
-                        <td><?= htmlspecialchars($u['role']) ?></td>
-                        <td><?= isset($u['org_id']) && $u['org_id'] !== null ? (int)$u['org_id'] : '—' ?></td>
-                        <td><?= htmlspecialchars($u['person_kind'] ?? 'team_member') ?></td>
-                        <td><?= (int)$u['is_active'] === 1 ? 'Yes' : 'No' ?></td>
-                        <td><?= (int)$u['mfa_enabled'] === 1 ? 'Enabled' : 'Disabled' ?></td>
-                        <td><?= (int)$u['must_change_password'] === 1 ? 'Yes' : 'No' ?></td>
-                        <td class="small text-muted"><?= htmlspecialchars($u['created_at']) ?></td>
-                        <td class="text-start text-md-end">
-                            <div class="d-grid gap-2 d-md-flex flex-md-wrap justify-content-md-end">
-                                <form method="post" action="/admin/users.php" class="m-0 d-grid">
-                                    <?= csrfInputField() ?>
-                                    <input type="hidden" name="action" value="toggle_active">
-                                    <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
-                                    <input type="hidden" name="is_active" value="<?= (int)$u['is_active'] === 1 ? '0' : '1' ?>">
-                                    <button class="btn btn-sm btn-outline-<?= (int)$u['is_active'] === 1 ? 'warning' : 'success' ?>" type="submit">
-                                        <?= (int)$u['is_active'] === 1 ? 'Disable' : 'Enable' ?>
-                                    </button>
-                                </form>
-                                <form method="post" action="/admin/users.php" class="m-0 d-grid">
-                                    <?= csrfInputField() ?>
-                                    <input type="hidden" name="action" value="reset_password">
-                                    <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
-                                    <input type="hidden" name="new_password" value="">
-                                    <button class="btn btn-sm btn-outline-danger" type="submit">Reset password</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<div class="card shadow-sm">
-    <div class="card-body">
-        <h2 class="h5 mb-3">Recent Audit Logs</h2>
-        <div class="table-responsive">
-            <table class="table table-sm">
-                <thead>
-                <tr>
-                    <th>When (UTC)</th>
-                    <th>Actor</th>
-                    <th>Action</th>
-                    <th>Entity</th>
-                    <th>IP</th>
-                </tr>
-                </thead>
-                <tbody>
-                <?php foreach ($auditLogs as $log): ?>
-                    <tr>
-                        <td class="small text-muted"><?= htmlspecialchars($log['created_at']) ?></td>
-                        <td><?= htmlspecialchars((string)($log['actor_username'] ?? 'system')) ?></td>
-                        <td><code><?= htmlspecialchars($log['action']) ?></code></td>
-                        <td><?= htmlspecialchars($log['entity_type']) ?> <?= htmlspecialchars((string)($log['entity_id'] ?? '')) ?></td>
-                        <td class="small text-muted"><?= htmlspecialchars((string)($log['ip_address'] ?? '')) ?></td>
-                    </tr>
-                <?php endforeach; ?>
-                <?php if (!$auditLogs): ?>
-                    <tr><td colspan="5" class="text-muted">No audit log entries.</td></tr>
-                <?php endif; ?>
-                </tbody>
-            </table>
+<?php /* New user modal */ ?>
+<div class="modal fade" id="newUserModal" tabindex="-1" aria-labelledby="newUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="/admin/users.php">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newUserModalLabel">New user</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <?= csrfInputField() ?>
+                    <input type="hidden" name="action" value="create">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input class="form-control" name="username" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Temporary password</label>
+                        <input class="form-control" type="password" name="password" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Role</label>
+                            <select class="form-select" name="role">
+                                <?php foreach (['member', 'manager', 'admin', 'api'] as $role): ?>
+                                    <option value="<?= $role ?>" <?= $role === 'member' ? 'selected' : '' ?>><?= $role ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label">Person kind</label>
+                            <select class="form-select" name="person_kind">
+                                <option value="team_member" selected>team_member</option>
+                                <option value="client">client</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="mustChangePassword" name="must_change_password" value="1" checked>
+                        <label class="form-check-label" for="mustChangePassword">Require password change on first login</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit"><i class="bi bi-person-plus me-1"></i>Create user</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

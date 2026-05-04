@@ -23,15 +23,20 @@ MOBILE = {"width": 390, "height": 844}
 
 PAGES = [
     ("/admin/login.php", "01_login"),
-    ("/admin/", "02_tasks_index"),
-    ("/admin/workspace-projects.php", "03_workspace_projects"),
-    ("/admin/workspace-project.php?id=1", "04_workspace_project_detail"),
-    ("/admin/users.php", "05_users"),
-    ("/admin/api-keys.php", "06_api_keys"),
-    ("/admin/mfa.php", "07_mfa"),
-    ("/admin/change-password.php", "08_change_password"),
-    ("/admin/view.php?id=1", "09_task_view"),
-    ("/", "10_root_landing"),
+    ("/admin/", "02_tasks_index_board"),
+    ("/admin/?view=list", "03_tasks_index_list"),
+    ("/admin/workspace-projects.php", "04_projects"),
+    ("/admin/project.php?id=1", "05_project_tasks"),
+    ("/admin/project.php?id=1&tab=lists", "06_project_lists"),
+    ("/admin/project.php?id=1&tab=members", "07_project_members"),
+    ("/admin/project.php?id=1&tab=settings", "08_project_settings"),
+    ("/admin/users.php", "09_users"),
+    ("/admin/audit.php", "10_audit"),
+    ("/admin/api-keys.php", "11_api_keys"),
+    ("/admin/mfa.php", "12_mfa"),
+    ("/admin/change-password.php", "13_change_password"),
+    ("/admin/view.php?id=1", "14_task_view"),
+    ("/", "15_root_landing"),
 ]
 
 
