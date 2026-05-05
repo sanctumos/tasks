@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/_helpers.php';
 $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
 ?>
 <!doctype html>
@@ -11,7 +12,7 @@ $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
     <title><?= htmlspecialchars($pageTitle) ?> · Sanctum Tasks</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/assets/admin.css?v=2" rel="stylesheet">
+    <link href="/assets/admin.css?v=3" rel="stylesheet">
 </head>
 <body class="bg-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark admin-nav">
@@ -73,3 +74,8 @@ $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
     </div>
 </nav>
 <main class="admin-shell container-fluid px-3 px-lg-4 py-4">
+<?php
+if (!empty($adminBreadcrumbs) && is_array($adminBreadcrumbs)) {
+    echo st_admin_breadcrumbs($adminBreadcrumbs);
+}
+?>

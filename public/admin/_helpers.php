@@ -99,3 +99,36 @@ if (!function_exists('st_back_link')) {
         return '<a class="page-back" href="' . htmlspecialchars($href) . '"><i class="bi bi-chevron-left"></i><span>' . htmlspecialchars($label) . '</span></a>';
     }
 }
+
+if (!function_exists('st_admin_breadcrumbs')) {
+    /**
+     * Bootstrap-style breadcrumb trail for admin UI.
+     * Each item: ['label' => string, 'href' => optional string]. Omit href on the current page.
+     */
+    function st_admin_breadcrumbs(array $items): string {
+        if ($items === []) {
+            return '';
+        }
+        $parts = [
+            '<nav class="admin-breadcrumb-nav" aria-label="Breadcrumb">',
+            '<ol class="breadcrumb admin-breadcrumb mb-3">',
+        ];
+        $n = count($items);
+        $i = 0;
+        foreach ($items as $it) {
+            $i++;
+            $label = htmlspecialchars((string)($it['label'] ?? ''));
+            $href = isset($it['href']) ? trim((string)$it['href']) : '';
+            $isLast = $i === $n;
+            if ($isLast) {
+                $parts[] = '<li class="breadcrumb-item active" aria-current="page">' . $label . '</li>';
+            } elseif ($href !== '') {
+                $parts[] = '<li class="breadcrumb-item"><a href="' . htmlspecialchars($href) . '">' . $label . '</a></li>';
+            } else {
+                $parts[] = '<li class="breadcrumb-item">' . $label . '</li>';
+            }
+        }
+        $parts[] = '</ol></nav>';
+        return implode('', $parts);
+    }
+}

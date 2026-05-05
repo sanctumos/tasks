@@ -102,10 +102,13 @@ foreach ($projects as $p) {
 }
 
 $pageTitle = 'Projects · ' . $target['username'];
+$adminBreadcrumbs = [
+    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['href' => '/admin/users.php', 'label' => 'Users'],
+    ['label' => 'Project access · ' . (string)$target['username']],
+];
 require __DIR__ . '/_layout_top.php';
 ?>
-
-<?= st_back_link('/admin/users.php', 'Users') ?>
 
 <div class="page-header">
     <div class="page-header__title">

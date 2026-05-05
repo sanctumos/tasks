@@ -63,6 +63,7 @@ $flashSuccess = $_SESSION['admin_flash_success'] ?? null;
 unset($_SESSION['admin_flash_error'], $_SESSION['admin_flash_success']);
 
 $pageTitle = 'Tasks';
+$adminBreadcrumbs = [['label' => 'Tasks']];
 require __DIR__ . '/_layout_top.php';
 
 $initialView = ($view === 'list' || $view === 'board') ? $view : 'board';
@@ -189,11 +190,11 @@ function st_render_task_assignee_html(array $t): string {
                         if (!empty($t['project'])) {
                             $key = strtolower((string)$t['project']);
                             if (isset($directoryProjectByName[$key])) {
-                                $projectLink = '/admin/workspace-project.php?id=' . (int)$directoryProjectByName[$key]['id'];
+                                $projectLink = '/admin/project.php?id=' . (int)$directoryProjectByName[$key]['id'];
                             }
                         }
                     ?>
-                        <div class="task-card">
+                        <div class="task-card task-card--interactive">
                             <a class="task-card__title text-decoration-none stretched-link" href="/admin/view.php?id=<?= (int)$t['id'] ?>"><?= htmlspecialchars($t['title']) ?></a>
                             <div class="task-card__meta">
                                 <?= st_priority_chip_html((string)($t['priority'] ?? 'normal')) ?>
@@ -243,7 +244,7 @@ function st_render_task_assignee_html(array $t): string {
                     if (!empty($t['project'])) {
                         $key = strtolower((string)$t['project']);
                         if (isset($directoryProjectByName[$key])) {
-                            $projectLink = '/admin/workspace-project.php?id=' . (int)$directoryProjectByName[$key]['id'];
+                            $projectLink = '/admin/project.php?id=' . (int)$directoryProjectByName[$key]['id'];
                         }
                     }
                 ?>
@@ -323,11 +324,11 @@ function st_render_task_assignee_html(array $t): string {
                 if (!empty($t['project'])) {
                     $key = strtolower((string)$t['project']);
                     if (isset($directoryProjectByName[$key])) {
-                        $projectLink = '/admin/workspace-project.php?id=' . (int)$directoryProjectByName[$key]['id'];
+                        $projectLink = '/admin/project.php?id=' . (int)$directoryProjectByName[$key]['id'];
                     }
                 }
             ?>
-                <div class="task-card">
+                <div class="task-card task-card--interactive">
                     <a class="task-card__title stretched-link text-decoration-none" href="/admin/view.php?id=<?= (int)$t['id'] ?>"><?= htmlspecialchars($t['title']) ?></a>
                     <div class="task-card__meta">
                         <?= st_status_pill_html($t, $statusMap) ?>

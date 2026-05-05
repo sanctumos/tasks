@@ -33,20 +33,28 @@ if ($availableTabs[$tab]['admin'] && !$isAdmin) {
 }
 
 $pageTitle = 'Settings · ' . $availableTabs[$tab]['label'];
+$adminBreadcrumbs = [
+    ['href' => '/admin/', 'label' => 'Tasks'],
+];
+if ($tab === 'password') {
+    $adminBreadcrumbs[] = ['label' => 'Settings'];
+} else {
+    $adminBreadcrumbs[] = ['href' => '/admin/settings.php', 'label' => 'Settings'];
+    $adminBreadcrumbs[] = ['label' => $availableTabs[$tab]['label']];
+}
 require __DIR__ . '/_layout_top.php';
 
 function st_settings_tab_link(string $tab, string $active, array $availableTabs, bool $isAdmin): string {
     if ($availableTabs[$tab]['admin'] && !$isAdmin) return '';
     $cls = $active === $tab ? 'active' : '';
     $href = '/admin/settings.php?tab=' . urlencode($tab);
-    return '<a class="' . $cls . '" href="' . htmlspecialchars($href) . '">'
+    $aria = $active === $tab ? ' aria-current="page"' : '';
+    return '<a class="' . $cls . '" href="' . htmlspecialchars($href) . '"' . $aria . '>'
         . '<i class="bi ' . htmlspecialchars($availableTabs[$tab]['icon']) . '"></i>'
         . '<span>' . htmlspecialchars($availableTabs[$tab]['label']) . '</span>'
         . '</a>';
 }
 ?>
-
-<?= st_back_link('/admin/', 'Tasks') ?>
 
 <div class="page-header">
     <div class="page-header__title">

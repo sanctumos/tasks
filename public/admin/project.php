@@ -138,17 +138,32 @@ if (!empty($project['org_id']) && ($porg = getOrganizationById((int)$project['or
 }
 
 $pageTitle = $project['name'];
+$tabHuman = [
+    'tasks' => 'Tasks',
+    'lists' => 'Lists',
+    'members' => 'Members',
+    'settings' => 'Settings',
+][$tab] ?? ucfirst($tab);
+$adminBreadcrumbs = [
+    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['href' => '/admin/workspace-projects.php', 'label' => 'Projects'],
+];
+if ($tab === 'tasks') {
+    $adminBreadcrumbs[] = ['label' => (string)$project['name']];
+} else {
+    $adminBreadcrumbs[] = ['href' => '/admin/project.php?id=' . $id . '&tab=tasks', 'label' => (string)$project['name']];
+    $adminBreadcrumbs[] = ['label' => $tabHuman];
+}
 require __DIR__ . '/_layout_top.php';
 
 function st_tab_link(string $tab, string $active, string $label, string $icon, ?int $count = null): string {
     $cls = $active === $tab ? 'active' : '';
     $href = '/admin/project.php?id=' . (int)($_GET['id'] ?? 0) . '&tab=' . urlencode($tab);
     $countHtml = $count !== null ? '<span class="count">' . (int)$count . '</span>' : '';
-    return '<a class="' . $cls . '" href="' . htmlspecialchars($href) . '"><i class="bi ' . htmlspecialchars($icon) . '"></i><span>' . htmlspecialchars($label) . '</span>' . $countHtml . '</a>';
+    $aria = $active === $tab ? ' aria-current="page"' : '';
+    return '<a class="' . $cls . '" href="' . htmlspecialchars($href) . '"' . $aria . '><i class="bi ' . htmlspecialchars($icon) . '"></i><span>' . htmlspecialchars($label) . '</span>' . $countHtml . '</a>';
 }
 ?>
-
-<?= st_back_link('/admin/workspace-projects.php', 'Projects') ?>
 
 <div class="page-header">
     <div class="page-header__title">
@@ -210,7 +225,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
                             <div class="swimlane__empty">No tasks here.</div>
                         <?php endif; ?>
                         <?php foreach (($grouped[$s['slug']] ?? []) as $t): ?>
-                            <div class="task-card">
+                            <div class="task-card task-card--interactive">
                                 <a class="task-card__title text-decoration-none stretched-link" href="/admin/view.php?id=<?= (int)$t['id'] ?>"><?= htmlspecialchars($t['title']) ?></a>
                                 <div class="task-card__meta">
                                     <?= st_priority_chip_html((string)($t['priority'] ?? 'normal')) ?>
