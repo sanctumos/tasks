@@ -21,13 +21,20 @@ client = TasksClient(
     base_url="https://tasks.example.com",
 )
 
-# Create
+# Resolve a workspace project (directory). Tasks cannot be created without one.
+projects = client.list_directory_projects(limit=50)
+if not projects:
+    proj = client.create_directory_project(name="Platform", all_access=True)
+    project_id = int(proj["id"])
+else:
+    project_id = int(projects[0]["id"])
+
 task = client.create_task(
     title="Nightly deployment verification",
     body="Validate canary and rollback hooks",
     status="todo",
     priority="high",
-    project="Platform",
+    project_id=project_id,
     tags=["automation", "deploy"],
 )
 
@@ -46,7 +53,7 @@ python smcp_plugin/tasks/cli.py create-task \
   --title "Reconcile failed jobs" \
   --status "todo" \
   --priority "urgent" \
-  --project "Ops" \
+  --project-id 1 \
   --tags "automation,nightly"
 
 python smcp_plugin/tasks/cli.py list-tasks \

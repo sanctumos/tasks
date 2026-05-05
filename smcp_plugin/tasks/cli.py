@@ -156,6 +156,11 @@ def create_task(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
             call_kw["project_id"] = args["project-id"]
         if "list-id" in args:
             call_kw["list_id"] = args["list-id"]
+        if call_kw.get("project_id") is None and call_kw.get("list_id") is None:
+            raise ValueError(
+                "Every task must belong to a directory project: pass --project-id or --list-id "
+                "(list-directory-projects / create-directory-project)."
+            )
         task = client.create_task(**call_kw)
         return _success(message=f"Task '{task['title']}' created successfully", task=task)
 
@@ -184,13 +189,14 @@ def update_task(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
             clear_body=bool(args.get("clear-body", False)),
         )
         if args.get("clear-project-link"):
-            kw["project_id"] = None
-            kw["list_id"] = None
-        else:
-            if args.get("project-id") is not None:
-                kw["project_id"] = int(args["project-id"])
-            if args.get("list-id") is not None:
-                kw["list_id"] = int(args["list-id"])
+            raise ValueError(
+                "--clear-project-link is no longer supported: tasks cannot be detached from a "
+                "directory project. Use --project-id to move the task to another workspace project."
+            )
+        if args.get("project-id") is not None:
+            kw["project_id"] = int(args["project-id"])
+        if args.get("list-id") is not None:
+            kw["list_id"] = int(args["list-id"])
         task = client.update_task(**kw)
         return _success(message=f"Task '{task['title']}' updated successfully", task=task)
 
@@ -652,9 +658,19 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--body")
     p.add_argument("--due-at", dest="due_at")
     priority_arg(p)
-    p.add_argument("--project")
-    p.add_argument("--project-id", type=int, dest="project_id")
-    p.add_argument("--list-id", type=int, dest="list_id")
+    p.add_argument("--project", help="Legacy display label; prefer --project-id")
+    p.add_argument(
+        "--project-id",
+        type=int,
+        dest="project_id",
+        help="Directory workspace project id (required unless --list-id)",
+    )
+    p.add_argument(
+        "--list-id",
+        type=int,
+        dest="list_id",
+        help="To-do list id (task inherits its project; alternative to --project-id)",
+    )
     p.add_argument("--tags", help="Comma-separated tags")
     p.add_argument("--rank", type=int)
     p.add_argument("--recurrence-rule", dest="recurrence_rule")
@@ -673,7 +689,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--project")
     p.add_argument("--project-id", type=int, dest="project_id")
     p.add_argument("--list-id", type=int, dest="list_id")
-    p.add_argument("--clear-project-link", action="store_true", dest="clear_project_link")
+    p.add_argument(
+        "--clear-project-link",
+        action="store_true",
+        dest="clear_project_link",
+        help="Removed: clearing project links is blocked by the API.",
+    )
     p.add_argument("--tags")
     p.add_argument("--rank", type=int)
     p.add_argument("--recurrence-rule", dest="recurrence_rule")

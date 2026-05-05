@@ -34,10 +34,12 @@ Create a new task.
 
 **Parameters:**
 - `--title` (required): Task title
+- `--project-id` (required unless `--list-id`): Directory workspace project id
+- `--list-id` (optional): To-do list id; task inherits that list’s project (alternative to `--project-id`)
 - `--status` (optional): Task status slug (default: `todo`)
 - `--assigned-to-user-id` (optional): User ID to assign task to
 - `--priority` (optional): `low|normal|high|urgent`
-- `--project` (optional): Project name
+- `--project` (optional): Legacy display name; use `--project-id` for the real link
 - `--tags` (optional): Comma-separated tags
 - `--due-at` (optional): Due datetime (ISO-ish)
 - `--rank` (optional): Ordering rank
@@ -49,6 +51,7 @@ python cli.py create-task \
   --api-key "YOUR_API_KEY" \
   --title "Fix deployment bug" \
   --status "todo" \
+  --project-id 1 \
   --assigned-to-user-id 1
 ```
 
@@ -64,6 +67,8 @@ Update an existing task.
 - `--unassign` (optional): Explicitly clear assignee
 - `--body` (optional): New task description/details
 - `--clear-body` (optional): Clear task body
+- `--project-id` / `--list-id` (optional): Change which directory project the task belongs to
+- `--clear-project-link` (removed): The API no longer allows detaching a task from its workspace project
 - `--priority`, `--project`, `--tags`, `--due-at`, `--rank`, `--recurrence-rule` (optional metadata updates)
 
 **Example:**
