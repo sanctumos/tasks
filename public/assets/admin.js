@@ -84,8 +84,63 @@
         });
     }
 
+    function bindInlineEdit() {
+        document.querySelectorAll(".js-inline-edit-toggle").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const targetId = btn.getAttribute("data-edit-target");
+                if (!targetId) return;
+                e.preventDefault();
+                const form = document.getElementById(targetId);
+                if (!form) return;
+                const display = document.querySelector('.js-inline-edit-target[data-edit-target="' + targetId + '"]');
+                form.classList.remove("d-none");
+                if (display) display.classList.add("d-none");
+                const focusEl = form.querySelector("textarea, input[type=text], input:not([type=hidden])");
+                if (focusEl) focusEl.focus();
+            });
+        });
+        document.querySelectorAll(".js-inline-edit-cancel").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                const targetId = btn.getAttribute("data-edit-target");
+                if (!targetId) return;
+                e.preventDefault();
+                const form = document.getElementById(targetId);
+                if (!form) return;
+                const display = document.querySelector('.js-inline-edit-target[data-edit-target="' + targetId + '"]');
+                form.classList.add("d-none");
+                if (display) display.classList.remove("d-none");
+            });
+        });
+    }
+
+    function bindCopyLink() {
+        document.querySelectorAll(".js-copy-link").forEach((el) => {
+            el.addEventListener("click", (e) => {
+                e.preventDefault();
+                const path = el.getAttribute("data-copy-url") || window.location.pathname + window.location.search;
+                const url = window.location.origin + path;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(url).then(
+                        () => toast("Link copied"),
+                        () => toast("Copy failed", "error")
+                    );
+                } else {
+                    try {
+                        const ta = document.createElement("textarea");
+                        ta.value = url; document.body.appendChild(ta);
+                        ta.select(); document.execCommand("copy");
+                        document.body.removeChild(ta);
+                        toast("Link copied");
+                    } catch (_) { toast("Copy failed", "error"); }
+                }
+            });
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll("form.js-autosave-form").forEach(bindAutosaveForm);
+        bindInlineEdit();
+        bindCopyLink();
 
         // View switcher (board <-> list)
         document.querySelectorAll("[data-view-switch]").forEach((btn) => {
