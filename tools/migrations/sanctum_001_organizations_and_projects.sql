@@ -1,5 +1,5 @@
 -- Idempotent schema: organizations, users.org_id / person_kind, projects, project_members, tasks.project_id
--- Canonical bootstrap is PHP initializeDatabase() / api_python db.init_schema(); this file documents the same DDL for operators who prefer raw SQL.
+-- Canonical bootstrap is PHP initializeDatabase(); Python mirror bootstrap lives in sanctumos/py-tasks. This file documents the same DDL for operators who prefer raw SQL.
 
 CREATE TABLE IF NOT EXISTS organizations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

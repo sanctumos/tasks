@@ -39,12 +39,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Python test dependencies
+      - name: Install Python test dependencies (SDK / SMCP only; FastAPI lives in sanctumos/py-tasks)
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
           python -m pip install requests pytest pytest-cov
-          pip install -r api_python/requirements.txt
 
       - name: PHP syntax lint
         run: |

@@ -53,7 +53,7 @@ Sanctum Tasks today is **task-centric** with `tasks.project` as a **string**. Th
 
 ## 4. Current Sanctum Tasks baseline (post-reset `main`)
 
-Authoritative schema bootstrap: `public/includes/config.php` (`initializeDatabase`), mirrored in `api_python/db.py`.
+Authoritative schema bootstrap: `public/includes/config.php` (`initializeDatabase`); mirrored in repo **sanctumos/py-tasks** (`api_python/db.py`).
 
 **Present:** `users`, `api_keys`, `task_statuses`, `tasks` (including string `project`), `task_comments`, `task_attachments`, `task_watchers`, operational tables (`audit_logs`, rate limits, login attempts).
 

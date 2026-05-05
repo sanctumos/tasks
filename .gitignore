@@ -14,6 +14,7 @@ db/secrets.php
 public/includes/secrets.php
 
 # Python virtual environments and build artifacts
+.venv-ci/
 python/venv/
 *.egg-info/
 *.egg
