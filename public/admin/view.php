@@ -38,10 +38,17 @@ if (!empty($task['due_at'])) {
 }
 
 $pageTitle = '#' . (int)$task['id'] . ' ' . substr((string)$task['title'], 0, 50);
+$adminBreadcrumbs = [['href' => '/admin/', 'label' => 'Tasks']];
+$pid = (int)($task['project_id'] ?? 0);
+if ($pid > 0 && ($dp = getDirectoryProjectById($pid))) {
+    $adminBreadcrumbs[] = ['href' => '/admin/workspace-projects.php', 'label' => 'Projects'];
+    $adminBreadcrumbs[] = ['href' => '/admin/project.php?id=' . $pid, 'label' => (string)$dp['name']];
+}
+$tit = (string)$task['title'];
+$crumbTitle = (strlen($tit) > 56) ? (substr($tit, 0, 53) . '…') : $tit;
+$adminBreadcrumbs[] = ['label' => '#' . (int)$task['id'] . ' · ' . $crumbTitle];
 require __DIR__ . '/_layout_top.php';
 ?>
-
-<?= st_back_link('/admin/', 'Tasks') ?>
 
 <div class="page-header">
     <div class="page-header__title">

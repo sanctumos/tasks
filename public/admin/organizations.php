@@ -44,10 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $orgs = listOrganizationsWithStats();
 
 $pageTitle = 'Organizations';
+$adminBreadcrumbs = [
+    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['label' => 'Organizations'],
+];
 require __DIR__ . '/_layout_top.php';
 ?>
-
-<?= st_back_link('/admin/', 'Tasks') ?>
 
 <div class="page-header">
     <div class="page-header__title">

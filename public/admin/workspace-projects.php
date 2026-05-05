@@ -50,10 +50,12 @@ if ($oid > 0 && ($og = getOrganizationById($oid))) {
 }
 
 $pageTitle = 'Projects';
+$adminBreadcrumbs = [
+    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['label' => 'Projects'],
+];
 require __DIR__ . '/_layout_top.php';
 ?>
-
-<?= st_back_link('/admin/', 'Tasks') ?>
 
 <div class="page-header">
     <div class="page-header__title">
