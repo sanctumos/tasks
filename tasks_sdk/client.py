@@ -238,7 +238,10 @@ class TasksClient:
     ) -> Dict[str, Any]:
         """
         Update an existing task.
-        
+
+        You cannot clear ``project_id`` via the API (every task stays linked to a directory project).
+        Pass ``project_id`` to move the task to another workspace project.
+
         Args:
             task_id: Task ID (required)
             title: New title (optional, only updates if provided)

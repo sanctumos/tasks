@@ -26,6 +26,7 @@ def test_create_task_maps_new_arguments(monkeypatch: pytest.MonkeyPatch):
         "due-at": "2026-03-01T10:00:00Z",
         "priority": "high",
         "project": "Ops",
+        "project-id": 9,
         "tags": "foo, bar",
         "rank": 5,
         "recurrence-rule": "FREQ=WEEKLY",
@@ -41,10 +42,21 @@ def test_create_task_maps_new_arguments(monkeypatch: pytest.MonkeyPatch):
         due_at="2026-03-01T10:00:00Z",
         priority="high",
         project="Ops",
+        project_id=9,
         tags=["foo", "bar"],
         rank=5,
         recurrence_rule="FREQ=WEEKLY",
     )
+
+
+def test_create_task_without_project_or_list_errors(monkeypatch: pytest.MonkeyPatch):
+    fake_client = Mock()
+    monkeypatch.setattr(cli, "get_client", lambda api_key: fake_client)
+
+    result = cli.create_task({"title": "orphan", "status": "todo"}, "k")
+    assert result["status"] == "error"
+    assert "directory project" in result["error"].lower()
+    fake_client.create_task.assert_not_called()
 
 
 def test_update_task_maps_unassign_and_clear_body(monkeypatch: pytest.MonkeyPatch):
@@ -155,6 +167,8 @@ def test_main_parses_create_task_extended_options(monkeypatch: pytest.MonkeyPatc
             "high",
             "--project",
             "Platform",
+            "--project-id",
+            "3",
             "--tags",
             "a,b",
             "--rank",
@@ -170,6 +184,7 @@ def test_main_parses_create_task_extended_options(monkeypatch: pytest.MonkeyPatc
     assert captured["api_key"] == "k"
     assert captured["args"]["priority"] == "high"
     assert captured["args"]["project"] == "Platform"
+    assert captured["args"]["project-id"] == 3
     assert captured["args"]["tags"] == "a,b"
     assert captured["args"]["rank"] == 9
     assert captured["args"]["recurrence-rule"] == "FREQ=WEEKLY"
@@ -193,6 +208,8 @@ def test_get_plugin_description_tracks_parser_arguments():
         "title",
         "priority",
         "project",
+        "project-id",
+        "list-id",
         "tags",
         "rank",
         "due-at",
@@ -367,7 +384,7 @@ def test_create_task_error_mapping(monkeypatch: pytest.MonkeyPatch, raised: Exce
     fake_client = Mock()
     fake_client.create_task.side_effect = raised
     monkeypatch.setattr(cli, "get_client", lambda api_key: fake_client)
-    result = cli.create_task({"title": "x"}, "k")
+    result = cli.create_task({"title": "x", "project-id": 1}, "k")
     assert result["status"] == "error"
     assert result["error_type"] == error_type
 
