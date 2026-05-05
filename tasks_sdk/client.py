@@ -465,6 +465,17 @@ class TasksClient:
         org_id: Optional[int] = None,
         person_kind: Optional[str] = None,
     ) -> Dict[str, Any]:
+        """
+        Admin: create a user. Mirrors POST /api/create-user.php.
+
+        Returns the **full API JSON envelope** (success, data, and mirrored top-level keys),
+        not a bare user dict. Unwrap with::
+
+            raw = client.create_user(...)
+            user = raw.get("data", {}).get("user") or raw.get("user")
+
+        If ``create_api_key`` is True, the plaintext key appears under ``api_key`` in the same envelope.
+        """
         payload = {
             'username': username,
             'password': password,
@@ -480,6 +491,12 @@ class TasksClient:
         return self._request('POST', 'create-user.php', data=payload)
 
     def disable_user(self, user_id: int, is_active: bool = False) -> Dict[str, Any]:
+        """
+        Set whether a user account is active (POST /api/disable-user.php).
+
+        Despite the method name, this is a **toggle**: ``is_active=False`` disables the user;
+        ``is_active=True`` **re-enables** them. Default ``False`` matches “disable” as the common case.
+        """
         return self._request('POST', 'disable-user.php', data={'id': user_id, 'is_active': is_active})
 
     def reset_user_password(
