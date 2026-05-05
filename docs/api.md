@@ -2,6 +2,8 @@
 
 This document describes HTTP behavior as implemented under `public/api/`. When in doubt, the PHP entrypoint is authoritative.
 
+**See also:** [Task authorization, operational patterns, and product notes](api-authorization-and-product-notes.md) — who sees which tasks, 404 vs ACL, service-account patterns, client visibility, audit/attachments scope, and Python SDK response handling.
+
 ## Authentication
 
 Most `/api/*` endpoints require an API key via either:
@@ -459,7 +461,7 @@ Each row exposes `api_key_preview` (truncated); **never** the full secret after 
 
 #### `GET /api/list-audit-logs.php`
 
-Admin — audit entries.
+**Admin API user required.** Pagination via `limit` / `offset` (see PHP). No filters for actor, task, or action type in the reference implementation — see [product notes](api-authorization-and-product-notes.md#2-audit-log-api).
 
 ---
 

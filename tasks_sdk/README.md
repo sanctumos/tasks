@@ -72,14 +72,19 @@ client.delete_task(123)
 - Workflow taxonomy: `list_statuses`, `create_status`, `list_projects`, `list_tags`
 - Auditing: `list_audit_logs`
 
-## Error Handling
+## Documentation in this repo
+
+- [`docs/api.md`](../docs/api.md) — HTTP reference (payloads, bulk semantics, admin quirks).
+- [`docs/api-authorization-and-product-notes.md`](../docs/api-authorization-and-product-notes.md) — who sees which tasks, why **404** can mean “forbidden,” service-account patterns, client visibility / audit / attachments scope.
+
+## Error handling
 
 The SDK raises custom exceptions:
 
-- `AuthenticationError` - Invalid or missing API key
-- `NotFoundError` - Task not found
-- `ValidationError` - Invalid request data
-- `APIError` - Other API errors
+- `AuthenticationError` — invalid or missing API key
+- `NotFoundError` — HTTP 404 (missing resource **or** task exists but **your API user cannot access it** — same status by design)
+- `ValidationError` — invalid request data
+- `APIError` — other API errors
 
 The API also returns stable error objects (`error_object`) in responses.
 
