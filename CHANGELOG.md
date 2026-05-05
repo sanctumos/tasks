@@ -2,7 +2,13 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Repository split:** the FastAPI stack (`api_python/`) and its pytest suite moved to **`sanctumos/py-tasks`**. This repo keeps PHP (`public/`), Composer/PHPUnit, `tasks_sdk/`, and `smcp_plugin/`. CI no longer installs FastAPI deps here.
+
 ### Fixed
+
+- **PHPUnit-style integration drift** — `test_php_api_admin_integration.py` now matches the current public landing (`API health`), settings-based password change (`settings.php?tab=password`), **Users** heading, and MFA under **settings** (`mfa_generate` / `mfa_enable` / `mfa_disable`) instead of legacy `/admin/mfa.php` POSTs.
 
 - **Forced password change / multihost login** — `requireAuth()` now treats password-change allow paths by **suffix** (`…/admin/settings.php`, etc.) so `SCRIPT_NAME` with a subdirectory prefix no longer traps users in redirect loops or `.Err` pages. Redirect targets use **relative** `settings.php?tab=password`; legacy `change-password.php` and successful login with `must_change_password` go straight to the Password tab. Login “already signed in” / default landing use relative `index.php` for subpath installs.
 

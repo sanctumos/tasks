@@ -118,7 +118,7 @@ def test_public_landing_page_labels_health_as_authenticated(php_server):
 
     response = requests.get(_api_url(base_url, "/"), timeout=5)
     assert response.status_code == 200
-    assert "Authenticated API Health" in response.text
+    assert "API health" in response.text
     assert "requires API key authentication" in response.text
     assert 'href="/api/health.php"' in response.text
 
@@ -675,13 +675,17 @@ def test_session_admin_csrf_password_mfa_and_logout_flows(php_server):
     # Bootstrap admin starts with must_change_password=1 and should be redirected.
     admin_index_redirect = session.get(_api_url(base_url, "/admin/"), allow_redirects=False, timeout=5)
     assert admin_index_redirect.status_code in (301, 302)
-    assert "/admin/change-password.php" in admin_index_redirect.headers.get("Location", "")
+    loc = admin_index_redirect.headers.get("Location", "")
+    assert "/admin/change-password.php" in loc or (
+        "settings.php" in loc and "password" in loc.lower()
+    )
 
     new_password = "AdminChanged123!"
     change_password_resp = session.post(
-        _api_url(base_url, "/admin/change-password.php"),
+        _api_url(base_url, "/admin/settings.php?tab=password"),
         data={
             "csrf_token": csrf_token,
+            "settings_action": "change_password",
             "current_password": php_server.admin_password,
             "new_password": new_password,
             "confirm_password": new_password,
@@ -720,11 +724,11 @@ def test_session_admin_csrf_password_mfa_and_logout_flows(php_server):
 
     users_page = session.get(_api_url(base_url, "/admin/users.php"), timeout=5)
     assert users_page.status_code == 200
-    assert "Existing Users" in users_page.text
+    assert "<h1>Users</h1>" in users_page.text
 
     generate_mfa = session.post(
-        _api_url(base_url, "/admin/mfa.php"),
-        data={"csrf_token": csrf_token, "action": "generate"},
+        _api_url(base_url, "/admin/settings.php?tab=mfa"),
+        data={"csrf_token": csrf_token, "settings_action": "mfa_generate"},
         timeout=5,
     )
     assert generate_mfa.status_code == 200
@@ -732,8 +736,8 @@ def test_session_admin_csrf_password_mfa_and_logout_flows(php_server):
     code = _totp(secret)
 
     enable_mfa = session.post(
-        _api_url(base_url, "/admin/mfa.php"),
-        data={"csrf_token": csrf_token, "action": "enable", "code": code},
+        _api_url(base_url, "/admin/settings.php?tab=mfa"),
+        data={"csrf_token": csrf_token, "settings_action": "mfa_enable", "code": code},
         timeout=5,
     )
     assert enable_mfa.status_code == 200
@@ -769,8 +773,12 @@ def test_session_admin_csrf_password_mfa_and_logout_flows(php_server):
     csrf_token = mfa_login.json()["csrf_token"]
 
     disable_mfa = session.post(
-        _api_url(base_url, "/admin/mfa.php"),
-        data={"csrf_token": csrf_token, "action": "disable", "current_password": new_password},
+        _api_url(base_url, "/admin/settings.php?tab=mfa"),
+        data={
+            "csrf_token": csrf_token,
+            "settings_action": "mfa_disable",
+            "current_password": new_password,
+        },
         timeout=5,
     )
     assert disable_mfa.status_code == 200
