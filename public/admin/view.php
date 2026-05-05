@@ -26,8 +26,28 @@ if (!$currentUser || !userCanAccessTaskForViewer($currentUser, $task)) {
 $statuses = listTaskStatuses();
 $statusMap = [];
 foreach ($statuses as $s) { $statusMap[$s['slug']] = $s; }
+
 $users = listUsers();
+
+$accessibleProjects = listDirectoryProjectsForUser($currentUser, 500);
+$projectsById = [];
+foreach ($accessibleProjects as $p) { $projectsById[(int)$p['id']] = $p; }
+$currentProjectId = (int)($task['project_id'] ?? 0);
+if ($currentProjectId > 0 && !isset($projectsById[$currentProjectId])) {
+    // Always include the task's current project even if the viewer isn't a
+    // member, so the dropdown reflects truth instead of forcing a wrong move.
+    $cp = getDirectoryProjectById($currentProjectId);
+    if ($cp) {
+        $accessibleProjects[] = $cp;
+        $projectsById[$currentProjectId] = $cp;
+        usort($accessibleProjects, function ($a, $b) {
+            return strcasecmp((string)$a['name'], (string)$b['name']);
+        });
+    }
+}
+
 $tagsText = !empty($task['tags']) ? implode(', ', $task['tags']) : '';
+
 $dueAtValue = '';
 if (!empty($task['due_at'])) {
     try {
@@ -36,6 +56,23 @@ if (!empty($task['due_at'])) {
         $dueAtValue = '';
     }
 }
+
+$watchers = $task['watchers'] ?? [];
+$attachments = $task['attachments'] ?? [];
+$comments = $task['comments'] ?? [];
+$commentCount = count($comments);
+$attachmentCount = count($attachments);
+$watcherCount = count($watchers);
+
+$currentUserId = (int)$currentUser['id'];
+$isWatching = false;
+foreach ($watchers as $w) {
+    if ((int)($w['user_id'] ?? 0) === $currentUserId) { $isWatching = true; break; }
+}
+
+$flashSuccess = $_SESSION['admin_flash_success'] ?? null;
+$flashError = $_SESSION['admin_flash_error'] ?? null;
+unset($_SESSION['admin_flash_success'], $_SESSION['admin_flash_error']);
 
 $pageTitle = '#' . (int)$task['id'] . ' ' . substr((string)$task['title'], 0, 50);
 $adminBreadcrumbs = [['href' => '/admin/', 'label' => 'Tasks']];
@@ -47,23 +84,79 @@ if ($pid > 0 && ($dp = getDirectoryProjectById($pid))) {
 $tit = (string)$task['title'];
 $crumbTitle = (strlen($tit) > 56) ? (substr($tit, 0, 53) . '…') : $tit;
 $adminBreadcrumbs[] = ['label' => '#' . (int)$task['id'] . ' · ' . $crumbTitle];
+
 require __DIR__ . '/_layout_top.php';
 ?>
 
-<div class="page-header">
-    <div class="page-header__title">
-        <h1><?= htmlspecialchars($task['title']) ?></h1>
-        <div class="subtitle">#<?= (int)$task['id'] ?> · opened <?= st_relative_time($task['created_at'] ?? null) ?> by <?= htmlspecialchars($task['created_by_username'] ?? '') ?> · last updated <?= st_relative_time($task['updated_at'] ?? null) ?></div>
+<?php if ($flashSuccess): ?>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-1"></i><?= htmlspecialchars($flashSuccess) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
-    <div class="page-header__actions">
-        <?= st_status_pill_html($task, $statusMap) ?>
-        <?= st_priority_chip_html((string)($task['priority'] ?? 'normal')) ?>
+<?php endif; ?>
+<?php if ($flashError): ?>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i><?= htmlspecialchars($flashError) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
+
+<div class="page-header task-header">
+    <div class="page-header__title task-header__title">
+        <div class="task-title-row">
+            <h1 class="task-title js-inline-edit-target" data-edit-target="title-edit"><?= htmlspecialchars($task['title']) ?></h1>
+            <button type="button" class="btn btn-sm btn-link task-title-rename js-inline-edit-toggle" data-edit-target="title-edit" title="Rename task">
+                <i class="bi bi-pencil"></i><span class="visually-hidden">Rename</span>
+            </button>
+        </div>
+        <form id="title-edit" method="post" action="/admin/update.php" class="js-inline-edit-form d-none">
+            <?= csrfInputField() ?>
+            <input type="hidden" name="id" value="<?= (int)$task['id'] ?>">
+            <input type="hidden" name="redirect_to" value="/admin/view.php?id=<?= (int)$task['id'] ?>">
+            <div class="d-flex gap-2 align-items-center">
+                <input class="form-control form-control-sm flex-grow-1" name="title" value="<?= htmlspecialchars($task['title']) ?>" required>
+                <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-check-lg"></i></button>
+                <button class="btn btn-outline-secondary btn-sm js-inline-edit-cancel" type="button" data-edit-target="title-edit"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </form>
+
+        <div class="task-header__chips">
+            <span class="meta-chip" title="Task ID">#<?= (int)$task['id'] ?></span>
+            <?php if (!empty($task['directory_project']['name'])): ?>
+                <a class="meta-chip meta-chip--link" href="/admin/project.php?id=<?= (int)$task['directory_project']['id'] ?>" title="Open project">
+                    <i class="bi bi-kanban"></i><?= htmlspecialchars($task['directory_project']['name']) ?>
+                </a>
+            <?php else: ?>
+                <span class="meta-chip meta-chip--warn" title="This task is not attached to a directory project">
+                    <i class="bi bi-exclamation-triangle"></i>orphan task
+                </span>
+            <?php endif; ?>
+            <span class="meta-chip" title="<?= htmlspecialchars(st_absolute_time_attr($task['created_at'] ?? null)) ?>">
+                <i class="bi bi-clock-history"></i>opened <?= st_relative_time($task['created_at'] ?? null) ?> by <?= htmlspecialchars($task['created_by_username'] ?? '—') ?>
+            </span>
+            <span class="meta-chip" title="<?= htmlspecialchars(st_absolute_time_attr($task['updated_at'] ?? null)) ?>">
+                <i class="bi bi-arrow-clockwise"></i>updated <?= st_relative_time($task['updated_at'] ?? null) ?>
+            </span>
+        </div>
+    </div>
+
+    <div class="page-header__actions task-header__actions">
+        <form method="post" action="/admin/watch.php" class="m-0">
+            <?= csrfInputField() ?>
+            <input type="hidden" name="task_id" value="<?= (int)$task['id'] ?>">
+            <input type="hidden" name="action" value="<?= $isWatching ? 'unwatch' : 'watch' ?>">
+            <button type="submit" class="btn btn-sm <?= $isWatching ? 'btn-primary' : 'btn-outline-secondary' ?>">
+                <i class="bi <?= $isWatching ? 'bi-eye-fill' : 'bi-eye' ?> me-1"></i><?= $isWatching ? 'Watching' : 'Watch' ?>
+                <span class="ms-1 text-muted small">· <?= (int)$watcherCount ?></span>
+            </button>
+        </form>
         <div class="dropdown">
             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="bi bi-three-dots"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="#editTaskDetails"><i class="bi bi-pencil me-2"></i>Edit details</a></li>
+                <li><a class="dropdown-item js-inline-edit-toggle" href="#description-edit" data-edit-target="description-edit"><i class="bi bi-pencil me-2"></i>Edit description</a></li>
+                <li><a class="dropdown-item js-copy-link" href="#" data-copy-url="<?= htmlspecialchars((string)($_SERVER['REQUEST_URI'] ?? '')) ?>"><i class="bi bi-link-45deg me-2"></i>Copy link</a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
                     <form method="post" action="/admin/delete.php" onsubmit="return confirm('Delete task #<?= (int)$task['id'] ?>? This cannot be undone.');" class="m-0">
@@ -80,96 +173,112 @@ require __DIR__ . '/_layout_top.php';
 <div class="row g-4">
     <div class="col-12 col-lg-8">
 
-        <div class="surface surface-pad mb-3">
-            <div class="section-title"><i class="bi bi-card-text"></i> Description</div>
-            <?php if (!empty($task['body'])): ?>
-                <div style="white-space: pre-wrap; color: var(--st-text-primary); font-size: 0.95rem;"><?= htmlspecialchars($task['body']) ?></div>
-            <?php else: ?>
-                <p class="text-muted small mb-0">No description yet. Add one in <a href="#editTaskDetails">Edit details</a>.</p>
-            <?php endif; ?>
-        </div>
-
-        <?php
-            $watchers = $task['watchers'] ?? [];
-            $attachments = $task['attachments'] ?? [];
-            $comments = $task['comments'] ?? [];
-            $hasCollab = !empty($watchers) || !empty($attachments) || !empty($comments);
-        ?>
-
-        <?php if ($hasCollab): ?>
-            <div class="surface surface-pad mb-3">
-                <div class="section-title"><i class="bi bi-chat-text"></i> Activity</div>
-                <?php if (!empty($comments)): ?>
-                    <ul class="activity-list">
-                        <?php foreach (array_slice($comments, -10) as $comment): ?>
-                            <li>
-                                <i class="bi bi-chat text-muted"></i>
-                                <span><strong><?= htmlspecialchars($comment['username'] ?? '') ?></strong> <?= htmlspecialchars($comment['comment'] ?? '') ?>
-                                    <span class="text-muted small ms-1"><?= st_relative_time($comment['created_at'] ?? null) ?></span>
-                                </span>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php endif; ?>
-
-                <?php if (!empty($attachments)): ?>
-                    <div class="section-title mt-3"><i class="bi bi-paperclip"></i> Attachments <span class="count"><?= count($attachments) ?></span></div>
-                    <ul class="activity-list">
-                        <?php foreach ($attachments as $a): ?>
-                            <li>
-                                <i class="bi bi-file-earmark text-muted"></i>
-                                <a href="<?= htmlspecialchars($a['file_url']) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($a['file_name']) ?></a>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                <?php endif; ?>
-
-                <?php if (!empty($watchers)): ?>
-                    <div class="section-title mt-3"><i class="bi bi-eye"></i> Watchers <span class="count"><?= count($watchers) ?></span></div>
-                    <div class="d-flex flex-wrap gap-2">
-                        <?php foreach ($watchers as $w): ?>
-                            <span class="tag-chip"><i class="bi bi-person me-1"></i><?= htmlspecialchars($w['username'] ?? '') ?></span>
-                        <?php endforeach; ?>
-                    </div>
+        <div class="surface surface-pad mb-3" id="description-card">
+            <div class="section-title-row">
+                <div class="section-title"><i class="bi bi-card-text"></i> Description</div>
+                <button type="button" class="btn btn-sm btn-link js-inline-edit-toggle" data-edit-target="description-edit">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
+            </div>
+            <div class="description-display js-inline-edit-target" data-edit-target="description-edit">
+                <?php if (!empty($task['body'])): ?>
+                    <div class="description-body"><?= nl2br(htmlspecialchars((string)$task['body'])) ?></div>
+                <?php else: ?>
+                    <p class="text-muted small mb-0">No description yet. <a class="js-inline-edit-toggle" href="#" data-edit-target="description-edit">Add one</a>.</p>
                 <?php endif; ?>
             </div>
-        <?php else: ?>
-            <div class="surface surface-pad mb-3">
-                <div class="section-title"><i class="bi bi-chat-text"></i> Activity</div>
-                <p class="text-muted small mb-0">No comments, attachments, or watchers yet.</p>
-            </div>
-        <?php endif; ?>
-
-        <div class="surface surface-pad" id="editTaskDetails">
-            <div class="section-title"><i class="bi bi-pencil-square"></i> Edit details</div>
-            <form method="post" action="/admin/update.php">
+            <form id="description-edit" method="post" action="/admin/update.php" class="js-inline-edit-form d-none mt-2">
                 <?= csrfInputField() ?>
                 <input type="hidden" name="id" value="<?= (int)$task['id'] ?>">
                 <input type="hidden" name="redirect_to" value="/admin/view.php?id=<?= (int)$task['id'] ?>">
-                <div class="mb-3">
-                    <label class="form-label">Title</label>
-                    <input class="form-control" name="title" value="<?= htmlspecialchars($task['title']) ?>" required>
+                <div class="mb-2">
+                    <textarea class="form-control" name="body" rows="8" placeholder="Task description / details…"><?= htmlspecialchars((string)($task['body'] ?? '')) ?></textarea>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Body</label>
-                    <textarea class="form-control" name="body" rows="6" placeholder="Task description / details…"><?= htmlspecialchars($task['body'] ?? '') ?></textarea>
-                </div>
-                <div class="row g-3">
-                    <div class="col-12 col-md-6">
-                        <label class="form-label">Tags <span class="fine-print">(comma-separated)</span></label>
-                        <input class="form-control" name="tags" value="<?= htmlspecialchars($tagsText) ?>" placeholder="infra,api,urgent">
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label class="form-label">Recurrence rule <span class="fine-print">(RRULE)</span></label>
-                        <input class="form-control" name="recurrence_rule" value="<?= htmlspecialchars((string)($task['recurrence_rule'] ?? '')) ?>" placeholder="FREQ=WEEKLY;BYDAY=MO,WE,FR">
-                    </div>
-                </div>
-                <div class="mt-3 d-flex gap-2">
-                    <button class="btn btn-primary" type="submit"><i class="bi bi-check-lg me-1"></i>Save changes</button>
-                    <a class="btn btn-outline-secondary" href="/admin/view.php?id=<?= (int)$task['id'] ?>">Cancel</a>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-check-lg me-1"></i>Save</button>
+                    <button class="btn btn-outline-secondary btn-sm js-inline-edit-cancel" type="button" data-edit-target="description-edit">Cancel</button>
                 </div>
             </form>
         </div>
+
+        <div class="surface surface-pad mb-3" id="discussion">
+            <div class="section-title-row">
+                <div class="section-title">
+                    <i class="bi bi-chat-left-text"></i> Discussion
+                    <span class="count"><?= (int)$commentCount ?></span>
+                </div>
+                <a href="#discussion-composer" class="btn btn-sm btn-link"><i class="bi bi-plus-lg"></i> New comment</a>
+            </div>
+
+            <?php if ($commentCount === 0): ?>
+                <div class="empty-hint">No comments yet. Start the conversation below.</div>
+            <?php else: ?>
+                <ol class="comment-thread">
+                    <?php foreach ($comments as $c):
+                        $username = (string)($c['username'] ?? '—');
+                        $body = (string)($c['comment'] ?? '');
+                        $createdIso = (string)($c['created_at'] ?? '');
+                        $isMine = (int)($c['user_id'] ?? 0) === $currentUserId;
+                    ?>
+                        <li class="comment-item<?= $isMine ? ' comment-item--mine' : '' ?>" id="comment-<?= (int)($c['id'] ?? 0) ?>">
+                            <div class="comment-avatar-col">
+                                <?= st_avatar_html($username) ?>
+                            </div>
+                            <div class="comment-body-col">
+                                <div class="comment-meta">
+                                    <span class="comment-author"><?= htmlspecialchars($username) ?></span>
+                                    <span class="comment-time" title="<?= htmlspecialchars(st_absolute_time_attr($createdIso)) ?>"><?= st_relative_time($createdIso) ?></span>
+                                </div>
+                                <div class="comment-body"><?= st_format_comment_body($body) ?></div>
+                            </div>
+                        </li>
+                    <?php endforeach; ?>
+                </ol>
+                <div id="discussion-end"></div>
+            <?php endif; ?>
+
+            <form id="discussion-composer" class="comment-composer mt-3" method="post" action="/admin/comment.php">
+                <?= csrfInputField() ?>
+                <input type="hidden" name="task_id" value="<?= (int)$task['id'] ?>">
+                <div class="comment-composer__row">
+                    <div class="comment-avatar-col">
+                        <?= st_avatar_html($currentUser['username'] ?? '?') ?>
+                    </div>
+                    <div class="comment-composer__main">
+                        <textarea class="form-control" name="comment" rows="3" maxlength="2000" placeholder="Write a comment, ask a question, or @mention context..." required></textarea>
+                        <div class="comment-composer__actions">
+                            <span class="fine-print">Plain text · URLs become clickable · max 2000 chars</span>
+                            <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-send me-1"></i>Post comment</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <?php if ($attachmentCount > 0): ?>
+            <div class="surface surface-pad mb-3" id="attachments">
+                <div class="section-title">
+                    <i class="bi bi-paperclip"></i> Attachments
+                    <span class="count"><?= (int)$attachmentCount ?></span>
+                </div>
+                <ul class="attachment-list">
+                    <?php foreach ($attachments as $a): ?>
+                        <li>
+                            <i class="bi bi-file-earmark text-muted"></i>
+                            <a href="<?= htmlspecialchars((string)$a['file_url']) ?>" target="_blank" rel="noopener"><?= htmlspecialchars((string)$a['file_name']) ?></a>
+                            <?php if (!empty($a['mime_type'])): ?>
+                                <span class="text-muted small ms-2"><?= htmlspecialchars((string)$a['mime_type']) ?></span>
+                            <?php endif; ?>
+                            <?php if (!empty($a['size_bytes'])): ?>
+                                <span class="text-muted small ms-2"><?= (int)$a['size_bytes'] ?> bytes</span>
+                            <?php endif; ?>
+                            <span class="text-muted small ms-2">· <?= htmlspecialchars((string)($a['uploaded_by_username'] ?? '')) ?></span>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+                <p class="fine-print mb-0 mt-2">Attachments are added via the API today (`POST /api/add-attachment.php`).</p>
+            </div>
+        <?php endif; ?>
 
     </div>
 
@@ -225,7 +334,22 @@ require __DIR__ . '/_layout_top.php';
                 <form method="post" action="/admin/update.php" class="js-autosave-form m-0">
                     <?= csrfInputField() ?>
                     <input type="hidden" name="id" value="<?= (int)$task['id'] ?>">
-                    <input class="form-control form-control-sm js-autosave-blur" name="project" value="<?= htmlspecialchars((string)($task['project'] ?? '')) ?>" placeholder="(none)">
+                    <select class="form-select form-select-sm js-autosave" name="project_id">
+                        <?php if ($currentProjectId === 0): ?>
+                            <option value="" selected>(none — pick to fix)</option>
+                        <?php endif; ?>
+                        <?php foreach ($accessibleProjects as $p): ?>
+                            <option value="<?= (int)$p['id'] ?>" <?= $currentProjectId === (int)$p['id'] ? 'selected' : '' ?>><?= htmlspecialchars((string)$p['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+            </div>
+            <div class="metadata-rail__row">
+                <label>Tags</label>
+                <form method="post" action="/admin/update.php" class="js-autosave-form m-0">
+                    <?= csrfInputField() ?>
+                    <input type="hidden" name="id" value="<?= (int)$task['id'] ?>">
+                    <input class="form-control form-control-sm js-autosave-blur" name="tags" value="<?= htmlspecialchars($tagsText) ?>" placeholder="comma,separated">
                 </form>
             </div>
             <div class="metadata-rail__row">
@@ -237,35 +361,29 @@ require __DIR__ . '/_layout_top.php';
                 </form>
             </div>
             <div class="metadata-rail__row">
-                <label>Tags</label>
-                <div class="metadata-rail__value">
-                    <?php if (!empty($task['tags'])): ?>
-                        <?php foreach ($task['tags'] as $tag): ?>
-                            <span class="tag-chip"><?= htmlspecialchars($tag) ?></span>
+                <label>Recurrence</label>
+                <form method="post" action="/admin/update.php" class="js-autosave-form m-0">
+                    <?= csrfInputField() ?>
+                    <input type="hidden" name="id" value="<?= (int)$task['id'] ?>">
+                    <input class="form-control form-control-sm js-autosave-blur" name="recurrence_rule" value="<?= htmlspecialchars((string)($task['recurrence_rule'] ?? '')) ?>" placeholder="RRULE (optional)">
+                </form>
+            </div>
+
+            <?php if ($watcherCount > 0): ?>
+                <div class="metadata-rail__row metadata-rail__row--block">
+                    <label>Watchers</label>
+                    <div class="metadata-rail__value watcher-list">
+                        <?php foreach ($watchers as $w):
+                            $wname = (string)($w['username'] ?? '—');
+                        ?>
+                            <span class="watcher-chip" title="<?= htmlspecialchars($wname) ?>">
+                                <?= st_avatar_html($wname, 'st-avatar--xs') ?>
+                                <span><?= htmlspecialchars($wname) ?></span>
+                            </span>
                         <?php endforeach; ?>
-                    <?php else: ?>
-                        <span class="text-muted small">No tags</span>
-                    <?php endif; ?>
+                    </div>
                 </div>
-            </div>
-            <div class="metadata-rail__row">
-                <label>Created</label>
-                <div class="metadata-rail__value text-muted"><?= htmlspecialchars($task['created_at']) ?></div>
-            </div>
-            <div class="metadata-rail__row">
-                <label>Updated</label>
-                <div class="metadata-rail__value text-muted"><?= htmlspecialchars($task['updated_at']) ?></div>
-            </div>
-            <div class="metadata-rail__row">
-                <label>Signals</label>
-                <div class="metadata-rail__value">
-                    <span class="icon-stats">
-                        <span title="Comments"><i class="bi bi-chat-text"></i> <?= (int)($task['comment_count'] ?? 0) ?></span>
-                        <span title="Attachments"><i class="bi bi-paperclip"></i> <?= (int)($task['attachment_count'] ?? 0) ?></span>
-                        <span title="Watchers"><i class="bi bi-eye"></i> <?= (int)($task['watcher_count'] ?? 0) ?></span>
-                    </span>
-                </div>
-            </div>
+            <?php endif; ?>
         </aside>
     </div>
 </div>

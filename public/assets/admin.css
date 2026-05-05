@@ -282,7 +282,7 @@ body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-t
 }
 .metadata-rail__value { font-size: 0.88rem; color: var(--st-text-primary); padding: 0.4rem 0; }
 
-/* ---------- Activity / collaboration ---------- */
+/* ---------- Activity / collaboration (legacy) ---------- */
 .activity-list { display: flex; flex-direction: column; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
 .activity-list li {
     display: flex; gap: 0.6rem; align-items: flex-start; font-size: 0.88rem; color: var(--st-text-primary);
@@ -290,6 +290,137 @@ body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-t
 }
 .activity-list li strong { color: var(--st-text-primary); margin-right: 0.25rem; }
 .activity-list .text-muted { color: var(--st-text-muted) !important; }
+
+/* ---------- Task header chips (replaces the single subtitle string) ---------- */
+.task-header__title { min-width: 0; flex: 1 1 360px; }
+.task-title-row { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.task-title { font-size: 1.5rem; line-height: 1.2; margin: 0; font-weight: 600; color: var(--st-text-primary); letter-spacing: -0.01em; }
+.task-title-rename {
+    color: var(--st-text-muted); padding: 0.1rem 0.35rem; border-radius: var(--st-radius-sm);
+    line-height: 1; text-decoration: none;
+}
+.task-title-rename:hover { color: var(--st-accent); background: var(--st-accent-soft); }
+.task-header__chips {
+    display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem;
+    color: var(--st-text-muted);
+}
+.meta-chip {
+    display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.15rem 0.55rem;
+    background: var(--st-bg-soft); border: 1px solid var(--st-border-subtle);
+    color: var(--st-text-secondary); border-radius: 999px; font-size: 0.78rem;
+    line-height: 1.4;
+}
+.meta-chip i { font-size: 0.78rem; opacity: 0.85; }
+.meta-chip--link { color: var(--st-accent); text-decoration: none; }
+.meta-chip--link:hover { color: var(--st-accent-hover); border-color: var(--st-accent); background: var(--st-accent-soft); }
+.meta-chip--warn { color: #92400e; background: #fef3c7; border-color: #fcd34d; }
+.task-header__actions { gap: 0.5rem; }
+
+/* ---------- Section title row (title + right-side action button) ---------- */
+.section-title-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
+.section-title-row .section-title { margin-bottom: 0; }
+
+/* ---------- Description body ---------- */
+.description-body {
+    color: var(--st-text-primary); font-size: 0.95rem; line-height: 1.5;
+    white-space: normal; word-wrap: break-word;
+}
+
+/* ---------- Avatars ---------- */
+.st-avatar {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2rem; height: 2rem; border-radius: 999px;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+    user-select: none; flex-shrink: 0;
+}
+.st-avatar--xs { width: 1.3rem; height: 1.3rem; font-size: 0.6rem; }
+
+/* ---------- Discussion thread ---------- */
+.comment-thread {
+    list-style: none; margin: 0; padding: 0;
+    display: flex; flex-direction: column; gap: 0.85rem;
+}
+.comment-item {
+    display: grid; grid-template-columns: 2.25rem 1fr; gap: 0.65rem;
+    align-items: flex-start;
+}
+.comment-avatar-col { display: flex; justify-content: center; padding-top: 0.1rem; }
+.comment-body-col {
+    background: var(--st-bg-surface); border: 1px solid var(--st-border-subtle);
+    border-radius: var(--st-radius); padding: 0.6rem 0.85rem;
+    box-shadow: var(--st-shadow-sm); position: relative;
+}
+.comment-item--mine .comment-body-col {
+    background: var(--st-accent-soft);
+    border-color: rgba(44, 92, 255, 0.2);
+}
+.comment-meta {
+    display: flex; align-items: baseline; gap: 0.5rem;
+    margin-bottom: 0.25rem; flex-wrap: wrap;
+}
+.comment-author { font-weight: 600; color: var(--st-text-primary); font-size: 0.88rem; }
+.comment-time { color: var(--st-text-muted); font-size: 0.75rem; }
+.comment-body {
+    font-size: 0.92rem; line-height: 1.5; color: var(--st-text-primary);
+    word-wrap: break-word;
+}
+.comment-body a { color: var(--st-accent); text-decoration: underline; }
+.comment-body a:hover { color: var(--st-accent-hover); }
+
+/* ---------- Comment composer ---------- */
+.comment-composer {
+    border-top: 1px solid var(--st-border-subtle);
+    padding-top: 1rem; margin-top: 0.25rem;
+}
+.comment-composer__row {
+    display: grid; grid-template-columns: 2.25rem 1fr; gap: 0.65rem;
+    align-items: flex-start;
+}
+.comment-composer__main { display: flex; flex-direction: column; gap: 0.5rem; }
+.comment-composer textarea.form-control {
+    border-color: var(--st-border-subtle); background: var(--st-bg-soft);
+    font-size: 0.92rem; line-height: 1.5; resize: vertical;
+}
+.comment-composer textarea.form-control:focus {
+    background: var(--st-bg-surface); border-color: var(--st-accent);
+    box-shadow: 0 0 0 3px var(--st-accent-soft);
+}
+.comment-composer__actions {
+    display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;
+}
+
+/* ---------- Inline edit affordance ---------- */
+.js-inline-edit-form { width: 100%; }
+.btn-link.js-inline-edit-toggle, .btn-link.js-inline-edit-cancel {
+    color: var(--st-text-muted); text-decoration: none; padding: 0.1rem 0.35rem;
+    font-size: 0.82rem;
+}
+.btn-link.js-inline-edit-toggle:hover { color: var(--st-accent); }
+
+/* ---------- Attachments list ---------- */
+.attachment-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; font-size: 0.9rem; }
+.attachment-list li { display: flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.65rem; background: var(--st-bg-soft); border-radius: var(--st-radius-sm); }
+.attachment-list a { color: var(--st-text-primary); text-decoration: none; font-weight: 500; }
+.attachment-list a:hover { color: var(--st-accent); }
+
+/* ---------- Watcher list (in metadata rail) ---------- */
+.metadata-rail__row--block { grid-template-columns: 1fr; }
+.metadata-rail__row--block label { margin-bottom: 0.4rem; }
+.watcher-list { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0; }
+.watcher-chip {
+    display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.15rem 0.55rem 0.15rem 0.2rem;
+    background: var(--st-bg-soft); border: 1px solid var(--st-border-subtle);
+    border-radius: 999px; font-size: 0.78rem; color: var(--st-text-secondary);
+}
+.watcher-chip span { line-height: 1; }
+
+/* ---------- Mobile tweaks for the task page ---------- */
+@media (max-width: 767.98px) {
+    .task-header__chips { gap: 0.25rem; }
+    .meta-chip { font-size: 0.74rem; }
+    .comment-item, .comment-composer__row { grid-template-columns: 1.8rem 1fr; gap: 0.5rem; }
+    .st-avatar { width: 1.7rem; height: 1.7rem; font-size: 0.65rem; }
+}
 
 /* ---------- Tabbar (project workspace) ---------- */
 .tabbar {

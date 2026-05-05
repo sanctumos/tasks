@@ -100,6 +100,82 @@ if (!function_exists('st_back_link')) {
     }
 }
 
+if (!function_exists('st_initials')) {
+    /**
+     * Two-letter avatar initials for a username (or "?" fallback).
+     */
+    function st_initials(?string $username): string {
+        $u = trim((string)$username);
+        if ($u === '') return '?';
+        $parts = preg_split('/[\s._\-]+/u', $u, -1, PREG_SPLIT_NO_EMPTY) ?: [$u];
+        if (count($parts) === 1) {
+            return strtoupper(substr($parts[0], 0, 2));
+        }
+        return strtoupper(substr($parts[0], 0, 1) . substr($parts[count($parts) - 1], 0, 1));
+    }
+}
+
+if (!function_exists('st_avatar_color')) {
+    /**
+     * Stable hue (0-359) derived from username so each user has a distinct
+     * but pastel avatar bubble. Used by the comment thread + watcher chips.
+     */
+    function st_avatar_color(?string $username): int {
+        $u = (string)$username;
+        if ($u === '') return 220;
+        $hash = 0;
+        for ($i = 0, $n = strlen($u); $i < $n; $i++) {
+            $hash = (int)((($hash << 5) - $hash) + ord($u[$i])) & 0xffffffff;
+        }
+        return abs($hash) % 360;
+    }
+}
+
+if (!function_exists('st_avatar_html')) {
+    function st_avatar_html(?string $username, string $sizeClass = ''): string {
+        $hue = st_avatar_color($username);
+        $initials = st_initials($username);
+        $cls = 'st-avatar' . ($sizeClass !== '' ? ' ' . $sizeClass : '');
+        $style = "background:hsl({$hue}deg 60% 88%);color:hsl({$hue}deg 45% 28%);";
+        return '<span class="' . $cls . '" style="' . $style . '" aria-hidden="true">' . htmlspecialchars($initials) . '</span>';
+    }
+}
+
+if (!function_exists('st_format_comment_body')) {
+    /**
+     * Escape user input, preserve newlines, and auto-link bare URLs.
+     * No raw HTML is ever inserted from the comment body.
+     */
+    function st_format_comment_body(string $raw): string {
+        $escaped = htmlspecialchars($raw, ENT_QUOTES, 'UTF-8');
+        $linked = preg_replace_callback(
+            '~(?<![">])\b((?:https?://|www\.)[^\s<]+[^\s<.,;:!?\'")\]])~i',
+            function ($m) {
+                $url = $m[1];
+                $href = (stripos($url, 'http') === 0) ? $url : 'http://' . $url;
+                return '<a href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer">' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '</a>';
+            },
+            $escaped
+        );
+        return nl2br($linked, false);
+    }
+}
+
+if (!function_exists('st_absolute_time_attr')) {
+    /**
+     * Title attribute string showing the absolute UTC timestamp for hover.
+     */
+    function st_absolute_time_attr(?string $iso): string {
+        if (!$iso) return '';
+        try {
+            $dt = new DateTime($iso, new DateTimeZone('UTC'));
+            return $dt->format('Y-m-d H:i') . ' UTC';
+        } catch (Exception $e) {
+            return (string)$iso;
+        }
+    }
+}
+
 if (!function_exists('st_admin_breadcrumbs')) {
     /**
      * Bootstrap-style breadcrumb trail for admin UI.

@@ -4,6 +4,7 @@
 
 ### Changed
 
+- **Task detail page redesign** (`/admin/view.php`) — the cramped *Activity* card is gone. Comments now render as a real **Discussion** thread (avatar + author + tooltip-bearing relative timestamp + multiline body, URLs auto-linked), with a **comment composer right on the page** posting through new admin endpoint `/admin/comment.php` (CSRF, session-auth wrapper around `addTaskComment`). **Watch / Unwatch** is a first-class header button (new `/admin/watch.php`). Header is rebuilt as labeled chips (id, project link or *orphan task* warning, opened/updated with absolute-time tooltips) plus inline title rename. Description now has inline edit (no scrolling past the discussion to fix typos). Metadata rail’s *Project* control became a **dropdown bound to `project_id`** so editing it can no longer re-orphan a task; *Tags* row is now editable autosave (one source of truth); *Recurrence* moves to the rail. Attachments split into their own card. New `_helpers.php` utilities: `st_initials`, `st_avatar_html`, `st_format_comment_body`, `st_absolute_time_attr`. CSS bumped to `?v=4`, JS to `?v=3`. Visual verification harness added (`tools/design-smoke/task_view_verify.py`).
 - **Repository split:** the FastAPI stack (`api_python/`) and its pytest suite moved to **`sanctumos/py-tasks`**. This repo keeps PHP (`public/`), Composer/PHPUnit, `tasks_sdk/`, and `smcp_plugin/`. CI no longer installs FastAPI deps here.
 
 ### Fixed
