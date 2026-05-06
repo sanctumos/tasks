@@ -156,10 +156,11 @@ def create_task(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
             call_kw["project_id"] = args["project-id"]
         if "list-id" in args:
             call_kw["list_id"] = args["list-id"]
-        if call_kw.get("project_id") is None and call_kw.get("list_id") is None:
+        if call_kw.get("list_id") is None:
             raise ValueError(
-                "Every task must belong to a directory project: pass --project-id or --list-id "
-                "(list-directory-projects / create-directory-project)."
+                "Every task must belong to a todo list: pass --list-id "
+                "(from list-todo-lists --project-id …). You can pass --list-id alone; "
+                "the task inherits its workspace project from the list."
             )
         task = client.create_task(**call_kw)
         return _success(message=f"Task '{task['title']}' created successfully", task=task)
@@ -663,13 +664,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--project-id",
         type=int,
         dest="project_id",
-        help="Directory workspace project id (required unless --list-id)",
+        help="Directory workspace project id (must be paired with --list-id)",
     )
     p.add_argument(
         "--list-id",
         type=int,
         dest="list_id",
-        help="To-do list id (task inherits its project; alternative to --project-id)",
+        help="To-do list id (required; task inherits project from this list)",
     )
     p.add_argument("--tags", help="Comma-separated tags")
     p.add_argument("--rank", type=int)

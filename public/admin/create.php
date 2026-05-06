@@ -26,6 +26,7 @@ $dueAt = $_POST['due_at'] ?? null;
 $priority = $_POST['priority'] ?? 'normal';
 $project = $_POST['project'] ?? null;
 $projectIdPost = isset($_POST['project_id']) ? (int)$_POST['project_id'] : 0;
+$listIdPost = isset($_POST['list_id']) ? (int)$_POST['list_id'] : 0;
 $rank = $_POST['rank'] ?? 0;
 $recurrenceRule = $_POST['recurrence_rule'] ?? null;
 $tagsRaw = $_POST['tags'] ?? '';
@@ -41,6 +42,9 @@ $opts = [
 ];
 if ($projectIdPost > 0) {
     $opts['project_id'] = $projectIdPost;
+}
+if ($listIdPost > 0) {
+    $opts['list_id'] = $listIdPost;
 }
 
 $res = createTask(

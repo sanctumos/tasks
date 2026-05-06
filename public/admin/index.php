@@ -29,6 +29,11 @@ foreach ($directoryProjects as $dp) {
     $directoryProjectByName[strtolower($dp['name'])] = $dp;
 }
 
+$todoListsByProject = [];
+foreach ($directoryProjects as $dp) {
+    $todoListsByProject[(int)$dp['id']] = listTodoListsForProject($currentUser, (int)$dp['id']);
+}
+
 $filters = [
     'status' => $status ?: null,
     'assigned_to_user_id' => $assignedToUserId,
@@ -404,13 +409,20 @@ function st_render_task_assignee_html(array $t): string {
                         </div>
                         <div class="col-12">
                             <label class="form-label">Project</label>
-                            <select class="form-select" name="project_id" required>
+                            <select class="form-select" name="project_id" id="newTaskProjectId" required>
                                 <option value="" selected disabled>Select a project…</option>
                                 <?php foreach ($directoryProjects as $dp): ?>
                                     <option value="<?= (int)$dp['id'] ?>"><?= htmlspecialchars($dp['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                             <div class="form-text">Tasks must belong to a workspace project.</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">To-do list</label>
+                            <select class="form-select" name="list_id" id="newTaskListId" required disabled>
+                                <option value="">Select a project first…</option>
+                            </select>
+                            <div class="form-text">Pick the list this task lives on (each project has at least a “General” list).</div>
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label">Due (UTC)</label>
@@ -437,6 +449,48 @@ function st_render_task_assignee_html(array $t): string {
 <?php endif; ?>
 
 <script>
+(function () {
+    var byProject = <?= json_encode($todoListsByProject, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var projSel = document.getElementById('newTaskProjectId');
+    var listSel = document.getElementById('newTaskListId');
+    if (!projSel || !listSel) return;
+    function refillLists() {
+        var pid = parseInt(projSel.value, 10);
+        listSel.innerHTML = '';
+        if (!pid || isNaN(pid)) {
+            listSel.disabled = true;
+            listSel.required = false;
+            var o0 = document.createElement('option');
+            o0.value = '';
+            o0.textContent = 'Select a project first…';
+            listSel.appendChild(o0);
+            return;
+        }
+        var lists = byProject[String(pid)] || byProject[pid] || [];
+        if (!lists.length) {
+            listSel.disabled = true;
+            listSel.required = false;
+            var o1 = document.createElement('option');
+            o1.value = '';
+            o1.textContent = 'No lists — open the project’s Lists tab and add one';
+            listSel.appendChild(o1);
+            return;
+        }
+        lists.forEach(function (L) {
+            var o = document.createElement('option');
+            o.value = L.id;
+            o.textContent = L.name || ('List #' + L.id);
+            listSel.appendChild(o);
+        });
+        listSel.disabled = false;
+        listSel.required = true;
+    }
+    projSel.addEventListener('change', refillLists);
+    var modal = document.getElementById('newTaskModal');
+    if (modal) {
+        modal.addEventListener('shown.bs.modal', refillLists);
+    }
+})();
 // View switcher: hide/show board vs list based on data-view-root
 (function () {
     function applyView(name) {

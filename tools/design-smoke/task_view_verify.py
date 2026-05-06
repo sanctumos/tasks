@@ -92,6 +92,20 @@ def main() -> int:
         r.raise_for_status()
         project_id = int(r.json()["data"]["project"]["id"])
 
+        lr = requests.get(
+            f"{base}/api/list-todo-lists.php",
+            headers=h,
+            params={"project_id": project_id},
+            timeout=10,
+        )
+        lr.raise_for_status()
+        lp = lr.json()
+        lists = (lp.get("data") or lp).get("todo_lists") or []
+        if not lists:
+            print("No todo lists for design-smoke project", file=sys.stderr)
+            return 1
+        list_id = int(lists[0]["id"])
+
         # Create task with a markdown body and a real RRULE so screenshots
         # exercise both new features.
         body_md = (
@@ -116,6 +130,7 @@ def main() -> int:
                               "status": "doing",
                               "priority": "high",
                               "project_id": project_id,
+                              "list_id": list_id,
                               "tags": ["ui", "polish", "discussion"],
                               "recurrence_rule": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR;COUNT=12",
                           })

@@ -146,14 +146,15 @@ Convenience fields:
 | `status` | No | Defaults to default workflow status |
 | `assigned_to_user_id` | No | |
 | `body` | No | |
-| `project_id` | **Yes** | Directory / workspace `projects.id` the task belongs to. You may instead send **`list_id`** (a to-do list inside a project) and the task inherits that project. |
-| `due_at`, `priority`, `project`, `list_id`, `tags`, `rank`, `recurrence_rule` | No | `project` is a legacy display string; new tasks should rely on `project_id`. |
+| `list_id` | **Yes** | Todo list (`todo_lists.id`) the task belongs to. You may send **`list_id` alone** (the task’s directory project is inferred from the list). If you also send **`project_id`**, it must match the list’s project. |
+| `project_id` | No | Directory / workspace `projects.id`. Optional when `list_id` alone identifies the project; if both are sent, they must agree. |
+| `due_at`, `priority`, `project`, `tags`, `rank`, `recurrence_rule` | No | `project` is a legacy display string; new tasks should rely on `project_id` + `list_id`. |
 
 **Response:** `201` with created task payload (`task`).
 
 #### `POST /api/update-task.php`
 
-**Body:** `id` (required), plus any writable task fields. You cannot clear **`project_id`** (sending `null` / empty is rejected); link the task to another directory project by passing a new id.
+**Body:** `id` (required), plus any writable task fields. You cannot clear **`project_id`** or **`list_id`** (sending `null` / empty is rejected). When changing **`project_id`**, if you omit **`list_id`**, the server assigns the **first** list in the target project (must exist).
 
 #### `POST /api/delete-task.php`
 
@@ -352,8 +353,8 @@ See `list-todo-lists.php`, `create-todo-list.php`, `list-project-pins.php`, `set
 
 ### Tasks ↔ directory project
 
-- `POST /api/create-task.php` — required **`project_id`** (or **`list_id`** that resolves to a project); optional other fields
-- `POST /api/update-task.php` — **`project_id`** cannot be cleared once set; optional `list_id` when consistent with the task’s project
+- `POST /api/create-task.php` — required **`list_id`** on every task; include **`project_id`** too unless it is implied by the list alone
+- `POST /api/update-task.php` — **`project_id`** / **`list_id`** cannot be cleared; optional `list_id` when consistent with the task’s project (when moving projects without `list_id`, first list is picked server-side)
 - `GET /api/list-tasks.php` — filter `project_id`, `list_id`
 
 ---

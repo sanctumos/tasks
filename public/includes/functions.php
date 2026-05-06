@@ -1268,6 +1268,10 @@ function createTask($title, $status, $createdByUserId, $assignedToUserId = null,
         return ['success' => false, 'error' => 'A directory project is required. Provide project_id or list_id for a list inside a project.'];
     }
 
+    if ($listIdOpt <= 0) {
+        return ['success' => false, 'error' => 'A todo list is required. Provide list_id for a list in this project (GET /api/list-todo-lists.php?project_id=' . (int)$projectFk . ').'];
+    }
+
     $db = getDbConnection();
     $stmt = $db->prepare("
         INSERT INTO tasks
@@ -1288,11 +1292,7 @@ function createTask($title, $status, $createdByUserId, $assignedToUserId = null,
     $stmt->bindValue(':priority', $priority, SQLITE3_TEXT);
     $stmt->bindValue(':project', $project, $project === null ? SQLITE3_NULL : SQLITE3_TEXT);
     $stmt->bindValue(':project_id', $projectFk, $projectFk === null ? SQLITE3_NULL : SQLITE3_INTEGER);
-    if ($listIdOpt > 0) {
-        $stmt->bindValue(':list_id', $listIdOpt, SQLITE3_INTEGER);
-    } else {
-        $stmt->bindValue(':list_id', null, SQLITE3_NULL);
-    }
+    $stmt->bindValue(':list_id', $listIdOpt, SQLITE3_INTEGER);
     $stmt->bindValue(':tags_json', $tagsJson, $tagsJson === null ? SQLITE3_NULL : SQLITE3_TEXT);
     $stmt->bindValue(':rank', $rank, SQLITE3_INTEGER);
     $stmt->bindValue(':recurrence_rule', $rrule, $rrule === null ? SQLITE3_NULL : SQLITE3_TEXT);
@@ -1603,9 +1603,54 @@ function updateTask($id, $fields = []): array {
         return ['success' => false, 'error' => 'Invalid id'];
     }
 
-    if (!getTaskById($id, false)) {
+    $existing = getTaskById($id, false);
+    if (!$existing) {
         return ['success' => false, 'error' => 'Task not found'];
     }
+
+    $workingFields = $fields;
+
+    // Moving project without an explicit list_id: pick the first list in the target project.
+    if (array_key_exists('project_id', $workingFields) && !array_key_exists('list_id', $workingFields)) {
+        $oldPid = (int)($existing['project_id'] ?? 0);
+        $newPid = (int)$workingFields['project_id'];
+        if ($newPid !== $oldPid) {
+            $dbMove = getDbConnection();
+            $firstListId = getFirstTodoListIdForProject($dbMove, $newPid);
+            if ($firstListId === null || $firstListId <= 0) {
+                return ['success' => false, 'error' => 'That project has no todo lists yet; create one before moving this task.'];
+            }
+            $workingFields['list_id'] = $firstListId;
+        }
+    }
+
+    if (array_key_exists('list_id', $workingFields) && ($workingFields['list_id'] === null || $workingFields['list_id'] === '')) {
+        return ['success' => false, 'error' => 'list_id cannot be cleared; every task must belong to a todo list.'];
+    }
+
+    $mergedPid = array_key_exists('project_id', $workingFields)
+        ? (int)$workingFields['project_id']
+        : (int)($existing['project_id'] ?? 0);
+    $mergedLid = array_key_exists('list_id', $workingFields)
+        ? (int)$workingFields['list_id']
+        : (int)($existing['list_id'] ?? 0);
+
+    if ($mergedPid <= 0) {
+        return ['success' => false, 'error' => 'project_id cannot be cleared; every task must belong to a directory project.'];
+    }
+    if ($mergedLid <= 0) {
+        return ['success' => false, 'error' => 'A todo list is required. Set list_id to a list in this project.'];
+    }
+
+    $dbVal = getDbConnection();
+    $lsVal = $dbVal->prepare('SELECT project_id FROM todo_lists WHERE id = :i LIMIT 1');
+    $lsVal->bindValue(':i', $mergedLid, SQLITE3_INTEGER);
+    $lrVal = $lsVal->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$lrVal || (int)$lrVal['project_id'] !== $mergedPid) {
+        return ['success' => false, 'error' => 'list_id does not belong to the task project.'];
+    }
+
+    $fields = $workingFields;
 
     $sets = [];
     $params = [':id' => [$id, SQLITE3_INTEGER]];
@@ -1683,14 +1728,8 @@ function updateTask($id, $fields = []): array {
     }
 
     if (array_key_exists('list_id', $fields)) {
-        $lidRaw = $fields['list_id'];
-        if ($lidRaw === null || $lidRaw === '') {
-            $sets[] = 'list_id = :list_id';
-            $params[':list_id'] = [null, SQLITE3_NULL];
-        } else {
-            $sets[] = 'list_id = :list_id';
-            $params[':list_id'] = [(int)$lidRaw, SQLITE3_INTEGER];
-        }
+        $sets[] = 'list_id = :list_id';
+        $params[':list_id'] = [(int)$fields['list_id'], SQLITE3_INTEGER];
     }
 
     if (array_key_exists('tags', $fields)) {
@@ -2444,6 +2483,22 @@ function backfillTaskProjectIdsFromLegacyNames(): array {
         }
     }
     return ['updated' => $updated];
+}
+
+/**
+ * First todo_list id for a project (sort_order, then id), or null when none exist.
+ */
+function getFirstTodoListIdForProject(SQLite3 $db, int $projectId): ?int {
+    if ($projectId <= 0) {
+        return null;
+    }
+    $stmt = $db->prepare('SELECT id FROM todo_lists WHERE project_id = :p ORDER BY sort_order ASC, id ASC LIMIT 1');
+    $stmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        return null;
+    }
+    return (int)$row['id'];
 }
 
 /** To-do lists under a directory project (requires directory access). */

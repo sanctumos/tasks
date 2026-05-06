@@ -44,6 +44,12 @@ if (array_key_exists('project_id', $_POST)) {
         $fields['project_id'] = (int)$pidRaw;
     }
 }
+if (array_key_exists('list_id', $_POST)) {
+    $lidRaw = trim((string)$_POST['list_id']);
+    if ($lidRaw !== '') {
+        $fields['list_id'] = (int)$lidRaw;
+    }
+}
 if (array_key_exists('rank', $_POST)) {
     $fields['rank'] = (int)$_POST['rank'];
 }
