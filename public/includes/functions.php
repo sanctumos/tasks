@@ -2864,3 +2864,287 @@ function bulkUpdateTasks(array $items): array {
     ];
 }
 
+// --------------------
+// Documents
+// --------------------
+//
+// Long-form markdown reference material attached to a directory project.
+// Each document has its own discussion thread (document_comments), mirroring
+// task comments. Documents are scoped by project access — viewers must be
+// able to access the project the doc belongs to.
+
+function normalizeDocumentTitle($title): ?string {
+    $title = trim((string)$title);
+    if ($title === '') return null;
+    return truncateString($title, 200);
+}
+
+function normalizeDocumentBody($body): ?string {
+    if ($body === null) return null;
+    $body = (string)$body;
+    if (trim($body) === '') return null;
+    // Documents are long-form, so allow up to 100 KB of markdown.
+    return truncateString($body, 100000);
+}
+
+function userCanAccessDocument(array $userRow, ?array $document): bool {
+    if (!$document) return false;
+    $pid = (int)($document['project_id'] ?? 0);
+    if ($pid <= 0) return false;
+    $proj = getDirectoryProjectById($pid);
+    return $proj !== null && userCanAccessDirectoryProject($userRow, $proj);
+}
+
+function userCanManageDocument(array $userRow, ?array $document): bool {
+    if (!$document) return false;
+    if (!userCanAccessDocument($userRow, $document)) return false;
+    if (normalizePersonKind($userRow['person_kind'] ?? 'team_member') === 'client') {
+        return false;
+    }
+    $role = (string)($userRow['role'] ?? 'member');
+    if ($role === 'admin') return true;
+    if ($role === 'manager' && userHasUnrestrictedOrgDirectoryAccess($userRow)) return true;
+    if ((int)($document['created_by_user_id'] ?? 0) === (int)$userRow['id']) return true;
+    $pid = (int)$document['project_id'];
+    $member = getProjectMemberRole((int)$userRow['id'], $pid);
+    return $member === 'lead';
+}
+
+function createDocument(int $userId, int $projectId, string $title, ?string $body = null): array {
+    $title = normalizeDocumentTitle($title);
+    if ($title === null) {
+        return ['success' => false, 'error' => 'Title is required'];
+    }
+    $body = normalizeDocumentBody($body);
+    $proj = getDirectoryProjectById($projectId);
+    if (!$proj) {
+        return ['success' => false, 'error' => 'Project not found'];
+    }
+    $user = getUserById($userId, false);
+    if (!$user) {
+        return ['success' => false, 'error' => 'Invalid user'];
+    }
+    if (!userCanAccessDirectoryProject($user, $proj)) {
+        return ['success' => false, 'error' => 'You do not have access to this project'];
+    }
+
+    $db = getDbConnection();
+    $stmt = $db->prepare("
+        INSERT INTO documents (project_id, title, body, status, created_by_user_id, created_at, updated_at)
+        VALUES (:project_id, :title, :body, 'active', :uid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    ");
+    $stmt->bindValue(':project_id', $projectId, SQLITE3_INTEGER);
+    $stmt->bindValue(':title', $title, SQLITE3_TEXT);
+    $stmt->bindValue(':body', $body, $body === null ? SQLITE3_NULL : SQLITE3_TEXT);
+    $stmt->bindValue(':uid', $userId, SQLITE3_INTEGER);
+    $stmt->execute();
+    $id = (int)$db->lastInsertRowID();
+    createAuditLog($userId, 'document.create', 'document', (string)$id, ['project_id' => $projectId]);
+    return ['success' => true, 'id' => $id];
+}
+
+function getDocumentById(int $id, bool $withRelations = true): ?array {
+    if ($id <= 0) return null;
+    $db = getDbConnection();
+    $stmt = $db->prepare("
+        SELECT d.id, d.project_id, d.title, d.body, d.status,
+               d.created_by_user_id, d.created_at, d.updated_at,
+               cu.username AS created_by_username,
+               p.name AS project_name,
+               (SELECT COUNT(*) FROM document_comments dc WHERE dc.document_id = d.id) AS comment_count
+        FROM documents d
+        JOIN users cu ON cu.id = d.created_by_user_id
+        LEFT JOIN projects p ON p.id = d.project_id
+        WHERE d.id = :id LIMIT 1
+    ");
+    $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+    $res = $stmt->execute();
+    $row = $res->fetchArray(SQLITE3_ASSOC);
+    if (!$row) return null;
+    $row['id'] = (int)$row['id'];
+    $row['project_id'] = (int)$row['project_id'];
+    $row['created_by_user_id'] = (int)$row['created_by_user_id'];
+    $row['comment_count'] = (int)$row['comment_count'];
+    if ($withRelations) {
+        $row['comments'] = listDocumentComments($id, 500, 0);
+    }
+    return $row;
+}
+
+function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId = null): array {
+    $limit = max(1, min(500, $limit));
+    $uid = (int)$userRow['id'];
+    $orgIds = listOrganizationIdsForUserAccess($userRow);
+    if ($orgIds === []) return [];
+    $pk = normalizePersonKind($userRow['person_kind'] ?? 'team_member');
+    $clientOnly = ($pk === 'client');
+    $canSeeAll = userHasUnrestrictedOrgDirectoryAccess($userRow);
+
+    $db = getDbConnection();
+    $bind = [':uid' => [$uid, SQLITE3_INTEGER], ':lim' => [$limit, SQLITE3_INTEGER]];
+    $orgPlaceholders = [];
+    foreach ($orgIds as $i => $oid) {
+        $k = ':org' . $i;
+        $orgPlaceholders[] = $k;
+        $bind[$k] = [$oid, SQLITE3_INTEGER];
+    }
+    $orgIn = implode(', ', $orgPlaceholders);
+    $cvJoin = $clientOnly ? ' AND p.client_visible = 1' : '';
+    $accessClause = $canSeeAll
+        ? ''
+        : ' AND (p.all_access = 1 OR EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id = p.id AND pm.user_id = :uid))';
+    $projectClause = '';
+    if ($projectId !== null && $projectId > 0) {
+        $projectClause = ' AND d.project_id = :pid';
+        $bind[':pid'] = [$projectId, SQLITE3_INTEGER];
+    }
+
+    $sql = "
+        SELECT d.id, d.project_id, d.title, d.status, d.created_by_user_id,
+               d.created_at, d.updated_at,
+               cu.username AS created_by_username,
+               p.name AS project_name,
+               (SELECT COUNT(*) FROM document_comments dc WHERE dc.document_id = d.id) AS comment_count
+        FROM documents d
+        JOIN users cu ON cu.id = d.created_by_user_id
+        JOIN projects p ON p.id = d.project_id
+        WHERE d.status != 'trashed'
+          AND p.status != 'trashed'
+          AND p.org_id IN ($orgIn)
+          {$cvJoin}
+          {$accessClause}
+          {$projectClause}
+        ORDER BY d.updated_at DESC, d.id DESC
+        LIMIT :lim
+    ";
+    $stmt = $db->prepare($sql);
+    foreach ($bind as $k => $v) {
+        $stmt->bindValue($k, $v[0], $v[1]);
+    }
+    $res = $stmt->execute();
+    $rows = [];
+    while ($r = $res->fetchArray(SQLITE3_ASSOC)) {
+        $r['id'] = (int)$r['id'];
+        $r['project_id'] = (int)$r['project_id'];
+        $r['created_by_user_id'] = (int)$r['created_by_user_id'];
+        $r['comment_count'] = (int)$r['comment_count'];
+        $rows[] = $r;
+    }
+    return $rows;
+}
+
+function updateDocument(int $id, array $fields): array {
+    $id = (int)$id;
+    if ($id <= 0) return ['success' => false, 'error' => 'Invalid id'];
+    if (!getDocumentById($id, false)) return ['success' => false, 'error' => 'Document not found'];
+
+    $sets = [];
+    $params = [':id' => [$id, SQLITE3_INTEGER]];
+
+    if (array_key_exists('title', $fields)) {
+        $title = normalizeDocumentTitle($fields['title']);
+        if ($title === null) return ['success' => false, 'error' => 'Title cannot be empty'];
+        $sets[] = 'title = :title';
+        $params[':title'] = [$title, SQLITE3_TEXT];
+    }
+    if (array_key_exists('body', $fields)) {
+        $body = normalizeDocumentBody($fields['body']);
+        $sets[] = 'body = :body';
+        $params[':body'] = [$body, $body === null ? SQLITE3_NULL : SQLITE3_TEXT];
+    }
+    if (array_key_exists('status', $fields)) {
+        $status = strtolower(trim((string)$fields['status']));
+        if (!in_array($status, ['active', 'archived', 'trashed'], true)) {
+            return ['success' => false, 'error' => 'Invalid status'];
+        }
+        $sets[] = 'status = :status';
+        $params[':status'] = [$status, SQLITE3_TEXT];
+    }
+    if (array_key_exists('project_id', $fields)) {
+        $newPid = (int)$fields['project_id'];
+        if ($newPid <= 0 || !getDirectoryProjectById($newPid)) {
+            return ['success' => false, 'error' => 'Invalid project_id'];
+        }
+        $sets[] = 'project_id = :project_id';
+        $params[':project_id'] = [$newPid, SQLITE3_INTEGER];
+    }
+
+    if (!$sets) return ['success' => false, 'error' => 'No fields to update'];
+    $sets[] = 'updated_at = CURRENT_TIMESTAMP';
+
+    $db = getDbConnection();
+    $sql = 'UPDATE documents SET ' . implode(', ', $sets) . ' WHERE id = :id';
+    $stmt = $db->prepare($sql);
+    foreach ($params as $k => $v) {
+        $stmt->bindValue($k, $v[0], $v[1]);
+    }
+    $stmt->execute();
+    createAuditLog(null, 'document.update', 'document', (string)$id, ['updated_fields' => array_keys($fields)]);
+    return ['success' => true];
+}
+
+function deleteDocument(int $id): array {
+    $id = (int)$id;
+    if ($id <= 0) return ['success' => false, 'error' => 'Invalid id'];
+    if (!getDocumentById($id, false)) return ['success' => false, 'error' => 'Document not found'];
+    $db = getDbConnection();
+    $stmt = $db->prepare('DELETE FROM documents WHERE id = :id');
+    $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+    $stmt->execute();
+    createAuditLog(null, 'document.delete', 'document', (string)$id);
+    return ['success' => true];
+}
+
+function listDocumentComments(int $documentId, int $limit = 100, int $offset = 0): array {
+    $limit = max(1, min(500, $limit));
+    $offset = max(0, $offset);
+    $db = getDbConnection();
+    $stmt = $db->prepare("
+        SELECT c.id, c.document_id, c.user_id, c.comment, c.created_at, u.username
+        FROM document_comments c
+        JOIN users u ON u.id = c.user_id
+        WHERE c.document_id = :doc_id
+        ORDER BY c.id ASC
+        LIMIT :limit OFFSET :offset
+    ");
+    $stmt->bindValue(':doc_id', $documentId, SQLITE3_INTEGER);
+    $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
+    $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
+    $res = $stmt->execute();
+    $rows = [];
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $rows[] = $row;
+    }
+    return $rows;
+}
+
+function addDocumentComment(int $documentId, int $userId, string $comment): array {
+    $comment = trim($comment);
+    if ($comment === '') return ['success' => false, 'error' => 'Comment is required'];
+    $comment = truncateString($comment, 2000);
+    if (!getDocumentById($documentId, false)) return ['success' => false, 'error' => 'Document not found'];
+    if (!getUserById($userId)) return ['success' => false, 'error' => 'User not found'];
+
+    $db = getDbConnection();
+    $stmt = $db->prepare("
+        INSERT INTO document_comments (document_id, user_id, comment, created_at)
+        VALUES (:doc_id, :user_id, :comment, CURRENT_TIMESTAMP)
+    ");
+    $stmt->bindValue(':doc_id', $documentId, SQLITE3_INTEGER);
+    $stmt->bindValue(':user_id', $userId, SQLITE3_INTEGER);
+    $stmt->bindValue(':comment', $comment, SQLITE3_TEXT);
+    $stmt->execute();
+
+    $upd = $db->prepare('UPDATE documents SET updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+    $upd->bindValue(':id', $documentId, SQLITE3_INTEGER);
+    $upd->execute();
+
+    $id = (int)$db->lastInsertRowID();
+    $sel = $db->prepare('SELECT created_at FROM document_comments WHERE id = :id LIMIT 1');
+    $sel->bindValue(':id', $id, SQLITE3_INTEGER);
+    $createdRow = $sel->execute()->fetchArray(SQLITE3_ASSOC);
+    $createdAt = $createdRow ? $createdRow['created_at'] : nowUtc();
+    createAuditLog($userId, 'document.comment_add', 'document_comment', (string)$id, ['document_id' => $documentId]);
+    return ['success' => true, 'id' => $id, 'created_at' => $createdAt];
+}
+

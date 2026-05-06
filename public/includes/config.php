@@ -452,6 +452,38 @@ function initializeDatabase() {
         )
     ");
 
+    // Documents — long-form markdown files attached to a directory project.
+    // Each document gets its own discussion thread (document_comments). Used
+    // for specs, runbooks, decision records, and other reference material
+    // that gets linked from task discussions and elsewhere. Modeled on
+    // Basecamp's Docs pattern: one body, many comments, all per-project.
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS documents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            body TEXT DEFAULT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            created_by_user_id INTEGER NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY(created_by_user_id) REFERENCES users(id)
+        )
+    ");
+
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS document_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            comment TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    ");
+
     // Security + operations
     $db->exec("
         CREATE TABLE IF NOT EXISTS login_attempts (
@@ -502,6 +534,10 @@ function initializeDatabase() {
     ensureIndexExists($db, 'idx_watchers_user', 'CREATE INDEX idx_watchers_user ON task_watchers(user_id)');
     ensureIndexExists($db, 'idx_attachments_task', 'CREATE INDEX idx_attachments_task ON task_attachments(task_id)');
     ensureIndexExists($db, 'idx_audit_logs_action_time', 'CREATE INDEX idx_audit_logs_action_time ON audit_logs(action, created_at)');
+    ensureIndexExists($db, 'idx_documents_project', 'CREATE INDEX idx_documents_project ON documents(project_id)');
+    ensureIndexExists($db, 'idx_documents_status', 'CREATE INDEX idx_documents_status ON documents(status)');
+    ensureIndexExists($db, 'idx_documents_updated', 'CREATE INDEX idx_documents_updated ON documents(updated_at)');
+    ensureIndexExists($db, 'idx_document_comments_doc', 'CREATE INDEX idx_document_comments_doc ON document_comments(document_id)');
 
     applySanctumSchemaMigrations($db);
 
