@@ -167,25 +167,29 @@ class TasksClient:
         """
         Create a new task.
 
-        Every task must belong to a directory (workspace) project: pass ``project_id``,
-        or ``list_id`` for a to-do list inside a project (the task inherits that project).
+        Server-side rule: every task must belong to both a directory project **and** a
+        todo list. Pass ``list_id`` (required). When ``project_id`` is also sent, it must
+        match the list's project. If you only pass ``list_id``, the task inherits the
+        correct ``project_id`` from that list.
 
         Args:
             title: Task title (required)
             status: Task status: 'todo', 'doing', or 'done' (default: 'todo')
             assigned_to_user_id: User ID to assign task to (optional)
             body: Task description/details (optional)
-            project_id: Directory project id (required for API unless using list_id — see server rules)
-        
+            project_id: Directory project id (optional if implicit from ``list_id``)
+            list_id: Todo list id (**required** by the API)
+
         Returns:
             Dictionary containing task data
-        
+
         Example:
             >>> task = client.create_task(
             ...     title="Fix deployment bug",
+            ...     list_id=42,
             ...     status="todo",
             ...     assigned_to_user_id=1,
-            ...     body="Check logs and deployment status"
+            ...     body="Check logs and deployment status",
             ... )
             >>> print(task['id'])
             123

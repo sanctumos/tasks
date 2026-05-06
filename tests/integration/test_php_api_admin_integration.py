@@ -26,6 +26,22 @@ def _auth_headers(api_key: str) -> dict:
     }
 
 
+def _first_list_id(base_url: str, api_key: str, project_id: int) -> int:
+    """Return first todo list id for a project (migration seeds at least General)."""
+    r = requests.get(
+        _api_url(base_url, "/api/list-todo-lists.php"),
+        headers=_auth_headers(api_key),
+        params={"project_id": project_id},
+        timeout=5,
+    )
+    assert r.status_code == 200, r.text
+    payload = r.json()
+    data = payload.get("data") or payload
+    lists = data.get("todo_lists") or []
+    assert lists, f"expected at least one todo list for project {project_id}: {payload}"
+    return int(lists[0]["id"])
+
+
 def _create_directory_project(base_url: str, api_key: str, name: str) -> int:
     r = requests.post(
         _api_url(base_url, "/api/create-directory-project.php"),
@@ -129,6 +145,7 @@ def test_task_crud_search_sort_and_collaboration_endpoints(php_server):
     token = uuid.uuid4().hex[:8]
 
     proj_id = _create_directory_project(base_url, php_server.api_key, f"Platform-{token}")
+    list_id = _first_list_id(base_url, php_server.api_key, proj_id)
 
     create_payload = {
         "title": f"Investigate deploy error {token}",
@@ -136,6 +153,7 @@ def test_task_crud_search_sort_and_collaboration_endpoints(php_server):
         "status": "todo",
         "priority": "high",
         "project_id": proj_id,
+        "list_id": list_id,
         "tags": ["deploy", "infra"],
         "due_at": "2026-03-01T12:30:00Z",
         "rank": 10,
@@ -338,6 +356,7 @@ def test_task_count_fields_are_exact_with_multiple_related_rows(php_server):
     token = uuid.uuid4().hex[:8]
 
     proj_id = _create_directory_project(base_url, php_server.api_key, f"Counts-{token}")
+    list_id = _first_list_id(base_url, php_server.api_key, proj_id)
 
     create_resp = requests.post(
         _api_url(base_url, "/api/create-task.php"),
@@ -348,6 +367,7 @@ def test_task_count_fields_are_exact_with_multiple_related_rows(php_server):
             "status": "todo",
             "priority": "normal",
             "project_id": proj_id,
+            "list_id": list_id,
         },
         timeout=5,
     )
@@ -447,6 +467,7 @@ def test_search_pagination_preserves_filters_and_uses_trusted_origin(php_server)
     token = uuid.uuid4().hex[:8]
 
     proj_id = _create_directory_project(base_url, php_server.api_key, f"Pag-{token}")
+    list_id = _first_list_id(base_url, php_server.api_key, proj_id)
 
     for idx in range(3):
         create_resp = requests.post(
@@ -458,6 +479,7 @@ def test_search_pagination_preserves_filters_and_uses_trusted_origin(php_server)
                 "priority": "high",
                 "assigned_to_user_id": 1,
                 "project_id": proj_id,
+                "list_id": list_id,
             },
             timeout=5,
         )
@@ -521,14 +543,25 @@ def test_bulk_status_user_and_api_key_lifecycle_endpoints(php_server):
     assert any(s["slug"].startswith("blocked-") for s in statuses_resp.json()["statuses"])
 
     bulk_proj_id = _create_directory_project(base_url, php_server.api_key, f"Bulk-{suffix}")
+    bulk_list_id = _first_list_id(base_url, php_server.api_key, bulk_proj_id)
 
     bulk_create = requests.post(
         _api_url(base_url, "/api/bulk-create-tasks.php"),
         headers=headers,
         json={
             "tasks": [
-                {"title": f"Bulk task one {suffix}", "status": "todo", "project_id": bulk_proj_id},
-                {"title": f"Bulk task two {suffix}", "status": "doing", "project_id": bulk_proj_id},
+                {
+                    "title": f"Bulk task one {suffix}",
+                    "status": "todo",
+                    "project_id": bulk_proj_id,
+                    "list_id": bulk_list_id,
+                },
+                {
+                    "title": f"Bulk task two {suffix}",
+                    "status": "doing",
+                    "project_id": bulk_proj_id,
+                    "list_id": bulk_list_id,
+                },
             ]
         },
         timeout=5,

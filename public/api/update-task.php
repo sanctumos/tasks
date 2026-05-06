@@ -17,13 +17,33 @@ if ($id <= 0) {
     apiError('validation.invalid_id', 'Missing or invalid id', 400);
 }
 
+$existing = getTaskById($id, false);
+if (!$existing) {
+    apiError('task.not_found', 'Task not found', 404);
+}
+if (!userCanAccessTask((int)$user['id'], $existing, (string)$user['role'])) {
+    apiError('task.not_found', 'Task not found', 404);
+}
+
 $fields = [];
-if (array_key_exists('title', $body)) $fields['title'] = $body['title'];
-if (array_key_exists('status', $body)) $fields['status'] = $body['status'];
-if (array_key_exists('assigned_to_user_id', $body)) $fields['assigned_to_user_id'] = $body['assigned_to_user_id'];
-if (array_key_exists('body', $body)) $fields['body'] = $body['body'];
-if (array_key_exists('due_at', $body)) $fields['due_at'] = $body['due_at'];
-if (array_key_exists('priority', $body)) $fields['priority'] = $body['priority'];
+if (array_key_exists('title', $body)) {
+    $fields['title'] = $body['title'];
+}
+if (array_key_exists('status', $body)) {
+    $fields['status'] = $body['status'];
+}
+if (array_key_exists('assigned_to_user_id', $body)) {
+    $fields['assigned_to_user_id'] = $body['assigned_to_user_id'];
+}
+if (array_key_exists('body', $body)) {
+    $fields['body'] = $body['body'];
+}
+if (array_key_exists('due_at', $body)) {
+    $fields['due_at'] = $body['due_at'];
+}
+if (array_key_exists('priority', $body)) {
+    $fields['priority'] = $body['priority'];
+}
 if (array_key_exists('project', $body)) {
     $fields['project'] = $body['project'];
 }
@@ -42,44 +62,40 @@ if (array_key_exists('project_id', $body)) {
 if (array_key_exists('list_id', $body)) {
     $lid = $body['list_id'];
     if ($lid === null || $lid === '') {
-        $fields['list_id'] = null;
-    } else {
-        $listId = (int)$lid;
-        if ($listId <= 0) {
-            apiError('validation.list_id', 'Invalid list_id', 400);
-        }
-        $db = getDbConnection();
-        $ls = $db->prepare('SELECT project_id FROM todo_lists WHERE id = :i LIMIT 1');
-        $ls->bindValue(':i', $listId, SQLITE3_INTEGER);
-        $lr = $ls->execute()->fetchArray(SQLITE3_ASSOC);
-        if (!$lr) {
-            apiError('validation.list_id', 'Invalid list_id', 400);
-        }
-        $lpid = (int)$lr['project_id'];
-        $pRow = getDirectoryProjectById($lpid);
-        if (!$pRow || !userCanAccessDirectoryProject($user, $pRow)) {
-            apiError('validation.list_id', 'Invalid list_id', 400);
-        }
-        $task = getTaskById($id, false);
-        if ($task) {
-            $tPid = isset($task['project_id']) ? (int)$task['project_id'] : 0;
-            if ($tPid > 0 && $tPid !== $lpid) {
-                apiError('validation.list_id', 'list_id does not match task project', 400);
-            }
-        }
-        $fields['list_id'] = $listId;
+        apiError('validation.list_id', 'list_id cannot be cleared; every task must belong to a todo list.', 400);
     }
+    $listId = (int)$lid;
+    if ($listId <= 0) {
+        apiError('validation.list_id', 'Invalid list_id', 400);
+    }
+    $db = getDbConnection();
+    $ls = $db->prepare('SELECT project_id FROM todo_lists WHERE id = :i LIMIT 1');
+    $ls->bindValue(':i', $listId, SQLITE3_INTEGER);
+    $lr = $ls->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$lr) {
+        apiError('validation.list_id', 'Invalid list_id', 400);
+    }
+    $lpid = (int)$lr['project_id'];
+    $pRow = getDirectoryProjectById($lpid);
+    if (!$pRow || !userCanAccessDirectoryProject($user, $pRow)) {
+        apiError('validation.list_id', 'Invalid list_id', 400);
+    }
+    $effectiveProjectId = array_key_exists('project_id', $fields)
+        ? (int)$fields['project_id']
+        : (int)($existing['project_id'] ?? 0);
+    if ($effectiveProjectId > 0 && $effectiveProjectId !== $lpid) {
+        apiError('validation.list_id', 'list_id does not belong to the task project.', 400);
+    }
+    $fields['list_id'] = $listId;
 }
-if (array_key_exists('tags', $body)) $fields['tags'] = $body['tags'];
-if (array_key_exists('rank', $body)) $fields['rank'] = $body['rank'];
-if (array_key_exists('recurrence_rule', $body)) $fields['recurrence_rule'] = $body['recurrence_rule'];
-
-$existing = getTaskById($id, false);
-if (!$existing) {
-    apiError('task.not_found', 'Task not found', 404);
+if (array_key_exists('tags', $body)) {
+    $fields['tags'] = $body['tags'];
 }
-if (!userCanAccessTask((int)$user['id'], $existing, (string)$user['role'])) {
-    apiError('task.not_found', 'Task not found', 404);
+if (array_key_exists('rank', $body)) {
+    $fields['rank'] = $body['rank'];
+}
+if (array_key_exists('recurrence_rule', $body)) {
+    $fields['recurrence_rule'] = $body['recurrence_rule'];
 }
 
 $result = updateTask($id, $fields);
@@ -94,4 +110,3 @@ if (!$task) {
 }
 
 apiSuccess(['task' => $task]);
-

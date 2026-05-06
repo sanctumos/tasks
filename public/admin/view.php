@@ -46,6 +46,13 @@ if ($currentProjectId > 0 && !isset($projectsById[$currentProjectId])) {
     }
 }
 
+$todoListsForCurrentProject = $currentProjectId > 0
+    ? listTodoListsForProject($currentUser, $currentProjectId)
+    : [];
+$currentListId = isset($task['list_id']) && $task['list_id'] !== null && $task['list_id'] !== ''
+    ? (int)$task['list_id']
+    : 0;
+
 $tagsText = !empty($task['tags']) ? implode(', ', $task['tags']) : '';
 
 $dueAtValue = '';
@@ -350,6 +357,24 @@ require __DIR__ . '/_layout_top.php';
                         <?php endforeach; ?>
                     </select>
                 </form>
+            </div>
+            <div class="metadata-rail__row">
+                <label>List</label>
+                <?php if ($currentProjectId <= 0): ?>
+                    <p class="small text-muted mb-0">Pick a project first.</p>
+                <?php elseif (empty($todoListsForCurrentProject)): ?>
+                    <p class="small text-muted mb-0">No lists yet. Add one on the project’s <strong>Lists</strong> tab.</p>
+                <?php else: ?>
+                    <form method="post" action="/admin/update.php" class="js-autosave-form m-0">
+                        <?= csrfInputField() ?>
+                        <input type="hidden" name="id" value="<?= (int)$task['id'] ?>">
+                        <select class="form-select form-select-sm js-autosave" name="list_id" aria-label="To-do list">
+                            <?php foreach ($todoListsForCurrentProject as $tl): ?>
+                                <option value="<?= (int)$tl['id'] ?>" <?= $currentListId === (int)$tl['id'] ? 'selected' : '' ?>><?= htmlspecialchars((string)$tl['name']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+                <?php endif; ?>
             </div>
             <div class="metadata-rail__row">
                 <label>Tags</label>

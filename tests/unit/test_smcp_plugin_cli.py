@@ -27,6 +27,7 @@ def test_create_task_maps_new_arguments(monkeypatch: pytest.MonkeyPatch):
         "priority": "high",
         "project": "Ops",
         "project-id": 9,
+        "list-id": 77,
         "tags": "foo, bar",
         "rank": 5,
         "recurrence-rule": "FREQ=WEEKLY",
@@ -43,6 +44,7 @@ def test_create_task_maps_new_arguments(monkeypatch: pytest.MonkeyPatch):
         priority="high",
         project="Ops",
         project_id=9,
+        list_id=77,
         tags=["foo", "bar"],
         rank=5,
         recurrence_rule="FREQ=WEEKLY",
@@ -55,7 +57,7 @@ def test_create_task_without_project_or_list_errors(monkeypatch: pytest.MonkeyPa
 
     result = cli.create_task({"title": "orphan", "status": "todo"}, "k")
     assert result["status"] == "error"
-    assert "directory project" in result["error"].lower()
+    assert "todo list" in result["error"].lower()
     fake_client.create_task.assert_not_called()
 
 
@@ -298,7 +300,7 @@ def test_main_debug_flag_enables_traceback_in_error_output(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["cli.py", "--debug", "create-task", "--api-key", "k", "--title", "x"],
+        ["cli.py", "--debug", "create-task", "--api-key", "k", "--title", "x", "--list-id", "1"],
     )
     with pytest.raises(SystemExit) as exc:
         cli.main()
@@ -321,7 +323,7 @@ def test_main_default_error_output_omits_traceback(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["cli.py", "create-task", "--api-key", "k", "--title", "x"],
+        ["cli.py", "create-task", "--api-key", "k", "--title", "x", "--list-id", "1"],
     )
     with pytest.raises(SystemExit) as exc:
         cli.main()
@@ -384,7 +386,7 @@ def test_create_task_error_mapping(monkeypatch: pytest.MonkeyPatch, raised: Exce
     fake_client = Mock()
     fake_client.create_task.side_effect = raised
     monkeypatch.setattr(cli, "get_client", lambda api_key: fake_client)
-    result = cli.create_task({"title": "x", "project-id": 1}, "k")
+    result = cli.create_task({"title": "x", "project-id": 1, "list-id": 2}, "k")
     assert result["status"] == "error"
     assert result["error_type"] == error_type
 

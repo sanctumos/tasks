@@ -253,6 +253,31 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
         ensureIndexExists($db, 'idx_documents_updated', 'CREATE INDEX idx_documents_updated ON documents(updated_at)');
         ensureIndexExists($db, 'idx_document_comments_doc', 'CREATE INDEX idx_document_comments_doc ON document_comments(document_id)');
     }
+
+    // Every workspace project needs at least one todo list; tasks with project_id must have list_id.
+    // Idempotent: seeds "General" where missing, then backfills tasks.list_id from the project's lists.
+    if (tableExists($db, 'projects') && tableExists($db, 'todo_lists') && tableExists($db, 'tasks')) {
+        $db->exec("
+            INSERT INTO todo_lists (project_id, name, sort_order)
+            SELECT p.id, 'General', 0
+            FROM projects p
+            WHERE NOT EXISTS (SELECT 1 FROM todo_lists tl WHERE tl.project_id = p.id)
+        ");
+        $db->exec("
+            UPDATE tasks
+            SET list_id = (
+                SELECT tl.id FROM todo_lists tl
+                WHERE tl.project_id = tasks.project_id
+                ORDER BY tl.sort_order ASC, tl.id ASC LIMIT 1
+            ),
+            updated_at = CURRENT_TIMESTAMP
+            WHERE project_id IS NOT NULL
+              AND list_id IS NULL
+              AND EXISTS (
+                  SELECT 1 FROM todo_lists tl2 WHERE tl2.project_id = tasks.project_id
+              )
+        ");
+    }
 }
 
 /** Ensure at least one organization and attach users without org_id (idempotent). */

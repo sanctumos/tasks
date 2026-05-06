@@ -86,6 +86,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManage) {
 
 $members = listProjectMembers($id);
 $lists = listTodoListsForProject($currentUser, $id);
+if (empty($lists) && $canManage) {
+    $seedList = createTodoList((int)$currentUser['id'], $id, 'General');
+    if (!empty($seedList['success'])) {
+        $lists = listTodoListsForProject($currentUser, $id);
+    }
+}
 $projectDocs = listDocumentsForUser($currentUser, 200, $id);
 $orgUsers = [];
 $pOrgId = (int)$project['org_id'];
@@ -482,6 +488,18 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
                             </select>
                         </div>
                         <div class="col-12">
+                            <label class="form-label">To-do list</label>
+                            <?php if (empty($lists)): ?>
+                                <div class="alert alert-warning py-2 mb-0 small">No lists in this project yet. Open the <strong>Lists</strong> tab (or ask a project admin) to add one.</div>
+                            <?php else: ?>
+                                <select class="form-select" name="list_id" required>
+                                    <?php foreach ($lists as $tl): ?>
+                                        <option value="<?= (int)$tl['id'] ?>"><?= htmlspecialchars((string)$tl['name']) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php endif; ?>
+                        </div>
+                        <div class="col-12">
                             <label class="form-label">Due (UTC)</label>
                             <input class="form-control" type="datetime-local" name="due_at">
                         </div>
@@ -493,7 +511,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button class="btn btn-primary" type="submit"><i class="bi bi-plus-lg me-1"></i>Create task</button>
+                    <button class="btn btn-primary" type="submit" <?= empty($lists) ? 'disabled' : '' ?>><i class="bi bi-plus-lg me-1"></i>Create task</button>
                 </div>
             </form>
         </div>

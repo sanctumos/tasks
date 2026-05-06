@@ -55,12 +55,24 @@ final class ApiHealthAndTaskFlowTest extends TestCase
         $projId = (int) (json_decode((string)$p->getBody(), true)['data']['project']['id'] ?? 0);
         $this->assertGreaterThan(0, $projId);
 
+        $listsResp = $c->get('/api/list-todo-lists.php', [
+            'query' => ['project_id' => $projId],
+        ]);
+        $this->assertSame(200, $listsResp->getStatusCode(), (string)$listsResp->getBody());
+        $listsPayload = json_decode((string)$listsResp->getBody(), true);
+        $listsData = $listsPayload['data'] ?? $listsPayload;
+        $todoLists = $listsData['todo_lists'] ?? [];
+        $this->assertNotEmpty($todoLists, 'migration should seed General list');
+        $listId = (int) ($todoLists[0]['id'] ?? 0);
+        $this->assertGreaterThan(0, $listId);
+
         $create = $c->post('/api/create-task.php', [
             'headers' => ['Content-Type' => 'application/json'],
             'body' => json_encode([
                 'title' => 'Integration task',
                 'status' => 'todo',
                 'project_id' => $projId,
+                'list_id' => $listId,
             ], JSON_THROW_ON_ERROR),
         ]);
         $this->assertSame(201, $create->getStatusCode(), (string)$create->getBody());
