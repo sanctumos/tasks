@@ -23,7 +23,7 @@ if (!$project || !userCanAccessDirectoryProject($currentUser, $project)) {
 
 $canManage = userCanManageDirectoryProject($currentUser, $project);
 $tab = (string)($_GET['tab'] ?? 'tasks');
-if (!in_array($tab, ['tasks', 'lists', 'members', 'settings'], true)) {
+if (!in_array($tab, ['tasks', 'lists', 'docs', 'members', 'settings'], true)) {
     $tab = 'tasks';
 }
 
@@ -86,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManage) {
 
 $members = listProjectMembers($id);
 $lists = listTodoListsForProject($currentUser, $id);
+$projectDocs = listDocumentsForUser($currentUser, 200, $id);
 $orgUsers = [];
 $pOrgId = (int)$project['org_id'];
 foreach (listUsers(false) as $u) {
@@ -141,6 +142,7 @@ $pageTitle = $project['name'];
 $tabHuman = [
     'tasks' => 'Tasks',
     'lists' => 'Lists',
+    'docs' => 'Docs',
     'members' => 'Members',
     'settings' => 'Settings',
 ][$tab] ?? ucfirst($tab);
@@ -192,6 +194,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
 <nav class="tabbar" aria-label="Project sections">
     <?= st_tab_link('tasks', $tab, 'Tasks', 'bi-list-check', $totalTasks) ?>
     <?= st_tab_link('lists', $tab, 'Lists', 'bi-card-checklist', count($lists)) ?>
+    <?= st_tab_link('docs', $tab, 'Docs', 'bi-journals', count($projectDocs)) ?>
     <?= st_tab_link('members', $tab, 'Members', 'bi-people', count($members)) ?>
     <?php if ($canManage): ?>
         <?= st_tab_link('settings', $tab, 'Settings', 'bi-gear', null) ?>
@@ -281,6 +284,46 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
                     <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>Create list</button>
                 </div>
             </form>
+        <?php endif; ?>
+    </div>
+
+<?php elseif ($tab === 'docs'): ?>
+
+    <div class="surface surface-pad mb-3">
+        <div class="section-title-row">
+            <div class="section-title"><i class="bi bi-journals"></i> Documents <span class="count"><?= count($projectDocs) ?></span></div>
+            <a class="btn btn-primary btn-sm" href="/admin/doc-create.php?project_id=<?= (int)$id ?>"><i class="bi bi-plus-lg me-1"></i>New doc</a>
+        </div>
+        <?php if (!$projectDocs): ?>
+            <p class="text-muted small mb-0">No docs in this project yet. Use Docs for long-form reference material — specs, runbooks, decision records, onboarding notes — with their own discussion thread.</p>
+        <?php else: ?>
+            <table class="task-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Author</th>
+                        <th>Comments</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($projectDocs as $d): ?>
+                        <tr>
+                            <td class="task-title-cell">
+                                <a href="/admin/doc.php?id=<?= (int)$d['id'] ?>"><?= htmlspecialchars((string)$d['title']) ?></a>
+                            </td>
+                            <td><?= htmlspecialchars((string)$d['created_by_username']) ?></td>
+                            <td><i class="bi bi-chat-text text-muted me-1"></i><?= (int)$d['comment_count'] ?></td>
+                            <td>
+                                <span title="<?= htmlspecialchars(st_absolute_time_attr($d['updated_at'] ?? null)) ?>">
+                                    <?= htmlspecialchars(st_absolute_time($d['updated_at'] ?? null)) ?>
+                                    <span class="text-muted small">(<?= st_relative_time($d['updated_at'] ?? null) ?>)</span>
+                                </span>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         <?php endif; ?>
     </div>
 
