@@ -132,10 +132,13 @@ require __DIR__ . '/_layout_top.php';
                 </span>
             <?php endif; ?>
             <span class="meta-chip" title="<?= htmlspecialchars(st_absolute_time_attr($task['created_at'] ?? null)) ?>">
-                <i class="bi bi-clock-history"></i>opened <?= st_relative_time($task['created_at'] ?? null) ?> by <?= htmlspecialchars($task['created_by_username'] ?? '—') ?>
+                <i class="bi bi-clock-history"></i>opened <?= htmlspecialchars(st_absolute_time($task['created_at'] ?? null)) ?>
+                <span class="meta-chip__sub">(<?= st_relative_time($task['created_at'] ?? null) ?>)</span>
+                by <?= htmlspecialchars($task['created_by_username'] ?? '—') ?>
             </span>
             <span class="meta-chip" title="<?= htmlspecialchars(st_absolute_time_attr($task['updated_at'] ?? null)) ?>">
-                <i class="bi bi-arrow-clockwise"></i>updated <?= st_relative_time($task['updated_at'] ?? null) ?>
+                <i class="bi bi-arrow-clockwise"></i>updated <?= htmlspecialchars(st_absolute_time($task['updated_at'] ?? null)) ?>
+                <span class="meta-chip__sub">(<?= st_relative_time($task['updated_at'] ?? null) ?>)</span>
             </span>
         </div>
     </div>
@@ -182,7 +185,7 @@ require __DIR__ . '/_layout_top.php';
             </div>
             <div class="description-display js-inline-edit-target" data-edit-target="description-edit">
                 <?php if (!empty($task['body'])): ?>
-                    <div class="description-body"><?= nl2br(htmlspecialchars((string)$task['body'])) ?></div>
+                    <div class="description-body markdown-body"><?= st_markdown((string)$task['body']) ?></div>
                 <?php else: ?>
                     <p class="text-muted small mb-0">No description yet. <a class="js-inline-edit-toggle" href="#" data-edit-target="description-edit">Add one</a>.</p>
                 <?php endif; ?>
@@ -192,7 +195,8 @@ require __DIR__ . '/_layout_top.php';
                 <input type="hidden" name="id" value="<?= (int)$task['id'] ?>">
                 <input type="hidden" name="redirect_to" value="/admin/view.php?id=<?= (int)$task['id'] ?>">
                 <div class="mb-2">
-                    <textarea class="form-control" name="body" rows="8" placeholder="Task description / details…"><?= htmlspecialchars((string)($task['body'] ?? '')) ?></textarea>
+                    <textarea class="form-control" name="body" rows="8" placeholder="Markdown supported: **bold**, *italic*, `code`, lists, links…"><?= htmlspecialchars((string)($task['body'] ?? '')) ?></textarea>
+                    <div class="fine-print mt-1"><i class="bi bi-markdown me-1"></i>Markdown rendered on save.</div>
                 </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-check-lg me-1"></i>Save</button>
@@ -227,9 +231,12 @@ require __DIR__ . '/_layout_top.php';
                             <div class="comment-body-col">
                                 <div class="comment-meta">
                                     <span class="comment-author"><?= htmlspecialchars($username) ?></span>
-                                    <span class="comment-time" title="<?= htmlspecialchars(st_absolute_time_attr($createdIso)) ?>"><?= st_relative_time($createdIso) ?></span>
+                                    <span class="comment-time" title="<?= htmlspecialchars(st_absolute_time_attr($createdIso)) ?>">
+                                        <span class="comment-time__abs"><?= htmlspecialchars(st_absolute_time($createdIso)) ?></span>
+                                        <span class="comment-time__rel">· <?= st_relative_time($createdIso) ?></span>
+                                    </span>
                                 </div>
-                                <div class="comment-body"><?= st_format_comment_body($body) ?></div>
+                                <div class="comment-body markdown-body"><?= st_markdown($body) ?></div>
                             </div>
                         </li>
                     <?php endforeach; ?>
@@ -245,9 +252,9 @@ require __DIR__ . '/_layout_top.php';
                         <?= st_avatar_html($currentUser['username'] ?? '?') ?>
                     </div>
                     <div class="comment-composer__main">
-                        <textarea class="form-control" name="comment" rows="3" maxlength="2000" placeholder="Write a comment, ask a question, or @mention context..." required></textarea>
+                        <textarea class="form-control" name="comment" rows="3" maxlength="2000" placeholder="Markdown supported: **bold**, *italic*, `code`, lists, links…" required></textarea>
                         <div class="comment-composer__actions">
-                            <span class="fine-print">Plain text · URLs become clickable · max 2000 chars</span>
+                            <span class="fine-print"><i class="bi bi-markdown me-1"></i>Markdown · max 2000 chars</span>
                             <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-send me-1"></i>Post comment</button>
                         </div>
                     </div>
@@ -360,13 +367,25 @@ require __DIR__ . '/_layout_top.php';
                     <input type="number" class="form-control form-control-sm js-autosave-blur" name="rank" value="<?= (int)($task['rank'] ?? 0) ?>">
                 </form>
             </div>
-            <div class="metadata-rail__row">
+            <div class="metadata-rail__row metadata-rail__row--block">
                 <label>Recurrence</label>
-                <form method="post" action="/admin/update.php" class="js-autosave-form m-0">
-                    <?= csrfInputField() ?>
-                    <input type="hidden" name="id" value="<?= (int)$task['id'] ?>">
-                    <input class="form-control form-control-sm js-autosave-blur" name="recurrence_rule" value="<?= htmlspecialchars((string)($task['recurrence_rule'] ?? '')) ?>" placeholder="RRULE (optional)">
-                </form>
+                <div class="metadata-rail__value">
+                    <?php
+                        $rrCurrent = (string)($task['recurrence_rule'] ?? '');
+                        $rrSummary = st_humanize_rrule($rrCurrent);
+                    ?>
+                    <button type="button" class="btn btn-sm btn-outline-secondary recurrence-trigger" data-bs-toggle="modal" data-bs-target="#recurrenceModal">
+                        <i class="bi bi-arrow-repeat me-1"></i>
+                        <?php if ($rrCurrent === ''): ?>
+                            Does not repeat
+                        <?php else: ?>
+                            <?= htmlspecialchars($rrSummary) ?>
+                        <?php endif; ?>
+                    </button>
+                    <?php if ($rrCurrent !== '' && $rrSummary !== $rrCurrent): ?>
+                        <div class="fine-print mt-1" title="<?= htmlspecialchars($rrCurrent) ?>"><code><?= htmlspecialchars($rrCurrent) ?></code></div>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <?php if ($watcherCount > 0): ?>
@@ -385,6 +404,105 @@ require __DIR__ . '/_layout_top.php';
                 </div>
             <?php endif; ?>
         </aside>
+    </div>
+</div>
+
+<?php // ---------- Recurrence builder modal ---------- ?>
+<div class="modal fade" id="recurrenceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="recurrence-form" method="post" action="/admin/update.php" class="m-0">
+                <?= csrfInputField() ?>
+                <input type="hidden" name="id" value="<?= (int)$task['id'] ?>">
+                <input type="hidden" name="redirect_to" value="/admin/view.php?id=<?= (int)$task['id'] ?>">
+                <input type="hidden" name="recurrence_rule" id="recurrence-rule-output" value="<?= htmlspecialchars($rrCurrent) ?>">
+
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-arrow-repeat me-1"></i>Set recurrence</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body recurrence-builder" data-initial-rrule="<?= htmlspecialchars($rrCurrent) ?>">
+
+                    <div class="mb-3">
+                        <label class="form-label">Repeats</label>
+                        <select class="form-select" id="rr-freq">
+                            <option value="">Does not repeat</option>
+                            <option value="DAILY">Daily</option>
+                            <option value="WEEKLY">Weekly</option>
+                            <option value="MONTHLY">Monthly</option>
+                            <option value="YEARLY">Yearly</option>
+                            <option value="CUSTOM">Custom (RRULE)</option>
+                        </select>
+                    </div>
+
+                    <div class="row g-2 align-items-end mb-3 rr-when-set d-none">
+                        <div class="col-12 col-sm-4">
+                            <label class="form-label">Every</label>
+                            <input type="number" min="1" max="365" class="form-control" id="rr-interval" value="1">
+                        </div>
+                        <div class="col-12 col-sm-8">
+                            <div class="form-control-plaintext" id="rr-interval-unit">days</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 rr-when-weekly d-none">
+                        <label class="form-label">On these days</label>
+                        <div class="rr-weekday-row">
+                            <?php foreach (['MO' => 'Mon', 'TU' => 'Tue', 'WE' => 'Wed', 'TH' => 'Thu', 'FR' => 'Fri', 'SA' => 'Sat', 'SU' => 'Sun'] as $code => $label): ?>
+                                <label class="rr-weekday">
+                                    <input type="checkbox" value="<?= $code ?>" class="rr-weekday-input">
+                                    <span><?= $label ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 rr-when-monthly d-none">
+                        <label class="form-label">Day of month</label>
+                        <input type="number" min="1" max="31" class="form-control" id="rr-monthday" placeholder="e.g. 15">
+                        <div class="fine-print">Leave empty to repeat on the same day each month.</div>
+                    </div>
+
+                    <div class="rr-when-set d-none">
+                        <label class="form-label">Ends</label>
+                        <div class="rr-end-grid">
+                            <label class="rr-end-row">
+                                <input type="radio" name="rr-end" value="never" checked>
+                                <span>Never</span>
+                            </label>
+                            <label class="rr-end-row">
+                                <input type="radio" name="rr-end" value="count">
+                                <span>After</span>
+                                <input type="number" min="1" max="999" class="form-control form-control-sm" id="rr-count" value="10" disabled>
+                                <span>occurrences</span>
+                            </label>
+                            <label class="rr-end-row">
+                                <input type="radio" name="rr-end" value="until">
+                                <span>On date</span>
+                                <input type="date" class="form-control form-control-sm" id="rr-until" disabled>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 rr-when-custom d-none">
+                        <label class="form-label">RRULE</label>
+                        <input type="text" class="form-control" id="rr-custom" placeholder="FREQ=WEEKLY;BYDAY=MO,WE,FR">
+                        <div class="fine-print">Raw <a href="https://datatracker.ietf.org/doc/html/rfc5545#section-3.3.10" target="_blank" rel="noopener">RFC 5545 RRULE</a> for non-standard schedules.</div>
+                    </div>
+
+                    <div class="rr-summary">
+                        <div class="rr-summary__label">Summary</div>
+                        <div class="rr-summary__text" id="rr-summary-text">Does not repeat</div>
+                        <div class="fine-print" id="rr-summary-rule" style="word-break: break-all;"></div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save recurrence</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
