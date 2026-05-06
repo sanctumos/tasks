@@ -137,10 +137,172 @@
         });
     }
 
+    // ---------- Recurrence builder ----------
+    function parseRRule(raw) {
+        const state = { freq: "", interval: 1, byday: [], bymonthday: "", count: "", until: "", custom: "" };
+        if (!raw) return state;
+        const bare = raw.replace(/^RRULE:/i, "");
+        const parts = {};
+        bare.split(";").forEach((kv) => {
+            if (!kv || kv.indexOf("=") < 0) return;
+            const idx = kv.indexOf("=");
+            parts[kv.slice(0, idx).trim().toUpperCase()] = kv.slice(idx + 1).trim();
+        });
+        const known = ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"];
+        if (!known.includes((parts.FREQ || "").toUpperCase())) {
+            state.freq = "CUSTOM";
+            state.custom = raw;
+            return state;
+        }
+        state.freq = parts.FREQ.toUpperCase();
+        state.interval = Math.max(1, parseInt(parts.INTERVAL || "1", 10) || 1);
+        if (parts.BYDAY) state.byday = parts.BYDAY.split(",").map((d) => d.trim().toUpperCase()).filter(Boolean);
+        if (parts.BYMONTHDAY) state.bymonthday = parts.BYMONTHDAY;
+        if (parts.COUNT) state.count = parts.COUNT;
+        if (parts.UNTIL) state.until = parts.UNTIL;
+        return state;
+    }
+
+    function buildRRule(state) {
+        if (!state.freq) return "";
+        if (state.freq === "CUSTOM") return state.custom.trim();
+        const out = ["FREQ=" + state.freq];
+        const interval = Math.max(1, parseInt(state.interval, 10) || 1);
+        if (interval !== 1) out.push("INTERVAL=" + interval);
+        if (state.freq === "WEEKLY" && state.byday && state.byday.length) {
+            const order = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 7 };
+            const sorted = state.byday.slice().sort((a, b) => (order[a] || 9) - (order[b] || 9));
+            out.push("BYDAY=" + sorted.join(","));
+        }
+        if (state.freq === "MONTHLY" && state.bymonthday) {
+            const md = parseInt(state.bymonthday, 10);
+            if (md >= 1 && md <= 31) out.push("BYMONTHDAY=" + md);
+        }
+        if (state.count) {
+            const c = parseInt(state.count, 10);
+            if (c > 0) out.push("COUNT=" + c);
+        } else if (state.until) {
+            const u = state.until.replace(/-/g, "");
+            if (/^\d{8}$/.test(u)) out.push("UNTIL=" + u + "T235959Z");
+        }
+        return out.join(";");
+    }
+
+    function humanizeRRule(state) {
+        if (!state.freq) return "Does not repeat";
+        if (state.freq === "CUSTOM") return state.custom.trim() || "Custom RRULE";
+        const interval = Math.max(1, parseInt(state.interval, 10) || 1);
+        const word = { DAILY: ["day", "days"], WEEKLY: ["week", "weeks"], MONTHLY: ["month", "months"], YEARLY: ["year", "years"] }[state.freq];
+        const base = interval === 1 ? "Every " + word[0] : "Every " + interval + " " + word[1];
+        const parts = [];
+        if (state.freq === "WEEKLY" && state.byday.length) {
+            const map = { MO: "Mon", TU: "Tue", WE: "Wed", TH: "Thu", FR: "Fri", SA: "Sat", SU: "Sun" };
+            parts.push("on " + state.byday.map((d) => map[d] || d).join(", "));
+        }
+        if (state.freq === "MONTHLY" && state.bymonthday) {
+            parts.push("on day " + state.bymonthday);
+        }
+        let tail = "";
+        if (state.count) {
+            const c = parseInt(state.count, 10);
+            if (c > 0) tail = " for " + c + " time" + (c === 1 ? "" : "s");
+        } else if (state.until) {
+            tail = " until " + state.until;
+        }
+        return base + (parts.length ? " " + parts.join(" ") : "") + tail;
+    }
+
+    function bindRecurrenceBuilder() {
+        const modal = document.getElementById("recurrenceModal");
+        if (!modal) return;
+        const builder = modal.querySelector(".recurrence-builder");
+        const initial = builder ? builder.getAttribute("data-initial-rrule") || "" : "";
+
+        const elFreq = modal.querySelector("#rr-freq");
+        const elInterval = modal.querySelector("#rr-interval");
+        const elIntervalUnit = modal.querySelector("#rr-interval-unit");
+        const elMonthday = modal.querySelector("#rr-monthday");
+        const elCount = modal.querySelector("#rr-count");
+        const elUntil = modal.querySelector("#rr-until");
+        const elCustom = modal.querySelector("#rr-custom");
+        const elSummaryText = modal.querySelector("#rr-summary-text");
+        const elSummaryRule = modal.querySelector("#rr-summary-rule");
+        const elOutput = document.getElementById("recurrence-rule-output");
+        const weekdayBoxes = Array.from(modal.querySelectorAll(".rr-weekday-input"));
+        const endRadios = Array.from(modal.querySelectorAll('input[name="rr-end"]'));
+        const sectionsSet = Array.from(modal.querySelectorAll(".rr-when-set"));
+        const sectionWeekly = modal.querySelector(".rr-when-weekly");
+        const sectionMonthly = modal.querySelector(".rr-when-monthly");
+        const sectionCustom = modal.querySelector(".rr-when-custom");
+
+        function readState() {
+            const freq = elFreq.value;
+            const byday = weekdayBoxes.filter((cb) => cb.checked).map((cb) => cb.value);
+            const endChoice = (endRadios.find((r) => r.checked) || {}).value || "never";
+            return {
+                freq: freq,
+                interval: elInterval.value,
+                byday: byday,
+                bymonthday: elMonthday.value,
+                count: endChoice === "count" ? elCount.value : "",
+                until: endChoice === "until" ? elUntil.value : "",
+                custom: elCustom.value,
+            };
+        }
+
+        function applyState(state) {
+            elFreq.value = state.freq || "";
+            elInterval.value = state.interval || 1;
+            elMonthday.value = state.bymonthday || "";
+            elCustom.value = state.custom || "";
+            weekdayBoxes.forEach((cb) => { cb.checked = state.byday.indexOf(cb.value) !== -1; });
+            elCount.value = state.count || (state.count === "" ? 10 : state.count);
+            if (state.until && /^\d{8}/.test(state.until)) {
+                const y = state.until.slice(0, 4), m = state.until.slice(4, 6), d = state.until.slice(6, 8);
+                elUntil.value = y + "-" + m + "-" + d;
+            } else {
+                elUntil.value = state.until || "";
+            }
+            const endChoice = state.count ? "count" : (state.until ? "until" : "never");
+            endRadios.forEach((r) => { r.checked = (r.value === endChoice); });
+        }
+
+        function refreshVisibility() {
+            const f = elFreq.value;
+            const isSet = !!f && f !== "CUSTOM";
+            sectionsSet.forEach((el) => el.classList.toggle("d-none", !isSet));
+            sectionWeekly.classList.toggle("d-none", f !== "WEEKLY");
+            sectionMonthly.classList.toggle("d-none", f !== "MONTHLY");
+            sectionCustom.classList.toggle("d-none", f !== "CUSTOM");
+            const unitMap = { DAILY: "days", WEEKLY: "weeks", MONTHLY: "months", YEARLY: "years" };
+            elIntervalUnit.textContent = unitMap[f] || "";
+            const endChoice = (endRadios.find((r) => r.checked) || {}).value || "never";
+            elCount.disabled = endChoice !== "count";
+            elUntil.disabled = endChoice !== "until";
+        }
+
+        function refreshSummary() {
+            const state = readState();
+            const rule = buildRRule(state);
+            elSummaryText.textContent = humanizeRRule(state);
+            elSummaryRule.textContent = rule || "";
+            if (elOutput) elOutput.value = rule;
+        }
+
+        const initialState = parseRRule(initial);
+        applyState(initialState);
+        refreshVisibility();
+        refreshSummary();
+
+        modal.addEventListener("change", () => { refreshVisibility(); refreshSummary(); });
+        modal.addEventListener("input", () => { refreshSummary(); });
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll("form.js-autosave-form").forEach(bindAutosaveForm);
         bindInlineEdit();
         bindCopyLink();
+        bindRecurrenceBuilder();
 
         // View switcher (board <-> list)
         document.querySelectorAll("[data-view-switch]").forEach((btn) => {

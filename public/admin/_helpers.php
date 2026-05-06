@@ -141,23 +141,37 @@ if (!function_exists('st_avatar_html')) {
     }
 }
 
-if (!function_exists('st_format_comment_body')) {
+if (!function_exists('st_markdown')) {
     /**
-     * Escape user input, preserve newlines, and auto-link bare URLs.
-     * No raw HTML is ever inserted from the comment body.
+     * Render Markdown safely.
+     *
+     * Uses Parsedown 1.7.4 (vendored under public/includes/lib/Parsedown.php)
+     * with safe mode + escaped inline HTML, so embedded HTML is treated as
+     * plain text and dangerous URL schemes are stripped. Bare URLs are
+     * auto-linked. Returns trusted HTML (safe to echo directly).
+     *
+     * Used for the task description body and individual comment bodies on
+     * the admin task page.
      */
+    function st_markdown(?string $raw, bool $inline = false): string {
+        $raw = (string)$raw;
+        if ($raw === '') return '';
+        require_once __DIR__ . '/../includes/lib/Parsedown.php';
+        static $pd = null;
+        if ($pd === null) {
+            $pd = new Parsedown();
+            $pd->setSafeMode(true);
+            $pd->setMarkupEscaped(true);
+            $pd->setUrlsLinked(true);
+            $pd->setBreaksEnabled(true);
+        }
+        return $inline ? $pd->line($raw) : $pd->text($raw);
+    }
+}
+
+if (!function_exists('st_format_comment_body')) {
     function st_format_comment_body(string $raw): string {
-        $escaped = htmlspecialchars($raw, ENT_QUOTES, 'UTF-8');
-        $linked = preg_replace_callback(
-            '~(?<![">])\b((?:https?://|www\.)[^\s<]+[^\s<.,;:!?\'")\]])~i',
-            function ($m) {
-                $url = $m[1];
-                $href = (stripos($url, 'http') === 0) ? $url : 'http://' . $url;
-                return '<a href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8') . '" target="_blank" rel="noopener noreferrer">' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '</a>';
-            },
-            $escaped
-        );
-        return nl2br($linked, false);
+        return st_markdown($raw);
     }
 }
 
@@ -173,6 +187,78 @@ if (!function_exists('st_absolute_time_attr')) {
         } catch (Exception $e) {
             return (string)$iso;
         }
+    }
+}
+
+if (!function_exists('st_absolute_time')) {
+    /**
+     * Compact human-readable UTC timestamp for inline display, e.g.
+     * "May 4 14:32 UTC" (same year) or "Apr 30 2025 14:32 UTC" (other year).
+     */
+    function st_absolute_time(?string $iso): string {
+        if (!$iso) return '';
+        try {
+            $dt = new DateTime($iso, new DateTimeZone('UTC'));
+        } catch (Exception $e) {
+            return (string)$iso;
+        }
+        $thisYear = (new DateTime('now', new DateTimeZone('UTC')))->format('Y');
+        $fmt = ($dt->format('Y') === $thisYear) ? 'M j H:i' : 'M j Y H:i';
+        return $dt->format($fmt) . ' UTC';
+    }
+}
+
+if (!function_exists('st_humanize_rrule')) {
+    /**
+     * Best-effort plain-English rendering of an RRULE for display next to
+     * the recurrence builder button. Falls back to the raw rule string
+     * when it can't simplify the value.
+     */
+    function st_humanize_rrule(?string $rrule): string {
+        $rrule = trim((string)$rrule);
+        if ($rrule === '') return '';
+        $bare = preg_replace('/^RRULE:/i', '', $rrule);
+        $parts = [];
+        foreach (explode(';', (string)$bare) as $kv) {
+            if ($kv === '' || strpos($kv, '=') === false) continue;
+            [$k, $v] = explode('=', $kv, 2);
+            $parts[strtoupper(trim($k))] = trim($v);
+        }
+        $freq = strtoupper((string)($parts['FREQ'] ?? ''));
+        if (!in_array($freq, ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'], true)) {
+            return $rrule; // custom — show raw
+        }
+        $interval = max(1, (int)($parts['INTERVAL'] ?? 1));
+        $word = [
+            'DAILY' => ['day', 'days'],
+            'WEEKLY' => ['week', 'weeks'],
+            'MONTHLY' => ['month', 'months'],
+            'YEARLY' => ['year', 'years'],
+        ][$freq];
+        $base = $interval === 1 ? ('Every ' . $word[0]) : ("Every {$interval} " . $word[1]);
+        $extra = [];
+        if ($freq === 'WEEKLY' && !empty($parts['BYDAY'])) {
+            $map = ['MO' => 'Mon', 'TU' => 'Tue', 'WE' => 'Wed', 'TH' => 'Thu', 'FR' => 'Fri', 'SA' => 'Sat', 'SU' => 'Sun'];
+            $days = [];
+            foreach (explode(',', (string)$parts['BYDAY']) as $d) {
+                $d = strtoupper(trim($d));
+                if (isset($map[$d])) $days[] = $map[$d];
+            }
+            if ($days) $extra[] = 'on ' . implode(', ', $days);
+        }
+        if ($freq === 'MONTHLY' && !empty($parts['BYMONTHDAY'])) {
+            $extra[] = 'on day ' . (string)$parts['BYMONTHDAY'];
+        }
+        $tail = '';
+        if (!empty($parts['COUNT'])) {
+            $tail = ' for ' . (int)$parts['COUNT'] . ' time' . (((int)$parts['COUNT']) === 1 ? '' : 's');
+        } elseif (!empty($parts['UNTIL'])) {
+            $u = (string)$parts['UNTIL'];
+            if (preg_match('/^(\d{4})(\d{2})(\d{2})/', $u, $m)) {
+                $tail = ' until ' . $m[1] . '-' . $m[2] . '-' . $m[3];
+            }
+        }
+        return $base . ($extra ? ' ' . implode(' ', $extra) : '') . $tail;
     }
 }
 

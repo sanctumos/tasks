@@ -92,30 +92,49 @@ def main() -> int:
         r.raise_for_status()
         project_id = int(r.json()["data"]["project"]["id"])
 
-        # Create task
+        # Create task with a markdown body and a real RRULE so screenshots
+        # exercise both new features.
+        body_md = (
+            "## Goals\n\n"
+            "Replaces the cramped *Activity* card with a real **Discussion** thread.\n\n"
+            "- Comment composer in-page (no more API-only)\n"
+            "- Watch / unwatch button next to the title\n"
+            "- Project dropdown bound to `project_id` (no more orphans)\n\n"
+            "### Acceptance\n\n"
+            "1. Comments render markdown\n"
+            "2. Times are shown inline (absolute + relative)\n"
+            "3. Recurrence has a real builder, not a raw RRULE\n\n"
+            "> Reference: https://example.com/sanctum-tasks/redesign\n\n"
+            "```php\n"
+            "echo st_markdown($task['body']);\n"
+            "```\n"
+        )
         r = requests.post(f"{base}/api/create-task.php", headers=h,
                           json={
                               "title": "Roll out new task page layout",
-                              "body": "Replaces the cramped Activity card with a real Discussion thread.\n\n"
-                                      "* Comment composer in-page (no more API-only)\n"
-                                      "* Watch / unwatch button next to the title\n"
-                                      "* Project dropdown bound to project_id (no more orphans)\n"
-                                      "Reference: https://example.com/sanctum-tasks/redesign",
+                              "body": body_md,
                               "status": "doing",
                               "priority": "high",
                               "project_id": project_id,
                               "tags": ["ui", "polish", "discussion"],
+                              "recurrence_rule": "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR;COUNT=12",
                           })
         r.raise_for_status()
         task_id = int(r.json()["data"]["task"]["id"])
 
-        # Multiple comments to exercise the thread
+        # Multiple comments — markdown, links, code, quotes — to exercise
+        # the renderer and the timestamp display.
         for body in [
-            "Started on this — pulling apart the existing Activity card so comments aren't sharing space with watchers.",
-            "Quick question: do we want @mentions in this pass, or hold for a follow-up?",
-            "Holding on @mentions; just want a real composer + chronological history first.",
-            "Composer is wired now — POST /admin/comment.php on submit. Attachments still API-only.",
-            "Looking sharp at desktop. Going to verify mobile next.",
+            "Pulling apart the existing **Activity** card so comments aren't sharing space with watchers.",
+            "Quick question: do we want `@mentions` in this pass, or hold for a follow-up?",
+            "Holding on `@mentions`; just want a real composer + chronological history first.\n\n"
+            "Plan:\n\n"
+            "1. Discussion card with composer\n"
+            "2. Watching button in header\n"
+            "3. Project dropdown bound to `project_id`",
+            "Composer is wired — `POST /admin/comment.php` on submit. Attachments still API-only.\n"
+            "See [the redesign doc](https://example.com/redesign).",
+            "> Looking sharp at desktop. Going to verify mobile next.",
         ]:
             r = requests.post(f"{base}/api/create-comment.php", headers=h,
                               json={"task_id": task_id, "comment": body})
@@ -164,6 +183,14 @@ def main() -> int:
                 out = OUT_DIR / f"task_view_{label}.png"
                 page.screenshot(path=str(out), full_page=True)
                 print(f"[{label}] {out}")
+
+                # Open the recurrence modal and snap it too.
+                page.click(".recurrence-trigger")
+                page.wait_for_selector("#recurrenceModal.show", timeout=5_000)
+                time.sleep(0.4)
+                modal_out = OUT_DIR / f"recurrence_modal_{label}.png"
+                page.screenshot(path=str(modal_out), full_page=False)
+                print(f"[{label}] {modal_out}")
                 ctx.close()
             browser.close()
     finally:
