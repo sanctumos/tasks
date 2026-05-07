@@ -37,7 +37,7 @@ This repository is a fork of a prior task management application. The codebase w
 
 ## Help & documentation
 
-- **In-app user guide:** After signing in, open **Help** in the admin chrome or go to `/admin/documentation.php`. The page renders `docs/user-guide.md` (product behavior and UI concepts).
+- **In-app user guide:** After signing in, open **Help** in the admin chrome or go to `/admin/documentation.php`. The source is `public/docs/user-guide.md` (product behavior and UI concepts; lives under `public/` so deployments that only ship the web tree still have it).
 - **API & operators:** See `docs/api.md` and related files under `docs/`.
 
 ## Role model

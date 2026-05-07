@@ -1,6 +1,7 @@
 <?php
 /**
- * Renders docs/user-guide.md as HTML for logged-in users (in-app help).
+ * Renders public/docs/user-guide.md as HTML for logged-in users (in-app help).
+ * Kept under public/ so multihost deploys that mirror WEB_ROOT include the file.
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -8,10 +9,10 @@ require_once __DIR__ . '/_helpers.php';
 
 requireAuth();
 
-$guidePath = dirname(__DIR__, 2) . '/docs/user-guide.md';
+$guidePath = dirname(__DIR__) . '/docs/user-guide.md';
 if (!is_readable($guidePath)) {
     http_response_code(500);
-    die('Documentation file is missing. Expected docs/user-guide.md');
+    die('Documentation file is missing. Expected public/docs/user-guide.md');
 }
 
 $raw = (string)file_get_contents($guidePath);
@@ -39,7 +40,7 @@ require __DIR__ . '/_layout_top.php';
         <div class="subtitle">Sanctum Tasks — how the admin UI fits together.</div>
     </div>
     <div class="page-header__actions">
-        <a class="btn btn-sm btn-outline-secondary" href="https://github.com/sanctumos/tasks/tree/main/docs" target="_blank" rel="noopener"><i class="bi bi-folder2-open me-1"></i>Docs folder (repo)</a>
+        <a class="btn btn-sm btn-outline-secondary" href="https://github.com/sanctumos/tasks/tree/main/public/docs" target="_blank" rel="noopener"><i class="bi bi-folder2-open me-1"></i>User guide (repo)</a>
     </div>
 </div>
 

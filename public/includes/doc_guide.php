@@ -1,6 +1,6 @@
 <?php
 /**
- * In-app documentation: URLs and anchors for docs/user-guide.md (must stay in sync
+ * In-app documentation: URLs and anchors for public/docs/user-guide.md (must stay in sync
  * with ## headings in that file). Used by /admin/documentation.php and st_doc_help().
  */
 
@@ -15,7 +15,7 @@ if (!function_exists('st_doc_heading_slug')) {
 
 if (!function_exists('st_doc_section_titles')) {
     /**
-     * Logical keys for st_doc_help() → exact ## line text in docs/user-guide.md.
+     * Logical keys for st_doc_help() → exact ## line text in public/docs/user-guide.md.
      */
     function st_doc_section_titles(): array {
         return [
