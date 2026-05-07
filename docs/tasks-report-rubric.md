@@ -27,7 +27,18 @@ Use this when **reviewing every open task and comment** on a directory project (
 
 For long engagements, a short bullet **status report** comment on the main epic or program task: counts of **closed this pass**, **blocked on client**, **needs Mark only**, **needs internal build**.
 
-## 5. Document comment coverage (required)
+## 5. Mandatory preflight (cannot skip)
+
+Before posting a task report or changing any task status, complete this checklist in order:
+
+1. Read all open task threads in scope.
+2. Read comments on all relevant project Documents in scope.
+3. Reconcile conflicts (task-comment precedence unless Mark states otherwise).
+4. Only then post the report and/or close tasks.
+
+If step 2 (document comments) is not completed, the pass is **incomplete** and must not be presented as final.
+
+## 6. Document comment coverage (required)
 
 - During each pass, review **document comments** (not only task comments) for project docs that influence scope, pricing, assets, or governance.
 - If a document comment introduces a decision, mirror that decision into the **canonical task thread** (or create one) before closing work.
