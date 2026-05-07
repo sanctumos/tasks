@@ -2932,11 +2932,14 @@ function persistTaskAssetUpload(int $taskId, string $tmpPath, string $mimeType):
     }
     ensureTaskAssetStorageDir();
     $rel = buildTaskAssetStorageRelPath($taskId, $mimeType);
+    // taskAttachmentAbsolutePath() uses realpath() on the parent dir; nested paths do not
+    // exist until we mkdir here — create before the safety check or realpath() fails.
+    $root = taskAssetStorageRoot();
+    ensureDirExists(dirname($root . '/' . $rel));
     $abs = taskAttachmentAbsolutePath($rel);
     if ($abs === null) {
         return ['success' => false, 'error' => 'Could not compute safe storage path'];
     }
-    ensureDirExists(dirname($abs));
     if (!@move_uploaded_file($tmpPath, $abs)) {
         if (!@rename($tmpPath, $abs)) {
             return ['success' => false, 'error' => 'Failed to move uploaded file'];
