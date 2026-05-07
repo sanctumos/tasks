@@ -1,6 +1,6 @@
 # Sanctum Tasks — engagement report rubric (DSC / Otto)
 
-Use this when **reviewing every open task and comment** on a directory project (especially client engagements).
+Use this when **reviewing every open task and comment** on a directory project (especially client engagements), including **document comment threads** tied to planning docs.
 
 ## 1. Classification
 
@@ -26,6 +26,12 @@ Use this when **reviewing every open task and comment** on a directory project (
 ## 4. Report output (optional periodic)
 
 For long engagements, a short bullet **status report** comment on the main epic or program task: counts of **closed this pass**, **blocked on client**, **needs Mark only**, **needs internal build**.
+
+## 5. Document comment coverage (required)
+
+- During each pass, review **document comments** (not only task comments) for project docs that influence scope, pricing, assets, or governance.
+- If a document comment introduces a decision, mirror that decision into the **canonical task thread** (or create one) before closing work.
+- Do not leave “hidden decisions” living only on document threads; task closures must still cite a task comment and/or document id.
 
 ---
 
