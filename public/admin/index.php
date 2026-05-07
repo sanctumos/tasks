@@ -67,8 +67,8 @@ $flashError = $_SESSION['admin_flash_error'] ?? null;
 $flashSuccess = $_SESSION['admin_flash_success'] ?? null;
 unset($_SESSION['admin_flash_error'], $_SESSION['admin_flash_success']);
 
-$pageTitle = 'Tasks';
-$adminBreadcrumbs = [['label' => 'Tasks']];
+$pageTitle = 'Home';
+$adminBreadcrumbs = [['label' => 'Home']];
 require __DIR__ . '/_layout_top.php';
 
 $initialView = ($view === 'list' || $view === 'board') ? $view : 'board';
@@ -81,23 +81,13 @@ function st_render_task_assignee_html(array $t): string {
 }
 ?>
 
-<div class="page-header">
+<div class="page-header mb-4">
     <div class="page-header__title">
-        <h1>Tasks</h1>
-        <div class="subtitle"><?= count($tasks) ?> shown · <?= $total ?> total</div>
+        <h1><i class="bi bi-house-door me-2 text-muted"></i>Home</h1>
+        <div class="subtitle">Jump into a project, or scroll for the full cross-project task board below.</div>
     </div>
     <div class="page-header__actions">
-        <div class="btn-group" role="group" aria-label="View">
-            <button type="button" class="btn btn-sm btn-outline-secondary <?= $initialView === 'board' ? 'active' : '' ?>" data-view-switch="board"><i class="bi bi-kanban me-1"></i>Board</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary <?= $initialView === 'list' ? 'active' : '' ?>" data-view-switch="list"><i class="bi bi-list-ul me-1"></i>List</button>
-        </div>
-        <?php if (!empty($directoryProjects)): ?>
-            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newTaskModal">
-                <i class="bi bi-plus-lg"></i> New task
-            </button>
-        <?php else: ?>
-            <a class="btn btn-outline-primary btn-sm" href="/admin/workspace-projects.php"><i class="bi bi-kanban me-1"></i>Create a project first</a>
-        <?php endif; ?>
+        <a class="btn btn-outline-secondary btn-sm" href="/admin/workspace-projects.php"><i class="bi bi-grid-3x3-gap me-1"></i>All projects page</a>
     </div>
 </div>
 
@@ -111,6 +101,74 @@ function st_render_task_assignee_html(array $t): string {
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
+
+<?php /* -------- Projects hub (accessible directory projects first) ------- */ ?>
+<section class="st-home-projects mb-5" aria-labelledby="st-home-projects-heading">
+    <div class="st-home-projects__toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <h2 id="st-home-projects-heading" class="h5 mb-0"><i class="bi bi-kanban me-2 text-muted"></i>Your projects</h2>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span class="text-muted small"><?= count($directoryProjects) ?> you can access</span>
+            <a class="btn btn-outline-primary btn-sm" href="/admin/workspace-projects.php"><i class="bi bi-plus-lg me-1"></i>New project</a>
+        </div>
+    </div>
+    <?php if (empty($directoryProjects)): ?>
+        <div class="surface surface-pad text-center st-home-projects__empty">
+            <div class="mb-3" style="font-size: 2rem; color: var(--st-text-muted);"><i class="bi bi-kanban"></i></div>
+            <h3 class="h6 mb-1">No projects yet</h3>
+            <p class="text-muted small mb-3 mx-auto" style="max-width: 32rem;">Create a workspace project &mdash; most work starts there. You will still see any matching tasks below once they exist.</p>
+            <a class="btn btn-primary btn-sm" href="/admin/workspace-projects.php"><i class="bi bi-plus-lg me-1"></i>Create a project</a>
+        </div>
+    <?php else: ?>
+        <div class="st-home-project-grid board" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));">
+            <?php foreach ($directoryProjects as $dp): ?>
+                <a class="task-card st-home-project-card" href="/admin/project.php?id=<?= (int)$dp['id'] ?>">
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                        <span class="task-card__title mb-0 text-truncate" title="<?= htmlspecialchars($dp['name']) ?>"><?= htmlspecialchars($dp['name']) ?></span>
+                        <span class="status-pill status-pill--<?= $dp['status'] === 'active' ? 'doing' : ($dp['status'] === 'archived' ? 'todo' : 'blocked') ?>"><?= htmlspecialchars($dp['status']) ?></span>
+                    </div>
+                    <?php if (!empty($dp['description'])): ?>
+                        <div class="text-muted small st-home-project-card__desc"><?= htmlspecialchars($dp['description']) ?></div>
+                    <?php endif; ?>
+                    <div class="task-card__meta mb-0">
+                        <?php if (!empty($dp['all_access'])): ?>
+                            <span><i class="bi bi-globe"></i> all-access</span>
+                        <?php endif; ?>
+                        <?php if (!empty($dp['client_visible'])): ?>
+                            <span><i class="bi bi-eye"></i> client-visible</span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="task-card__footer mt-auto pt-2">
+                        <span class="text-muted small">Updated <?= st_relative_time($dp['updated_at'] ?? null) ?></span>
+                        <span class="small" style="color: var(--st-accent);">Open project <i class="bi bi-arrow-right-short"></i></span>
+                    </div>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</section>
+
+<hr class="st-home-rule text-muted opacity-50 my-5" aria-hidden="true">
+
+<section class="st-home-master" aria-labelledby="st-home-master-heading">
+    <div class="page-header">
+        <div class="page-header__title">
+            <h2 id="st-home-master-heading" class="h4 mb-1">All tasks <span class="text-muted fw-normal">across projects</span></h2>
+            <div class="subtitle"><?= count($tasks) ?> shown · <?= $total ?> total — board and list mirror every project you can reach.</div>
+        </div>
+        <div class="page-header__actions">
+            <div class="btn-group" role="group" aria-label="View">
+                <button type="button" class="btn btn-sm btn-outline-secondary <?= $initialView === 'board' ? 'active' : '' ?>" data-view-switch="board"><i class="bi bi-kanban me-1"></i>Board</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary <?= $initialView === 'list' ? 'active' : '' ?>" data-view-switch="list"><i class="bi bi-list-ul me-1"></i>List</button>
+            </div>
+            <?php if (!empty($directoryProjects)): ?>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newTaskModal">
+                    <i class="bi bi-plus-lg"></i> New task
+                </button>
+            <?php else: ?>
+                <a class="btn btn-outline-primary btn-sm" href="/admin/workspace-projects.php"><i class="bi bi-kanban me-1"></i>Create a project first</a>
+            <?php endif; ?>
+        </div>
+    </div>
 
 <form class="filter-bar" method="get" action="/admin/" role="search">
     <div class="filter-bar__search">
@@ -505,5 +563,7 @@ function st_render_task_assignee_html(array $t): string {
     observer.observe(root, { attributes: true, attributeFilter: ['data-view'] });
 })();
 </script>
+
+</section>
 
 <?php require __DIR__ . '/_layout_bottom.php'; ?>

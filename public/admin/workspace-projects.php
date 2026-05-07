@@ -51,7 +51,7 @@ if ($oid > 0 && ($og = getOrganizationById($oid))) {
 
 $pageTitle = 'Projects';
 $adminBreadcrumbs = [
-    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['href' => '/admin/', 'label' => 'Home'],
     ['label' => 'Projects'],
 ];
 require __DIR__ . '/_layout_top.php';

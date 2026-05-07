@@ -193,7 +193,7 @@ $tabHuman = [
     'settings' => 'Settings',
 ][$tab] ?? ucfirst($tab);
 $adminBreadcrumbs = [
-    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['href' => '/admin/', 'label' => 'Home'],
     ['href' => '/admin/workspace-projects.php', 'label' => 'Projects'],
 ];
 if ($tab === 'lists') {

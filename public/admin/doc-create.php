@@ -27,7 +27,7 @@ $preselectId = isset($_GET['project_id']) ? (int)$_GET['project_id'] : 0;
 
 $pageTitle = 'New document';
 $adminBreadcrumbs = [
-    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['href' => '/admin/', 'label' => 'Home'],
     ['href' => '/admin/docs.php', 'label' => 'Docs'],
     ['label' => 'New'],
 ];

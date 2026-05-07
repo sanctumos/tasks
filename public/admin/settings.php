@@ -34,7 +34,7 @@ if ($availableTabs[$tab]['admin'] && !$isAdmin) {
 
 $pageTitle = 'Settings · ' . $availableTabs[$tab]['label'];
 $adminBreadcrumbs = [
-    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['href' => '/admin/', 'label' => 'Home'],
 ];
 if ($tab === 'password') {
     $adminBreadcrumbs[] = ['label' => 'Settings'];

@@ -45,7 +45,7 @@ $orgs = listOrganizationsWithStats();
 
 $pageTitle = 'Organizations';
 $adminBreadcrumbs = [
-    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['href' => '/admin/', 'label' => 'Home'],
     ['label' => 'Organizations'],
 ];
 require __DIR__ . '/_layout_top.php';
