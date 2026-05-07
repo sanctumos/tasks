@@ -150,7 +150,8 @@ require __DIR__ . '/_layout_top.php';
         </div>
     </div>
 
-    <div class="page-header__actions task-header__actions">
+    <div class="page-header__actions task-header__actions d-flex flex-wrap align-items-center gap-2">
+        <?= st_doc_help('task-detail', 'Task page overview') ?>
         <form method="post" action="/admin/watch.php" class="m-0">
             <?= csrfInputField() ?>
             <input type="hidden" name="task_id" value="<?= (int)$task['id'] ?>">
@@ -214,9 +215,10 @@ require __DIR__ . '/_layout_top.php';
 
         <div class="surface surface-pad mb-3" id="discussion">
             <div class="section-title-row">
-                <div class="section-title">
+                <div class="section-title d-flex align-items-center gap-2 flex-wrap">
                     <i class="bi bi-chat-left-text"></i> Discussion
                     <span class="count"><?= (int)$commentCount ?></span>
+                    <?= st_doc_help('mentions-markdown', 'Comments @mentions and markdown') ?>
                 </div>
                 <a href="#discussion-composer" class="btn btn-sm btn-link"><i class="bi bi-plus-lg"></i> New comment</a>
             </div>
@@ -276,11 +278,12 @@ require __DIR__ . '/_layout_top.php';
             }
         ?>
         <div class="surface surface-pad mb-3" id="attachments">
-            <div class="section-title-row">
+            <div class="section-title-row section-title-row--with-help">
                 <div class="section-title">
                     <i class="bi bi-image"></i> Images &amp; attachments
                     <span class="count"><?= (int)$attachmentCount ?></span>
                 </div>
+                <?= st_doc_help('images-attachments', 'Upload and inline images') ?>
             </div>
             <div
                 class="js-task-image-upload st-image-upload mb-3"

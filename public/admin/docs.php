@@ -61,7 +61,8 @@ require __DIR__ . '/_layout_top.php';
         <h1><i class="bi bi-journals me-2"></i>Docs</h1>
         <div class="subtitle">Long-form markdown reference material with its own discussion thread, attached to a project.</div>
     </div>
-    <div class="page-header__actions">
+    <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
+        <?= st_doc_help('documents', 'Project documents vs task bodies') ?>
         <a href="/admin/doc-create.php<?= $projectFilter ? '?project_id=' . (int)$projectFilter : '' ?>" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg me-1"></i>New doc
         </a>

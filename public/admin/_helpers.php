@@ -359,3 +359,5 @@ if (!function_exists('st_admin_breadcrumbs')) {
         return implode('', $parts);
     }
 }
+
+require_once __DIR__ . '/../includes/doc_guide.php';

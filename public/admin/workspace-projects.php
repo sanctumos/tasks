@@ -65,7 +65,8 @@ require __DIR__ . '/_layout_top.php';
             <?= count($projects) ?> <?= $orgLabel !== '' ? 'you can access' : 'in your directory' ?>
         </div>
     </div>
-    <div class="page-header__actions">
+    <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
+        <?= st_doc_help('projects', 'Directory projects and creating projects') ?>
         <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#newProjectModal"><i class="bi bi-plus-lg me-1"></i>New project</button>
     </div>
 </div>
