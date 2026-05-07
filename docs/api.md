@@ -269,9 +269,9 @@ Admin-only — creates a status (see PHP for body fields).
 | `GET` | `/api/list-comments.php` | `task_id` query |
 | `POST` | `/api/create-comment.php` | JSON body |
 
-#### Attachments (metadata only)
+#### Attachments
 
-**`POST /api/add-attachment.php`** does **not** accept multipart file uploads. It stores **metadata** for a URL you already host elsewhere.
+**Metadata mode (`POST /api/add-attachment.php`):** stores a URL you already host elsewhere.
 
 **Body (JSON):**
 
@@ -285,9 +285,21 @@ Admin-only — creates a status (see PHP for body fields).
 
 **Response `201`:** Minimal payload: `task_id`, `attachment_id` (plus standard `success` / `data`).
 
+**Upload mode (`POST /api/upload-attachment.php`):** authenticated multipart upload for images stored by Tasks.
+
+- Content-Type: `multipart/form-data`
+- Fields:
+  - `task_id` (required)
+  - `file` (required upload field)
+- Allowed MIME types: `image/png`, `image/jpeg`, `image/gif`, `image/webp`
+- Max size: `TASKS_ASSET_MAX_BYTES` (default 8 MiB)
+
+**Upload response `201`:** `task_id`, `attachment_id`, canonical `file_url`, and markdown snippet (`markdown`) for inline paste.
+
 | Method | Path | Notes |
 | ------ | ---- | ----- |
 | `GET` | `/api/list-attachments.php` | `task_id` |
+| `GET` | `/api/get-asset.php` | `id` attachment id; requires session auth or API key; enforces task access |
 
 #### Watchers
 

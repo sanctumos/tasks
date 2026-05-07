@@ -1,6 +1,6 @@
 # Roadmap stub: inline images and uploaded assets
 
-**Status:** stub only (2026-05-06). Not scheduled work—captures intent so we do not lose the thread.
+**Status:** decisions locked for implementation (updated 2026-05-07).
 
 ## Problem today
 
@@ -11,19 +11,19 @@
 
 Users can attach screenshots and other binaries and reference them **inline** in markdown (tasks, comments, documents) using URLs served by Tasks (or signed URLs), with sane limits and access control aligned to project/list visibility.
 
-## Likely building blocks (when implemented)
+## Locked implementation decisions (2026-05-07)
 
-1. **Storage:** filesystem under a non-public directory (or future object storage), keyed by org/project/task or asset id; never serve arbitrary paths from user input.
-2. **Upload API:** authenticated `multipart/form-data` (and/or admin UI), MIME allowlist (e.g. `image/png`, `image/jpeg`, `image/gif`, `image/webp`), max size, optional virus scanning hook.
-3. **Serving:** dedicated endpoint e.g. `/assets/<id>` or `/api/get-asset.php?id=` with session or token checks matching who may see the parent task/document; correct `Content-Type` and caching headers.
-4. **Markdown:** after upload, return a canonical URL or markdown snippet for paste; optional composer button “Insert image.” Ensure Parsedown / HTML sanitization stays safe for `<img>` (no javascript: URLs, etc.).
-5. **Audit / lifecycle:** optional link from `task_attachments` or new `media_assets` table; delete when parent deleted or GC orphaned uploads.
+1. **Storage:** use local **filesystem** in v1/v2 under a **non-public** directory in the app tree.
+2. **Serving/auth:** use a **Tasks-controlled endpoint** (`/api/get-asset.php?id=`) with normal task access checks; no public direct-path serving.
+3. **Schema:** extend existing **`task_attachments`** rather than introducing a new `media_assets` table right now.
+4. **Lifecycle:** **strict parent delete** (task deletion removes its uploaded files; no orphan retention policy).
+5. **Upload UX:** return both canonical URL and ready-to-paste markdown snippet after upload.
 
 ## Testing and rollout
 
 - PHPUnit / integration tests for upload authz, forbidden cross-org access, and MIME rejection.
 - Playwright smoke for “upload → image visible in rendered markdown” when UI exists.
 
-## Prerequisite product change (do before or with this)
+## Prerequisite product change (status)
 
-**Require every task to belong to a todo list** (`list_id` non-null), the same way directory work is anchored to a **project**. Today `list_id` is optional; that invites orphan tasks and poor board UX. Enforcement implies: create/edit validation (API + admin), default list selection (e.g. first list in project or explicit “Inbox” list), and a **data migration** for existing rows with `list_id IS NULL` (backfill or force assignment per project). Tackle that slice **before** or **in the same release train** as inline assets so new uploads stay scoped to a clear list/project hierarchy.
+`list_id` enforcement is already in place in current Tasks codepaths (create/update validation + backfill migration). Inline assets should stay scoped to task/list/project access rules; no separate prerequisite release is needed.

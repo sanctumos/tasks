@@ -1773,6 +1773,10 @@ function deleteTask($id): array {
         return ['success' => false, 'error' => 'Invalid id'];
     }
     $db = getDbConnection();
+    $attachments = listTaskAttachments($id);
+    foreach ($attachments as $attachment) {
+        deleteLocalTaskAttachmentFile($attachment);
+    }
     $stmt = $db->prepare("DELETE FROM tasks WHERE id = :id");
     $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
     $stmt->execute();
@@ -2730,7 +2734,7 @@ function listTaskAttachments(int $taskId): array {
     $db = getDbConnection();
     $stmt = $db->prepare("
         SELECT a.id, a.task_id, a.uploaded_by_user_id, u.username AS uploaded_by_username,
-               a.file_name, a.file_url, a.mime_type, a.size_bytes, a.created_at
+               a.file_name, a.file_url, a.mime_type, a.size_bytes, a.storage_kind, a.storage_rel_path, a.created_at
         FROM task_attachments a
         JOIN users u ON u.id = a.uploaded_by_user_id
         WHERE a.task_id = :task_id
@@ -2745,13 +2749,111 @@ function listTaskAttachments(int $taskId): array {
     return $rows;
 }
 
-function addTaskAttachment(int $taskId, int $uploadedByUserId, string $fileName, string $fileUrl, ?string $mimeType = null, ?int $sizeBytes = null): array {
+function allowedTaskAssetMimeTypes(): array {
+    return [
+        'image/png',
+        'image/jpeg',
+        'image/gif',
+        'image/webp',
+    ];
+}
+
+function isAllowedTaskAssetMimeType(string $mimeType): bool {
+    return in_array(strtolower(trim($mimeType)), allowedTaskAssetMimeTypes(), true);
+}
+
+function taskAssetStorageRoot(): string {
+    return rtrim(TASKS_ASSET_STORAGE_DIR, '/');
+}
+
+function ensureTaskAssetStorageDir(): void {
+    ensureDirExists(taskAssetStorageRoot());
+}
+
+function normalizeTaskAttachmentStorageKind(?string $kind): string {
+    $kind = strtolower(trim((string)$kind));
+    if ($kind === 'local') {
+        return 'local';
+    }
+    return 'remote';
+}
+
+function taskAttachmentAbsolutePath(string $storageRelPath): ?string {
+    $rel = trim($storageRelPath);
+    if ($rel === '' || strpos($rel, '..') !== false || str_starts_with($rel, '/')) {
+        return null;
+    }
+    $root = taskAssetStorageRoot();
+    $full = $root . '/' . $rel;
+    $dir = dirname($full);
+    $rootReal = realpath($root);
+    $dirReal = realpath($dir);
+    if ($rootReal === false || $dirReal === false) {
+        return null;
+    }
+    if (!str_starts_with($dirReal, $rootReal)) {
+        return null;
+    }
+    return $full;
+}
+
+function buildTaskAssetStorageRelPath(int $taskId, string $mimeType): string {
+    $extMap = [
+        'image/png' => 'png',
+        'image/jpeg' => 'jpg',
+        'image/gif' => 'gif',
+        'image/webp' => 'webp',
+    ];
+    $ext = $extMap[strtolower($mimeType)] ?? 'bin';
+    $random = bin2hex(random_bytes(16));
+    return 'task-' . $taskId . '/' . gmdate('Y/m') . '/' . $random . '.' . $ext;
+}
+
+function persistTaskAssetUpload(int $taskId, string $tmpPath, string $mimeType): array {
+    if (!is_file($tmpPath)) {
+        return ['success' => false, 'error' => 'Uploaded file temp path missing'];
+    }
+    ensureTaskAssetStorageDir();
+    $rel = buildTaskAssetStorageRelPath($taskId, $mimeType);
+    $abs = taskAttachmentAbsolutePath($rel);
+    if ($abs === null) {
+        return ['success' => false, 'error' => 'Could not compute safe storage path'];
+    }
+    ensureDirExists(dirname($abs));
+    if (!@move_uploaded_file($tmpPath, $abs)) {
+        if (!@rename($tmpPath, $abs)) {
+            return ['success' => false, 'error' => 'Failed to move uploaded file'];
+        }
+    }
+    @chmod($abs, 0640);
+    return ['success' => true, 'storage_rel_path' => $rel];
+}
+
+function deleteLocalTaskAttachmentFile(array $attachment): void {
+    $kind = normalizeTaskAttachmentStorageKind((string)($attachment['storage_kind'] ?? ''));
+    if ($kind !== 'local') {
+        return;
+    }
+    $rel = trim((string)($attachment['storage_rel_path'] ?? ''));
+    if ($rel === '') {
+        return;
+    }
+    $abs = taskAttachmentAbsolutePath($rel);
+    if ($abs === null || !is_file($abs)) {
+        return;
+    }
+    @unlink($abs);
+}
+
+function addTaskAttachment(int $taskId, int $uploadedByUserId, string $fileName, string $fileUrl, ?string $mimeType = null, ?int $sizeBytes = null, array $options = []): array {
     $fileName = trim($fileName);
     $fileUrl = trim($fileUrl);
+    $storageKind = normalizeTaskAttachmentStorageKind((string)($options['storage_kind'] ?? 'remote'));
+    $storageRelPath = normalizeNullableText((string)($options['storage_rel_path'] ?? ''), 600);
     if ($fileName === '' || $fileUrl === '') {
         return ['success' => false, 'error' => 'file_name and file_url are required'];
     }
-    if (!filter_var($fileUrl, FILTER_VALIDATE_URL)) {
+    if ($storageKind !== 'local' && !filter_var($fileUrl, FILTER_VALIDATE_URL)) {
         return ['success' => false, 'error' => 'file_url must be a valid URL'];
     }
     if (!getTaskById($taskId, false)) {
@@ -2763,8 +2865,8 @@ function addTaskAttachment(int $taskId, int $uploadedByUserId, string $fileName,
 
     $db = getDbConnection();
     $stmt = $db->prepare("
-        INSERT INTO task_attachments (task_id, uploaded_by_user_id, file_name, file_url, mime_type, size_bytes)
-        VALUES (:task_id, :uploaded_by_user_id, :file_name, :file_url, :mime_type, :size_bytes)
+        INSERT INTO task_attachments (task_id, uploaded_by_user_id, file_name, file_url, mime_type, size_bytes, storage_kind, storage_rel_path)
+        VALUES (:task_id, :uploaded_by_user_id, :file_name, :file_url, :mime_type, :size_bytes, :storage_kind, :storage_rel_path)
     ");
     $stmt->bindValue(':task_id', $taskId, SQLITE3_INTEGER);
     $stmt->bindValue(':uploaded_by_user_id', $uploadedByUserId, SQLITE3_INTEGER);
@@ -2777,6 +2879,8 @@ function addTaskAttachment(int $taskId, int $uploadedByUserId, string $fileName,
     } else {
         $stmt->bindValue(':size_bytes', max(0, $sizeBytes), SQLITE3_INTEGER);
     }
+    $stmt->bindValue(':storage_kind', $storageKind, SQLITE3_TEXT);
+    $stmt->bindValue(':storage_rel_path', $storageRelPath, $storageRelPath === null ? SQLITE3_NULL : SQLITE3_TEXT);
     $stmt->execute();
 
     $upd = $db->prepare("UPDATE tasks SET updated_at = CURRENT_TIMESTAMP WHERE id = :id");

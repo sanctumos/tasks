@@ -56,17 +56,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'reset_password') {
         $userId = isset($_POST['id']) ? (int)$_POST['id'] : 0;
         $newPassword = trim((string)($_POST['new_password'] ?? ''));
+        $mustChange = isset($_POST['must_change_password']) ? (bool)$_POST['must_change_password'] : true;
         if ($newPassword === '') {
-            $newPassword = bin2hex(random_bytes(8));
-        }
-        $result = resetUserPassword($userId, $newPassword, true);
-        if ($result['success']) {
-            $message = 'Password reset successfully. Communicate the new password to the user via a secure channel.';
-            $messageType = 'success';
-            createAuditLog((int)$currentUser['id'], 'admin.user_password_reset', 'user', (string)$userId);
-        } else {
-            $message = $result['error'] ?? 'Failed to reset password';
+            $message = 'New password is required';
             $messageType = 'danger';
+        } else {
+            $result = resetUserPassword($userId, $newPassword, $mustChange);
+            if ($result['success']) {
+                $message = 'Password reset successfully.';
+                $messageType = 'success';
+                createAuditLog((int)$currentUser['id'], 'admin.user_password_reset', 'user', (string)$userId, [
+                    'must_change_password' => $mustChange ? 1 : 0,
+                ]);
+            } else {
+                $message = $result['error'] ?? 'Failed to reset password';
+                $messageType = 'danger';
+            }
         }
     } elseif ($action === 'update_workspace') {
         $userId = (int)($_POST['id'] ?? 0);
@@ -233,13 +238,14 @@ require __DIR__ . '/_layout_top.php';
                                 <?= (int)$u['is_active'] === 1 ? 'Disable' : 'Enable' ?>
                             </button>
                         </form>
-                        <form method="post" action="/admin/users.php" class="d-inline m-0" onsubmit="return confirm('Reset password for <?= htmlspecialchars($u['username']) ?>?');">
-                            <?= csrfInputField() ?>
-                            <input type="hidden" name="action" value="reset_password">
-                            <input type="hidden" name="id" value="<?= (int)$u['id'] ?>">
-                            <input type="hidden" name="new_password" value="">
-                            <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-key me-1"></i>Reset</button>
-                        </form>
+                        <button
+                            class="btn btn-sm btn-outline-danger js-open-reset-modal"
+                            type="button"
+                            data-user-id="<?= (int)$u['id'] ?>"
+                            data-username="<?= htmlspecialchars($u['username'], ENT_QUOTES, 'UTF-8') ?>"
+                        >
+                            <i class="bi bi-key me-1"></i>Reset
+                        </button>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -311,5 +317,63 @@ require __DIR__ . '/_layout_top.php';
         </div>
     </div>
 </div>
+
+<?php /* Reset password modal */ ?>
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-labelledby="resetPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="/admin/users.php">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="resetPasswordModalLabel">Reset password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <?= csrfInputField() ?>
+                    <input type="hidden" name="action" value="reset_password">
+                    <input type="hidden" name="id" id="resetUserId" value="">
+                    <p class="small text-muted mb-3">
+                        Set a new password for <strong id="resetUsernameLabel">this user</strong>.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label" for="resetNewPassword">New password</label>
+                        <input class="form-control" type="password" id="resetNewPassword" name="new_password" required>
+                        <div class="form-text">Must meet current password policy (min <?= (int)PASSWORD_MIN_LENGTH ?> chars, uppercase, lowercase, number).</div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="resetMustChangePassword" name="must_change_password" value="1" checked>
+                        <label class="form-check-label" for="resetMustChangePassword">Require user to change password on next login</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-danger" type="submit"><i class="bi bi-key me-1"></i>Reset password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var modalEl = document.getElementById('resetPasswordModal');
+    if (!modalEl || typeof bootstrap === 'undefined') return;
+    var modal = new bootstrap.Modal(modalEl);
+    var idField = document.getElementById('resetUserId');
+    var userLabel = document.getElementById('resetUsernameLabel');
+    var pwField = document.getElementById('resetNewPassword');
+    var mustChange = document.getElementById('resetMustChangePassword');
+
+    document.querySelectorAll('.js-open-reset-modal').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            idField.value = btn.getAttribute('data-user-id') || '';
+            userLabel.textContent = btn.getAttribute('data-username') || 'this user';
+            pwField.value = '';
+            mustChange.checked = true;
+            modal.show();
+            setTimeout(function () { pwField.focus(); }, 100);
+        });
+    });
+});
+</script>
 
 <?php require __DIR__ . '/_layout_bottom.php'; ?>
