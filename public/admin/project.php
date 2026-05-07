@@ -419,7 +419,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
                     <input type="hidden" name="priority" value="normal">
                     <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($listsRedirect) ?>">
                     <i class="bi bi-plus-circle text-muted"></i>
-                    <input type="text" name="title" class="todo-list__add-input" placeholder="Add a to-do…" maxlength="240" required>
+                    <input type="text" name="title" class="todo-list__add-input" placeholder="Add a to-do…" maxlength="240" data-mention="1" required>
                     <button type="submit" class="btn btn-sm btn-outline-primary">Add</button>
                 </form>
             <?php endif; ?>
@@ -616,7 +616,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
                     <input type="hidden" name="project_id" value="<?= (int)$project['id'] ?>">
                     <div class="mb-3">
                         <label class="form-label">Title</label>
-                        <input class="form-control form-control-lg" name="title" required autofocus placeholder="What needs to happen?">
+                        <input class="form-control form-control-lg" name="title" required autofocus placeholder="What needs to happen?" data-mention="1">
                     </div>
                     <div class="row g-3">
                         <div class="col-12 col-md-4">
@@ -662,7 +662,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
                         </div>
                         <div class="col-12">
                             <label class="form-label">Body</label>
-                            <textarea class="form-control" name="body" rows="3" placeholder="Optional notes…"></textarea>
+                            <textarea class="form-control" name="body" rows="3" data-mention="1" placeholder="Optional notes… Tag teammates with @username."></textarea>
                         </div>
                     </div>
                 </div>

@@ -165,7 +165,41 @@ if (!function_exists('st_markdown')) {
             $pd->setUrlsLinked(true);
             $pd->setBreaksEnabled(true);
         }
-        return $inline ? $pd->line($raw) : $pd->text($raw);
+        $html = $inline ? $pd->line($raw) : $pd->text($raw);
+        return st_linkify_mentions($html);
+    }
+}
+
+if (!function_exists('st_linkify_mentions')) {
+    /**
+     * Wrap @username tokens in rendered markdown HTML with a styled link.
+     * Splits on `<code>`, `<pre>`, and `<a>` blocks so we never mangle
+     * literals inside code spans/blocks or already-linked text.
+     */
+    function st_linkify_mentions(string $html): string {
+        if ($html === '' || strpos($html, '@') === false) return $html;
+        $skip = '/(<(?:code|pre)\b[^>]*>.*?<\/(?:code|pre)>|<a\b[^>]*>.*?<\/a>)/is';
+        $parts = preg_split($skip, $html, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if (!is_array($parts)) return $html;
+        $out = '';
+        foreach ($parts as $i => $chunk) {
+            if ($i % 2 === 1) {
+                $out .= $chunk; // protected zone, unchanged
+                continue;
+            }
+            $out .= preg_replace_callback(
+                '/(^|[\s(>])@([A-Za-z0-9][A-Za-z0-9_.\-]{1,31})(?![A-Za-z0-9_.\-])/u',
+                function ($m) {
+                    $u = $m[2];
+                    $href = '/admin/?q=' . rawurlencode('@' . $u);
+                    return $m[1] . '<a class="mention" href="' . htmlspecialchars($href, ENT_QUOTES, 'UTF-8')
+                        . '" data-mention-username="' . htmlspecialchars($u, ENT_QUOTES, 'UTF-8') . '">@'
+                        . htmlspecialchars($u, ENT_QUOTES, 'UTF-8') . '</a>';
+                },
+                $chunk
+            );
+        }
+        return $out;
     }
 }
 

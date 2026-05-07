@@ -298,11 +298,216 @@
         modal.addEventListener("input", () => { refreshSummary(); });
     }
 
+    // ---------- @username mention autocomplete ----------
+    // Lightweight dropdown anchored under a textarea or text input. Triggers
+    // on `@` followed by username chars when the token starts at line/word
+    // boundary. Requires `[data-mention="1"]` on the field. Endpoint:
+    //   GET /api/search-users.php?q=<prefix>
+    const MENTION_TRIGGER = /(^|[\s(>])@([A-Za-z0-9_.\-]{0,32})$/;
+    const MENTION_USERNAME_CHARS = /^[A-Za-z0-9_.\-]+$/;
+
+    function ensureMentionMenu() {
+        let menu = document.getElementById("st-mention-menu");
+        if (!menu) {
+            menu = document.createElement("div");
+            menu.id = "st-mention-menu";
+            menu.className = "st-mention-menu";
+            menu.setAttribute("role", "listbox");
+            menu.style.display = "none";
+            document.body.appendChild(menu);
+        }
+        return menu;
+    }
+
+    function debounce(fn, ms) {
+        let t = null;
+        return function () {
+            const args = arguments, ctx = this;
+            if (t) clearTimeout(t);
+            t = setTimeout(() => fn.apply(ctx, args), ms);
+        };
+    }
+
+    const mentionCache = new Map();
+    function fetchMentions(q) {
+        const key = q.toLowerCase();
+        if (mentionCache.has(key)) return Promise.resolve(mentionCache.get(key));
+        return fetch("/api/search-users.php?q=" + encodeURIComponent(q) + "&limit=8", {
+            credentials: "same-origin",
+            headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
+        }).then((r) => r.ok ? r.json() : { users: [] })
+          .then((body) => {
+              const users = (body && (body.users || (body.data && body.data.users))) || [];
+              mentionCache.set(key, users);
+              if (mentionCache.size > 32) {
+                  const firstKey = mentionCache.keys().next().value;
+                  mentionCache.delete(firstKey);
+              }
+              return users;
+          })
+          .catch(() => []);
+    }
+
+    function placeMentionMenu(menu, field) {
+        const r = field.getBoundingClientRect();
+        const top = window.scrollY + r.bottom + 4;
+        const left = window.scrollX + r.left;
+        menu.style.top = top + "px";
+        menu.style.left = left + "px";
+        menu.style.minWidth = Math.max(200, Math.min(360, r.width)) + "px";
+    }
+
+    function renderMentionMenu(menu, users, activeIndex) {
+        if (!users.length) {
+            menu.innerHTML = '<div class="st-mention-empty">No matches</div>';
+            return;
+        }
+        const frag = document.createDocumentFragment();
+        users.forEach((u, i) => {
+            const item = document.createElement("button");
+            item.type = "button";
+            item.className = "st-mention-item" + (i === activeIndex ? " is-active" : "");
+            item.setAttribute("role", "option");
+            item.setAttribute("data-mention-index", String(i));
+            const tag = (u.person_kind === "client") ? "client" : (u.role === "admin" ? "admin" : "");
+            item.innerHTML = '<span class="st-mention-handle">@' +
+                (u.username || "").replace(/[<>&]/g, "") +
+                '</span>' +
+                (tag ? '<span class="st-mention-tag st-mention-tag--' + tag + '">' + tag + '</span>' : '');
+            frag.appendChild(item);
+        });
+        menu.innerHTML = "";
+        menu.appendChild(frag);
+    }
+
+    function bindMentionAutocomplete(field) {
+        if (field.dataset.mentionBound === "1") return;
+        field.dataset.mentionBound = "1";
+
+        const menu = ensureMentionMenu();
+        let users = [];
+        let activeIndex = 0;
+        let triggerStart = -1;
+        let triggerLen = 0;
+        let isOpen = false;
+
+        function close() {
+            if (!isOpen) return;
+            isOpen = false;
+            menu.style.display = "none";
+            menu.innerHTML = "";
+            users = [];
+            triggerStart = -1;
+            triggerLen = 0;
+            activeIndex = 0;
+        }
+
+        function open() {
+            isOpen = true;
+            placeMentionMenu(menu, field);
+            menu.style.display = "block";
+        }
+
+        function insert(user) {
+            if (!user || triggerStart < 0) { close(); return; }
+            const value = field.value;
+            const before = value.slice(0, triggerStart);
+            const after = value.slice(triggerStart + triggerLen);
+            const pad = (after.length === 0 || /^\s/.test(after)) ? " " : " ";
+            const replacement = "@" + user.username + pad;
+            const next = before + replacement + after;
+            field.value = next;
+            const caret = (before + replacement).length;
+            try { field.setSelectionRange(caret, caret); } catch (_) {}
+            field.dispatchEvent(new Event("input", { bubbles: true }));
+            close();
+            field.focus();
+        }
+
+        const refresh = debounce(() => {
+            if (triggerStart < 0) return;
+            const token = field.value.slice(triggerStart + 1, triggerStart + triggerLen);
+            if (token === "") {
+                renderMentionMenu(menu, [], -1);
+                return;
+            }
+            if (!MENTION_USERNAME_CHARS.test(token)) { close(); return; }
+            fetchMentions(token).then((list) => {
+                if (!isOpen || triggerStart < 0) return;
+                users = list || [];
+                activeIndex = 0;
+                renderMentionMenu(menu, users, activeIndex);
+            });
+        }, 120);
+
+        function detect() {
+            const caret = field.selectionStart || 0;
+            const left = field.value.slice(0, caret);
+            const m = left.match(MENTION_TRIGGER);
+            if (!m) { close(); return; }
+            const start = left.length - (m[2].length + 1); // position of '@'
+            triggerStart = start;
+            triggerLen = m[2].length + 1;
+            if (!isOpen) {
+                renderMentionMenu(menu, [], -1);
+                open();
+            } else {
+                placeMentionMenu(menu, field);
+            }
+            refresh();
+        }
+
+        field.addEventListener("input", detect);
+        field.addEventListener("click", detect);
+        field.addEventListener("keyup", (e) => {
+            if (e.key === "ArrowLeft" || e.key === "ArrowRight") detect();
+        });
+        field.addEventListener("blur", () => {
+            // Defer so a click on the menu can resolve before we tear down.
+            setTimeout(close, 120);
+        });
+
+        field.addEventListener("keydown", (e) => {
+            if (!isOpen || !users.length) return;
+            if (e.key === "ArrowDown") {
+                e.preventDefault();
+                activeIndex = (activeIndex + 1) % users.length;
+                renderMentionMenu(menu, users, activeIndex);
+            } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                activeIndex = (activeIndex - 1 + users.length) % users.length;
+                renderMentionMenu(menu, users, activeIndex);
+            } else if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault();
+                insert(users[activeIndex]);
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                close();
+            }
+        });
+
+        menu.addEventListener("mousedown", (e) => {
+            const item = e.target.closest(".st-mention-item");
+            if (!item) return;
+            e.preventDefault();
+            const idx = parseInt(item.getAttribute("data-mention-index") || "0", 10);
+            if (users[idx]) insert(users[idx]);
+        });
+
+        window.addEventListener("scroll", () => { if (isOpen) placeMentionMenu(menu, field); }, { passive: true });
+        window.addEventListener("resize", () => { if (isOpen) placeMentionMenu(menu, field); });
+    }
+
+    function bindAllMentionFields() {
+        document.querySelectorAll('textarea[data-mention="1"], input[data-mention="1"]').forEach(bindMentionAutocomplete);
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll("form.js-autosave-form").forEach(bindAutosaveForm);
         bindInlineEdit();
         bindCopyLink();
         bindRecurrenceBuilder();
+        bindAllMentionFields();
 
         // View switcher (board <-> list)
         document.querySelectorAll("[data-view-switch]").forEach((btn) => {

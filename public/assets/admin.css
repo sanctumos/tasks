@@ -662,3 +662,77 @@ body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-t
     .todolist-toolbar__new { width: 100%; }
     .todolist-toolbar__new .form-control { min-width: 0; flex: 1; }
 }
+
+/* @username mention autocomplete -------------------------------------- */
+.st-mention-menu {
+    position: absolute;
+    z-index: 2000;
+    background: var(--st-bg-surface);
+    border: 1px solid var(--st-border-soft, #e2e6ee);
+    border-radius: 0.5rem;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.12);
+    min-width: 200px;
+    max-width: 360px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 0.25rem;
+}
+.st-mention-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border: 0;
+    background: transparent;
+    padding: 0.4rem 0.55rem;
+    border-radius: 0.35rem;
+    text-align: left;
+    color: var(--st-text-primary);
+    cursor: pointer;
+}
+.st-mention-item:hover,
+.st-mention-item.is-active {
+    background: var(--st-bg-soft, #f1f4f9);
+}
+.st-mention-handle {
+    font-weight: 600;
+    color: var(--st-accent, #3b5bdb);
+}
+.st-mention-tag {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--st-text-muted, #6b7280);
+    border: 1px solid var(--st-border-soft, #e2e6ee);
+    border-radius: 0.25rem;
+    padding: 0.05rem 0.35rem;
+}
+.st-mention-tag--client {
+    color: #92400e;
+    border-color: #fcd34d;
+    background: #fffbeb;
+}
+.st-mention-tag--admin {
+    color: #5b21b6;
+    border-color: #ddd6fe;
+    background: #f5f3ff;
+}
+.st-mention-empty {
+    padding: 0.5rem 0.6rem;
+    font-size: 0.85rem;
+    color: var(--st-text-muted, #6b7280);
+}
+
+/* Rendered mentions in markdown bodies */
+.markdown-body .mention,
+a.mention {
+    display: inline;
+    color: var(--st-accent, #3b5bdb);
+    background: rgba(59, 91, 219, 0.08);
+    border-radius: 0.25rem;
+    padding: 0 0.2rem;
+    text-decoration: none;
+    font-weight: 600;
+}
+a.mention:hover { background: rgba(59, 91, 219, 0.15); }
