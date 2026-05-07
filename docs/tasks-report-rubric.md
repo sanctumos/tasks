@@ -16,6 +16,7 @@ Use this when **reviewing every open task and comment** on a directory project (
 - **Proof:** Every `done` closure from automation should cite **which human comment** or **which Document** locked the decision.
 - **Consolidation:** Prefer **one canonical task** per decision class (e.g. pricing matrix + offer ladder = single task).
 - **Splits:** If closure reveals new work, **spawn a new task** rather than bloating the original.
+- **No self-reply stacking:** If Otto is the **last commenter** on a task, do **not** post another Otto comment in the same thread unless (a) there has been a **long quiet period** with no resolution, or (b) genuinely new evidence/decision changed state.
 
 ## 3. What does *not* close a task
 
