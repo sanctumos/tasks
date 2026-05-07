@@ -294,6 +294,11 @@ Admin-only — creates a status (see PHP for body fields).
 - Allowed MIME types: `image/png`, `image/jpeg`, `image/gif`, `image/webp`
 - Max size: `TASKS_ASSET_MAX_BYTES` (default 8 MiB)
 
+**Authentication (either):**
+
+- **API key** — `X-API-Key` or `Authorization: Bearer` (subject to endpoint rate limiting).
+- **Admin session** (browser) — cookie session plus **CSRF** on the multipart body (`csrf_token` field) **or** `X-CSRF-Token` header matching the logged-in admin session token. The admin task page uses session + CSRF for drag-and-drop / file uploads.
+
 **Upload response `201`:** `task_id`, `attachment_id`, canonical `file_url`, and markdown snippet (`markdown`) for inline paste.
 
 | Method | Path | Notes |
