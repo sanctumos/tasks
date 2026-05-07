@@ -654,6 +654,123 @@ function disableUser(int $userId): array {
     return setUserActive($userId, false);
 }
 
+/**
+ * Hard-delete a user. Refuses if there is referenced activity (created/assigned tasks,
+ * comments, attachments, project memberships, audit actor rows, etc.) unless `$force`
+ * is true. With force=true, dependent rows that lack ON DELETE CASCADE are nulled or
+ * removed defensively before the delete. Idempotent: deleting an already-missing user
+ * returns success with `already_deleted=true`.
+ */
+function deleteUser(int $userId, ?int $actorUserId = null, bool $force = false): array {
+    if ($userId <= 0) {
+        return ['success' => false, 'error' => 'Invalid user id'];
+    }
+    if ($actorUserId !== null && $actorUserId === $userId) {
+        return ['success' => false, 'error' => 'You cannot delete your own user'];
+    }
+    $existing = getUserById($userId, false);
+    if (!$existing) {
+        return ['success' => true, 'already_deleted' => true];
+    }
+
+    $db = getDbConnection();
+    $countQuery = function (string $sql, int $uid) use ($db): int {
+        $stmt = $db->prepare($sql);
+        $stmt->bindValue(':uid', $uid, SQLITE3_INTEGER);
+        $res = $stmt->execute();
+        $row = $res ? $res->fetchArray(SQLITE3_ASSOC) : null;
+        return $row ? (int)$row['c'] : 0;
+    };
+
+    $refs = [
+        'tasks_created' => $countQuery('SELECT COUNT(*) AS c FROM tasks WHERE created_by_user_id = :uid', $userId),
+        'tasks_assigned' => $countQuery('SELECT COUNT(*) AS c FROM tasks WHERE assigned_to_user_id = :uid', $userId),
+        'task_comments' => $countQuery('SELECT COUNT(*) AS c FROM task_comments WHERE user_id = :uid', $userId),
+        'task_attachments' => $countQuery('SELECT COUNT(*) AS c FROM task_attachments WHERE uploaded_by_user_id = :uid', $userId),
+        'documents_created' => $countQuery('SELECT COUNT(*) AS c FROM documents WHERE created_by_user_id = :uid', $userId),
+        'document_comments' => $countQuery('SELECT COUNT(*) AS c FROM document_comments WHERE user_id = :uid', $userId),
+        'project_members' => $countQuery('SELECT COUNT(*) AS c FROM project_members WHERE user_id = :uid', $userId),
+        'api_keys' => $countQuery('SELECT COUNT(*) AS c FROM api_keys WHERE user_id = :uid', $userId),
+        'audit_logs' => $countQuery('SELECT COUNT(*) AS c FROM audit_logs WHERE actor_user_id = :uid', $userId),
+    ];
+
+    $hasContent = false;
+    foreach ($refs as $k => $n) {
+        if ($n > 0) {
+            $hasContent = true;
+            break;
+        }
+    }
+    if ($hasContent && !$force) {
+        return [
+            'success' => false,
+            'error' => 'User has referenced activity; pass force=true to delete anyway',
+            'references' => $refs,
+        ];
+    }
+
+    $db->exec('BEGIN');
+    try {
+        if ($hasContent) {
+            // Null out task FKs (no ON DELETE SET NULL on these columns)
+            $u = $db->prepare('UPDATE tasks SET assigned_to_user_id = NULL WHERE assigned_to_user_id = :uid');
+            $u->bindValue(':uid', $userId, SQLITE3_INTEGER);
+            $u->execute();
+            // created_by_user_id is NOT NULL — reassign to actor (or admin id 1 fallback)
+            $reassign = $actorUserId ?: 1;
+            $u = $db->prepare('UPDATE tasks SET created_by_user_id = :aid WHERE created_by_user_id = :uid');
+            $u->bindValue(':aid', $reassign, SQLITE3_INTEGER);
+            $u->bindValue(':uid', $userId, SQLITE3_INTEGER);
+            $u->execute();
+
+            // Comments / attachments: reassign authorship
+            foreach (['task_comments', 'task_attachments', 'document_comments'] as $tbl) {
+                $col = $tbl === 'task_attachments' ? 'uploaded_by_user_id' : 'user_id';
+                $u = $db->prepare("UPDATE {$tbl} SET {$col} = :aid WHERE {$col} = :uid");
+                $u->bindValue(':aid', $reassign, SQLITE3_INTEGER);
+                $u->bindValue(':uid', $userId, SQLITE3_INTEGER);
+                $u->execute();
+            }
+            // Documents created: reassign
+            $u = $db->prepare('UPDATE documents SET created_by_user_id = :aid WHERE created_by_user_id = :uid');
+            $u->bindValue(':aid', $reassign, SQLITE3_INTEGER);
+            $u->bindValue(':uid', $userId, SQLITE3_INTEGER);
+            $u->execute();
+            // project_members + api_keys: hard delete user-specific rows
+            foreach (['project_members', 'api_keys'] as $tbl) {
+                $u = $db->prepare("DELETE FROM {$tbl} WHERE user_id = :uid");
+                $u->bindValue(':uid', $userId, SQLITE3_INTEGER);
+                $u->execute();
+            }
+            // Audit log actor: null out (preserve history)
+            $u = $db->prepare('UPDATE audit_logs SET actor_user_id = NULL WHERE actor_user_id = :uid');
+            $u->bindValue(':uid', $userId, SQLITE3_INTEGER);
+            $u->execute();
+        }
+
+        // Tables with ON DELETE CASCADE will clean up: user_organization_memberships,
+        // user_project_pins, project_members (already cleaned above).
+        $del = $db->prepare('DELETE FROM users WHERE id = :id');
+        $del->bindValue(':id', $userId, SQLITE3_INTEGER);
+        $del->execute();
+        if ($db->changes() === 0) {
+            $db->exec('ROLLBACK');
+            return ['success' => false, 'error' => 'User not found'];
+        }
+        $db->exec('COMMIT');
+    } catch (Throwable $e) {
+        $db->exec('ROLLBACK');
+        return ['success' => false, 'error' => 'Delete failed: ' . $e->getMessage()];
+    }
+
+    createAuditLog($actorUserId, 'user.delete', 'user', (string)$userId, [
+        'username' => (string)($existing['username'] ?? ''),
+        'force' => $force ? 1 : 0,
+        'references' => $refs,
+    ]);
+    return ['success' => true, 'references' => $refs];
+}
+
 function resetUserPassword(int $userId, string $newPassword, bool $mustChangePassword = true): array {
     $passwordError = validatePassword($newPassword);
     if ($passwordError) {

@@ -418,6 +418,21 @@ You cannot disable your own user via this endpoint (`validation.self_disable_not
 
 Admin password reset (see PHP for body).
 
+#### `POST /api/delete-user.php`
+
+Admin-only hard delete of a user.
+
+**Body (JSON):**
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
+| `id` | Yes | Target user id |
+| `force` | No | If `true`, reassign authored content (tasks, comments, attachments, documents) to the calling admin and remove project memberships / API keys before deleting. Without `force`, refuses with `409` and a `references` map of related row counts so the caller can decide. |
+
+You cannot delete your own user (`validation.self_delete_not_allowed`).
+
+**Response `200`:** `id`, `already_deleted` (true if user was missing), and `references` (the activity counts that existed before deletion).
+
 ---
 
 ### API key lifecycle
