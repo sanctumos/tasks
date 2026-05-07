@@ -177,6 +177,13 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
         ensureColumnExists($db, 'tasks', 'list_id', 'INTEGER DEFAULT NULL');
         ensureIndexExists($db, 'idx_tasks_list_id', 'CREATE INDEX idx_tasks_list_id ON tasks(list_id)');
     }
+    if (tableExists($db, 'task_attachments')) {
+        // Inline-asset support: kept here (always-on migration) so PHP-FPM workers
+        // whose initializeDatabase() bootstrap already short-circuited still pick
+        // up the columns. listTaskAttachments() / get-asset.php both select these.
+        ensureColumnExists($db, 'task_attachments', 'storage_kind', "TEXT NOT NULL DEFAULT 'remote'");
+        ensureColumnExists($db, 'task_attachments', 'storage_rel_path', 'TEXT DEFAULT NULL');
+    }
     $db->exec("
         CREATE TABLE IF NOT EXISTS todo_lists (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -505,9 +512,6 @@ function initializeDatabase() {
             FOREIGN KEY(uploaded_by_user_id) REFERENCES users(id)
         )
     ");
-    ensureColumnExists($db, 'task_attachments', 'storage_kind', "TEXT NOT NULL DEFAULT 'remote'");
-    ensureColumnExists($db, 'task_attachments', 'storage_rel_path', 'TEXT DEFAULT NULL');
-
     $db->exec("
         CREATE TABLE IF NOT EXISTS task_watchers (
             task_id INTEGER NOT NULL,
