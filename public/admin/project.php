@@ -22,9 +22,9 @@ if (!$project || !userCanAccessDirectoryProject($currentUser, $project)) {
 }
 
 $canManage = userCanManageDirectoryProject($currentUser, $project);
-$tab = (string)($_GET['tab'] ?? 'tasks');
+$tab = (string)($_GET['tab'] ?? 'lists');
 if (!in_array($tab, ['tasks', 'lists', 'docs', 'members', 'settings'], true)) {
-    $tab = 'tasks';
+    $tab = 'lists';
 }
 
 $message = null;
@@ -196,10 +196,10 @@ $adminBreadcrumbs = [
     ['href' => '/admin/', 'label' => 'Tasks'],
     ['href' => '/admin/workspace-projects.php', 'label' => 'Projects'],
 ];
-if ($tab === 'tasks') {
+if ($tab === 'lists') {
     $adminBreadcrumbs[] = ['label' => (string)$project['name']];
 } else {
-    $adminBreadcrumbs[] = ['href' => '/admin/project.php?id=' . $id . '&tab=tasks', 'label' => (string)$project['name']];
+    $adminBreadcrumbs[] = ['href' => '/admin/project.php?id=' . $id . '&tab=lists', 'label' => (string)$project['name']];
     $adminBreadcrumbs[] = ['label' => $tabHuman];
 }
 require __DIR__ . '/_layout_top.php';
@@ -238,8 +238,8 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
 <?php endif; ?>
 
 <nav class="tabbar" aria-label="Project sections">
-    <?= st_tab_link('tasks', $tab, 'Tasks', 'bi-list-check', $totalTasks) ?>
     <?= st_tab_link('lists', $tab, 'Lists', 'bi-card-checklist', count($lists)) ?>
+    <?= st_tab_link('tasks', $tab, 'Tasks', 'bi-list-check', $totalTasks) ?>
     <?= st_tab_link('docs', $tab, 'Docs', 'bi-journals', count($projectDocs)) ?>
     <?= st_tab_link('members', $tab, 'Members', 'bi-people', count($members)) ?>
     <?php if ($canManage): ?>
