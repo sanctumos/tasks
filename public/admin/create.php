@@ -62,6 +62,12 @@ if (!empty($res['success'])) {
     $_SESSION['admin_flash_error'] = $res['error'] ?? 'Create failed.';
 }
 
+$redirectTo = (string)($_POST['redirect_to'] ?? '');
+if ($redirectTo !== '' && strpos($redirectTo, '/') === 0) {
+    header('Location: ' . $redirectTo);
+    exit();
+}
+
 if (!empty($res['success']) && $projectIdPost > 0) {
     header('Location: /admin/project.php?id=' . $projectIdPost . '&tab=tasks');
     exit();

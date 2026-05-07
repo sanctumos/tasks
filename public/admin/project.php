@@ -139,6 +139,46 @@ foreach ($projectTasks as $t) {
 
 $users = listUsers(false);
 
+// --- Lists view (Basecamp-style): group project tasks by list_id ----------
+$tasksByList = [];
+$tasksUnfiled = [];
+foreach ($projectTasks as $t) {
+    $lid = (int)($t['list_id'] ?? 0);
+    if ($lid <= 0) {
+        $tasksUnfiled[] = $t;
+        continue;
+    }
+    $tasksByList[$lid] ??= [];
+    $tasksByList[$lid][] = $t;
+}
+foreach ($tasksByList as $lid => &$rows) {
+    usort($rows, function ($a, $b) {
+        $aDone = (int)($a['status_is_done'] ?? 0);
+        $bDone = (int)($b['status_is_done'] ?? 0);
+        if ($aDone !== $bDone) return $aDone <=> $bDone;
+        $ar = (int)($a['rank'] ?? 0);
+        $br = (int)($b['rank'] ?? 0);
+        if ($ar !== $br) return $ar <=> $br;
+        return strcmp((string)($a['title'] ?? ''), (string)($b['title'] ?? ''));
+    });
+}
+unset($rows);
+
+$defaultStatusSlug = 'todo';
+$doneStatusSlug = 'done';
+foreach ($statuses as $s) {
+    if ((int)($s['is_default'] ?? 0) === 1) {
+        $defaultStatusSlug = (string)$s['slug'];
+        break;
+    }
+}
+foreach ($statuses as $s) {
+    if ((int)($s['is_done'] ?? 0) === 1) {
+        $doneStatusSlug = (string)$s['slug'];
+        break;
+    }
+}
+
 $projectOrgName = '';
 if (!empty($project['org_id']) && ($porg = getOrganizationById((int)$project['org_id']))) {
     $projectOrgName = (string)$porg['name'];
@@ -263,35 +303,152 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
 
 <?php elseif ($tab === 'lists'): ?>
 
-    <div class="surface surface-pad mb-3">
-        <div class="section-title"><i class="bi bi-card-checklist"></i> To-do lists <span class="count"><?= count($lists) ?></span></div>
-        <?php if (!$lists): ?>
-            <p class="text-muted small mb-3">No lists yet. Create one to group related tasks within this project.</p>
-        <?php else: ?>
-            <ul class="activity-list mb-3">
-                <?php foreach ($lists as $tl): ?>
-                    <li>
-                        <i class="bi bi-card-checklist text-muted"></i>
-                        <span><strong><?= htmlspecialchars($tl['name']) ?></strong>
-                            <span class="text-muted small">(list #<?= (int)$tl['id'] ?>)</span>
-                        </span>
-                    </li>
-                <?php endforeach; ?>
-            </ul>
-        <?php endif; ?>
+    <?php $listsRedirect = '/admin/project.php?id=' . (int)$id . '&tab=lists'; ?>
+    <div class="todolist-toolbar">
+        <div class="section-title">
+            <i class="bi bi-card-checklist"></i>
+            To-do lists
+            <span class="count"><?= count($lists) ?></span>
+        </div>
         <?php if ($canManage): ?>
-            <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=lists" class="row g-2 align-items-stretch">
+            <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=lists" class="todolist-toolbar__new">
                 <?= csrfInputField() ?>
                 <input type="hidden" name="action" value="create_list">
-                <div class="col-12 col-md-8">
-                    <input class="form-control" name="list_name" placeholder="New list name (e.g. Launch checklist)" required maxlength="200">
-                </div>
-                <div class="col-12 col-md-4">
-                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg me-1"></i>Create list</button>
-                </div>
+                <input class="form-control form-control-sm" name="list_name" placeholder="New list name…" required maxlength="200">
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-lg me-1"></i>Add list
+                </button>
             </form>
         <?php endif; ?>
     </div>
+
+    <?php if (empty($lists) && empty($tasksUnfiled)): ?>
+        <div class="surface surface-pad text-center">
+            <div class="mb-3" style="font-size: 2rem; color: var(--st-text-muted);"><i class="bi bi-card-checklist"></i></div>
+            <h2 class="h5 mb-1">No lists yet</h2>
+            <p class="text-muted small mb-3">Create the first to-do list above. Each list is a checklist of tasks that live inside this project.</p>
+        </div>
+    <?php endif; ?>
+
+    <?php
+    $renderTodoRow = function (array $t) use ($listsRedirect, $doneStatusSlug, $defaultStatusSlug, $canManage) {
+        $isDone = (int)($t['status_is_done'] ?? 0) === 1;
+        $rowCls = 'todo-row' . ($isDone ? ' todo-row--done' : '');
+        $nextStatus = $isDone ? $defaultStatusSlug : $doneStatusSlug;
+        ob_start();
+        ?>
+        <li class="<?= $rowCls ?>">
+            <form method="post" action="/admin/update.php" class="todo-row__check">
+                <?= csrfInputField() ?>
+                <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
+                <input type="hidden" name="status" value="<?= htmlspecialchars($nextStatus) ?>">
+                <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($listsRedirect) ?>">
+                <button type="submit"
+                        class="todo-checkbox<?= $isDone ? ' todo-checkbox--done' : '' ?>"
+                        aria-label="<?= $isDone ? 'Mark as not done' : 'Mark as done' ?>"
+                        <?= $canManage ? '' : 'disabled' ?>>
+                    <?php if ($isDone): ?><i class="bi bi-check-lg"></i><?php endif; ?>
+                </button>
+            </form>
+            <div class="todo-row__body">
+                <a class="todo-row__title" href="/admin/view.php?id=<?= (int)$t['id'] ?>"><?= htmlspecialchars((string)$t['title']) ?></a>
+                <div class="todo-row__meta">
+                    <?php if (!$isDone): ?>
+                        <?= st_priority_chip_html((string)($t['priority'] ?? 'normal')) ?>
+                    <?php endif; ?>
+                    <?php if (!empty($t['due_at'])): ?>
+                        <span class="todo-row__due"><i class="bi bi-calendar-event"></i> <?= htmlspecialchars(substr((string)$t['due_at'], 0, 10)) ?></span>
+                    <?php endif; ?>
+                    <?php if (!empty($t['assigned_to_username'])): ?>
+                        <span class="todo-row__assignee"><i class="bi bi-person-fill"></i> <?= htmlspecialchars((string)$t['assigned_to_username']) ?></span>
+                    <?php else: ?>
+                        <span class="todo-row__assignee text-muted"><i class="bi bi-person"></i> Unassigned</span>
+                    <?php endif; ?>
+                    <?= st_signal_icons_html($t) ?>
+                </div>
+            </div>
+        </li>
+        <?php
+        return ob_get_clean();
+    };
+    ?>
+
+    <?php foreach ($lists as $tl):
+        $listId = (int)$tl['id'];
+        $rows = $tasksByList[$listId] ?? [];
+        $totalRows = count($rows);
+        $doneRows = 0;
+        foreach ($rows as $r) {
+            if ((int)($r['status_is_done'] ?? 0) === 1) $doneRows++;
+        }
+        $remaining = max(0, $totalRows - $doneRows);
+    ?>
+        <section class="todo-list" id="list-<?= $listId ?>">
+            <header class="todo-list__header">
+                <div class="todo-list__title">
+                    <i class="bi bi-card-checklist"></i>
+                    <h2 class="h5 mb-0"><?= htmlspecialchars((string)$tl['name']) ?></h2>
+                </div>
+                <div class="todo-list__progress">
+                    <?php if ($totalRows === 0): ?>
+                        <span class="text-muted small">empty</span>
+                    <?php else: ?>
+                        <span class="todo-list__progress-pill"><?= $doneRows ?> / <?= $totalRows ?> done</span>
+                        <?php if ($remaining > 0): ?>
+                            <span class="text-muted small"><?= $remaining ?> remaining</span>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </div>
+            </header>
+
+            <?php if ($totalRows === 0): ?>
+                <p class="todo-list__empty text-muted small">No to-dos in this list yet.</p>
+            <?php else: ?>
+                <ol class="todo-list__items">
+                    <?php foreach ($rows as $t): echo $renderTodoRow($t); endforeach; ?>
+                </ol>
+            <?php endif; ?>
+
+            <?php if ($canManage): ?>
+                <form method="post" action="/admin/create.php" class="todo-list__add">
+                    <?= csrfInputField() ?>
+                    <input type="hidden" name="project" value="<?= htmlspecialchars((string)$project['name']) ?>">
+                    <input type="hidden" name="project_id" value="<?= (int)$project['id'] ?>">
+                    <input type="hidden" name="list_id" value="<?= $listId ?>">
+                    <input type="hidden" name="status" value="<?= htmlspecialchars($defaultStatusSlug) ?>">
+                    <input type="hidden" name="priority" value="normal">
+                    <input type="hidden" name="redirect_to" value="<?= htmlspecialchars($listsRedirect) ?>">
+                    <i class="bi bi-plus-circle text-muted"></i>
+                    <input type="text" name="title" class="todo-list__add-input" placeholder="Add a to-do…" maxlength="240" required>
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Add</button>
+                </form>
+            <?php endif; ?>
+        </section>
+    <?php endforeach; ?>
+
+    <?php if (!empty($tasksUnfiled)):
+        $totalRows = count($tasksUnfiled);
+        $doneRows = 0;
+        foreach ($tasksUnfiled as $r) {
+            if ((int)($r['status_is_done'] ?? 0) === 1) $doneRows++;
+        }
+    ?>
+        <section class="todo-list todo-list--unfiled">
+            <header class="todo-list__header">
+                <div class="todo-list__title">
+                    <i class="bi bi-inbox"></i>
+                    <h2 class="h5 mb-0">Unfiled</h2>
+                </div>
+                <div class="todo-list__progress">
+                    <span class="todo-list__progress-pill"><?= $doneRows ?> / <?= $totalRows ?> done</span>
+                </div>
+            </header>
+            <p class="todo-list__empty text-muted small">These tasks aren’t attached to a to-do list yet — open one and assign it to a list to file it here.</p>
+            <ol class="todo-list__items">
+                <?php foreach ($tasksUnfiled as $t): echo $renderTodoRow($t); endforeach; ?>
+            </ol>
+        </section>
+    <?php endif; ?>
 
 <?php elseif ($tab === 'docs'): ?>
 
