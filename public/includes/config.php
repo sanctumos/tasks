@@ -37,6 +37,8 @@ define('LOGIN_LOCK_SECONDS', (int)envOrDefault('TASKS_LOGIN_LOCK_SECONDS', 900))
 define('API_RATE_LIMIT_REQUESTS', (int)envOrDefault('TASKS_API_RATE_LIMIT_REQUESTS', 240));
 define('API_RATE_LIMIT_WINDOW_SECONDS', (int)envOrDefault('TASKS_API_RATE_LIMIT_WINDOW_SECONDS', 60));
 define('APP_DEBUG', envBool('TASKS_APP_DEBUG', false));
+define('TASKS_ASSET_STORAGE_DIR', envOrDefault('TASKS_ASSET_STORAGE_DIR', __DIR__ . '/../../storage/task-assets'));
+define('TASKS_ASSET_MAX_BYTES', (int)envOrDefault('TASKS_ASSET_MAX_BYTES', 8 * 1024 * 1024));
 // Only use X-Forwarded-For / CF-Connecting-IP when behind a trusted proxy (H-02)
 define('TRUST_PROXY', envBool('TASKS_TRUST_PROXY', false));
 define('TRUSTED_PROXY_IPS', envOrDefault('TASKS_TRUSTED_PROXY_IPS', ''));
@@ -496,11 +498,15 @@ function initializeDatabase() {
             file_url TEXT NOT NULL,
             mime_type TEXT DEFAULT NULL,
             size_bytes INTEGER DEFAULT NULL,
+            storage_kind TEXT NOT NULL DEFAULT 'remote',
+            storage_rel_path TEXT DEFAULT NULL,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
             FOREIGN KEY(uploaded_by_user_id) REFERENCES users(id)
         )
     ");
+    ensureColumnExists($db, 'task_attachments', 'storage_kind', "TEXT NOT NULL DEFAULT 'remote'");
+    ensureColumnExists($db, 'task_attachments', 'storage_rel_path', 'TEXT DEFAULT NULL');
 
     $db->exec("
         CREATE TABLE IF NOT EXISTS task_watchers (
