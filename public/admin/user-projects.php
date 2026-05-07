@@ -103,7 +103,7 @@ foreach ($projects as $p) {
 
 $pageTitle = 'Projects · ' . $target['username'];
 $adminBreadcrumbs = [
-    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['href' => '/admin/', 'label' => 'Home'],
     ['href' => '/admin/users.php', 'label' => 'Users'],
     ['label' => 'Project access · ' . (string)$target['username']],
 ];

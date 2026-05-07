@@ -37,7 +37,7 @@ unset($_SESSION['admin_flash_success'], $_SESSION['admin_flash_error']);
 
 $pageTitle = 'Docs';
 $adminBreadcrumbs = [
-    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['href' => '/admin/', 'label' => 'Home'],
     ['label' => 'Docs'],
 ];
 require __DIR__ . '/_layout_top.php';

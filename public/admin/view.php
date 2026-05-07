@@ -82,7 +82,7 @@ $flashError = $_SESSION['admin_flash_error'] ?? null;
 unset($_SESSION['admin_flash_success'], $_SESSION['admin_flash_error']);
 
 $pageTitle = '#' . (int)$task['id'] . ' ' . substr((string)$task['title'], 0, 50);
-$adminBreadcrumbs = [['href' => '/admin/', 'label' => 'Tasks']];
+$adminBreadcrumbs = [['href' => '/admin/', 'label' => 'Home']];
 $pid = (int)($task['project_id'] ?? 0);
 if ($pid > 0 && ($dp = getDirectoryProjectById($pid))) {
     $adminBreadcrumbs[] = ['href' => '/admin/workspace-projects.php', 'label' => 'Projects'];

@@ -42,7 +42,7 @@ unset($_SESSION['admin_flash_success'], $_SESSION['admin_flash_error']);
 
 $pageTitle = (string)$doc['title'];
 $adminBreadcrumbs = [
-    ['href' => '/admin/', 'label' => 'Tasks'],
+    ['href' => '/admin/', 'label' => 'Home'],
     ['href' => '/admin/docs.php', 'label' => 'Docs'],
 ];
 if (!empty($doc['project_name'])) {

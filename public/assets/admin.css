@@ -771,3 +771,29 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
 .attachment-list__main { min-width: 0; flex: 1; }
 .attachment-list__title { font-weight: 600; word-break: break-word; font-size: 0.93rem; }
 .attachment-list__meta span + span::before { content: " · "; }
+
+/* Home (/) — projects first, master task view below --------------------- */
+.st-home-project-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 7.5rem;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+}
+.st-home-project-card:hover {
+    color: inherit;
+    border-color: var(--st-accent, #3b5bdb);
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+.st-home-project-card__desc {
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+@media (max-width: 575.98px) {
+    .st-home-projects__toolbar { flex-direction: column; align-items: flex-start; }
+}
