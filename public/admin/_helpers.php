@@ -131,6 +131,37 @@ if (!function_exists('st_avatar_color')) {
     }
 }
 
+if (!function_exists('st_password_policy_requirements_text')) {
+    /**
+     * Human-readable password rules (matches validatePassword in functions.php).
+     */
+    function st_password_policy_requirements_text(): string {
+        $n = (int)(defined('PASSWORD_MIN_LENGTH') ? PASSWORD_MIN_LENGTH : 12);
+        return sprintf(
+            'At least %d characters, with at least one uppercase letter, one lowercase letter, and one number.',
+            $n
+        );
+    }
+}
+
+if (!function_exists('st_password_policy_form_hint')) {
+    /** Echo Bootstrap form-text under a password field. */
+    function st_password_policy_form_hint(): void {
+        echo '<div class="form-text">' . htmlspecialchars(st_password_policy_requirements_text(), ENT_QUOTES, 'UTF-8') . '</div>';
+    }
+}
+
+if (!function_exists('st_password_policy_alert_html')) {
+    /** Bulleted reminder for alert/modal bodies (trusted HTML). */
+    function st_password_policy_alert_html(): string {
+        $n = (int)(defined('PASSWORD_MIN_LENGTH') ? PASSWORD_MIN_LENGTH : 12);
+        return '<ul class="small mb-0 ps-3 text-start">'
+            . '<li><strong>Length:</strong> at least ' . $n . ' characters</li>'
+            . '<li><strong>Mix:</strong> uppercase, lowercase, and at least one number</li>'
+            . '</ul>';
+    }
+}
+
 if (!function_exists('st_avatar_html')) {
     function st_avatar_html(?string $username, string $sizeClass = ''): string {
         $hue = st_avatar_color($username);
