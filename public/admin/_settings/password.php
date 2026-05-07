@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] 
         <div class="mb-3">
             <label class="form-label">New password</label>
             <input class="form-control" type="password" name="new_password" required autocomplete="new-password">
-            <div class="form-text">At least <?= (int)PASSWORD_MIN_LENGTH ?> characters, with uppercase, lowercase, and a number.</div>
+            <?php st_password_policy_form_hint(); ?>
         </div>
         <div class="mb-3">
             <label class="form-label">Confirm new password</label>

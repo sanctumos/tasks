@@ -13,6 +13,7 @@ if (!$currentUser) {
 $message = null;
 $messageType = 'success';
 $temporaryPassword = null;
+$modalRestore = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
@@ -33,8 +34,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messageType = 'success';
             createAuditLog((int)$currentUser['id'], 'admin.user_create', 'user', (string)$result['id'], ['username' => $username, 'role' => $role]);
         } else {
-            $message = $result['error'] ?? 'Failed to create user';
-            $messageType = 'danger';
+            $_SESSION['admin_users_modal'] = [
+                'kind' => 'new_user',
+                'error' => (string)($result['error'] ?? 'Failed to create user'),
+                'prefill' => [
+                    'username' => $username,
+                    'role' => $role,
+                    'person_kind' => $personKind,
+                    'org_id' => $orgIdCreate,
+                    'must_change_password' => $mustChange,
+                    'limited_project_access' => $limitedCreate,
+                ],
+            ];
+            header('Location: /admin/users.php');
+            exit();
         }
     } elseif ($action === 'toggle_active') {
         $userId = isset($_POST['id']) ? (int)$_POST['id'] : 0;
@@ -69,8 +82,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'must_change_password' => $mustChange ? 1 : 0,
                 ]);
             } else {
-                $message = $result['error'] ?? 'Failed to reset password';
-                $messageType = 'danger';
+                $uname = '';
+                if (($tu = getUserById($userId, false)) !== null) {
+                    $uname = (string)$tu['username'];
+                }
+                $_SESSION['admin_users_modal'] = [
+                    'kind' => 'reset_password',
+                    'error' => (string)($result['error'] ?? 'Failed to reset password'),
+                    'prefill' => [
+                        'user_id' => $userId,
+                        'username' => $uname !== '' ? $uname : ('user #' . $userId),
+                        'must_change_password' => $mustChange,
+                    ],
+                ];
+                header('Location: /admin/users.php');
+                exit();
             }
         }
     } elseif ($action === 'update_workspace') {
@@ -113,6 +139,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+if (!empty($_SESSION['admin_users_modal']) && is_array($_SESSION['admin_users_modal'])) {
+    $modalRestore = $_SESSION['admin_users_modal'];
+    unset($_SESSION['admin_users_modal']);
+    if (!empty($modalRestore['error'])) {
+        $message = (string)$modalRestore['error'];
+        $messageType = 'danger';
+    }
+}
+
+$prefill = (is_array($modalRestore) && ($modalRestore['kind'] ?? '') === 'new_user' && !empty($modalRestore['prefill']) && is_array($modalRestore['prefill']))
+    ? $modalRestore['prefill']
+    : [];
 
 $users = listUsers(true);
 $orgDirectory = listOrganizations();
@@ -263,30 +302,48 @@ require __DIR__ . '/_layout_top.php';
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <?php if (is_array($modalRestore) && ($modalRestore['kind'] ?? '') === 'new_user' && !empty($modalRestore['error'])): ?>
+                        <div class="alert alert-danger shadow-sm" role="alert">
+                            <div class="d-flex gap-2">
+                                <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+                                <div>
+                                    <strong>Could not create this user.</strong>
+                                    <p class="mb-2 small"><?= htmlspecialchars((string)$modalRestore['error']) ?></p>
+                                    <div class="border rounded p-2 bg-white bg-opacity-50">
+                                        <div class="small fw-semibold text-muted text-uppercase mb-1">Password rules</div>
+                                        <?= st_password_policy_alert_html() ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <?= csrfInputField() ?>
                     <input type="hidden" name="action" value="create">
                     <div class="mb-3">
                         <label class="form-label">Username</label>
-                        <input class="form-control" name="username" required autofocus>
+                        <input class="form-control" name="username" required autofocus
+                            value="<?= htmlspecialchars((string)($prefill['username'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Temporary password</label>
-                        <input class="form-control" type="password" name="password" required>
+                        <input class="form-control js-admin-password-field" type="password" name="password" required autocomplete="new-password"
+                            data-password-min="<?= (int)PASSWORD_MIN_LENGTH ?>">
+                        <?php st_password_policy_form_hint(); ?>
                     </div>
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
                             <label class="form-label">Role</label>
                             <select class="form-select" name="role">
                                 <?php foreach (['member', 'manager', 'admin', 'api'] as $role): ?>
-                                    <option value="<?= $role ?>" <?= $role === 'member' ? 'selected' : '' ?>><?= $role ?></option>
+                                    <option value="<?= $role ?>" <?= ($prefill['role'] ?? 'member') === $role ? 'selected' : '' ?>><?= $role ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label">Person kind</label>
                             <select class="form-select" name="person_kind">
-                                <option value="team_member" selected>team_member</option>
-                                <option value="client">client</option>
+                                <option value="team_member" <?= (($prefill['person_kind'] ?? 'team_member') === 'team_member') ? 'selected' : '' ?>>team_member</option>
+                                <option value="client" <?= (($prefill['person_kind'] ?? '') === 'client') ? 'selected' : '' ?>>client</option>
                             </select>
                         </div>
                     </div>
@@ -295,17 +352,18 @@ require __DIR__ . '/_layout_top.php';
                             <label class="form-label">Organization</label>
                             <select class="form-select" name="org_id" required>
                                 <?php foreach ($orgDirectory as $o): ?>
-                                    <option value="<?= (int)$o['id'] ?>"><?= htmlspecialchars($o['name']) ?> (#<?= (int)$o['id'] ?>)</option>
+                                    <?php $oid = (int)$o['id']; $selectedPrimary = (int)($prefill['org_id'] ?? 0); ?>
+                                    <option value="<?= $oid ?>" <?= ($selectedPrimary > 0 ? $selectedPrimary === $oid : $oid === (int)$orgDirectory[0]['id']) ? 'selected' : '' ?>><?= htmlspecialchars($o['name']) ?> (#<?= $oid ?>)</option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                     <?php endif; ?>
                     <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="limitedNew" name="limited_project_access" value="1">
+                        <input class="form-check-input" type="checkbox" id="limitedNew" name="limited_project_access" value="1" <?= !empty($prefill['limited_project_access']) ? 'checked' : '' ?>>
                         <label class="form-check-label" for="limitedNew">Limit to assigned projects (applies managers &amp; members)</label>
                     </div>
                     <div class="form-check mt-3">
-                        <input class="form-check-input" type="checkbox" id="mustChangePassword" name="must_change_password" value="1" checked>
+                        <input class="form-check-input" type="checkbox" id="mustChangePassword" name="must_change_password" value="1" <?= ($prefill['must_change_password'] ?? true) ? 'checked' : '' ?>>
                         <label class="form-check-label" for="mustChangePassword">Require password change on first login</label>
                     </div>
                 </div>
@@ -328,19 +386,35 @@ require __DIR__ . '/_layout_top.php';
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <?php if (is_array($modalRestore) && ($modalRestore['kind'] ?? '') === 'reset_password' && !empty($modalRestore['error'])): ?>
+                        <div class="alert alert-danger shadow-sm" role="alert">
+                            <div class="d-flex gap-2">
+                                <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+                                <div>
+                                    <strong>Password was not updated.</strong>
+                                    <p class="mb-2 small"><?= htmlspecialchars((string)$modalRestore['error']) ?></p>
+                                    <div class="border rounded p-2 bg-white bg-opacity-50">
+                                        <div class="small fw-semibold text-muted text-uppercase mb-1">Password rules</div>
+                                        <?= st_password_policy_alert_html() ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                     <?= csrfInputField() ?>
                     <input type="hidden" name="action" value="reset_password">
-                    <input type="hidden" name="id" id="resetUserId" value="">
+                    <input type="hidden" name="id" id="resetUserId" value="<?= is_array($modalRestore) && ($modalRestore['kind'] ?? '') === 'reset_password' && isset($modalRestore['prefill']['user_id']) ? (int)$modalRestore['prefill']['user_id'] : '' ?>">
                     <p class="small text-muted mb-3">
-                        Set a new password for <strong id="resetUsernameLabel">this user</strong>.
+                        Set a new password for <strong id="resetUsernameLabel"><?= is_array($modalRestore) && ($modalRestore['kind'] ?? '') === 'reset_password' && isset($modalRestore['prefill']['username']) ? htmlspecialchars((string)$modalRestore['prefill']['username']) : 'this user' ?></strong>.
                     </p>
                     <div class="mb-3">
                         <label class="form-label" for="resetNewPassword">New password</label>
-                        <input class="form-control" type="password" id="resetNewPassword" name="new_password" required>
-                        <div class="form-text">Must meet current password policy (min <?= (int)PASSWORD_MIN_LENGTH ?> chars, uppercase, lowercase, number).</div>
+                        <input class="form-control js-admin-password-field" type="password" id="resetNewPassword" name="new_password" required autocomplete="new-password"
+                            data-password-min="<?= (int)PASSWORD_MIN_LENGTH ?>">
+                        <?php st_password_policy_form_hint(); ?>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="resetMustChangePassword" name="must_change_password" value="1" checked>
+                        <input class="form-check-input" type="checkbox" id="resetMustChangePassword" name="must_change_password" value="1" <?= (is_array($modalRestore) && ($modalRestore['kind'] ?? '') === 'reset_password' && array_key_exists('must_change_password', $modalRestore['prefill'] ?? [])) ? (($modalRestore['prefill']['must_change_password'] ?? true) ? 'checked' : '') : 'checked' ?>>
                         <label class="form-check-label" for="resetMustChangePassword">Require user to change password on next login</label>
                     </div>
                 </div>
@@ -355,24 +429,67 @@ require __DIR__ . '/_layout_top.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var modalEl = document.getElementById('resetPasswordModal');
-    if (!modalEl || typeof bootstrap === 'undefined') return;
-    var modal = new bootstrap.Modal(modalEl);
-    var idField = document.getElementById('resetUserId');
-    var userLabel = document.getElementById('resetUsernameLabel');
-    var pwField = document.getElementById('resetNewPassword');
-    var mustChange = document.getElementById('resetMustChangePassword');
+    var boot = <?= json_encode(
+        is_array($modalRestore ?? null) ? [
+            'kind' => $modalRestore['kind'] ?? null,
+        ] : null,
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+    ) ?>;
 
-    document.querySelectorAll('.js-open-reset-modal').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            idField.value = btn.getAttribute('data-user-id') || '';
-            userLabel.textContent = btn.getAttribute('data-username') || 'this user';
-            pwField.value = '';
-            mustChange.checked = true;
-            modal.show();
-            setTimeout(function () { pwField.focus(); }, 100);
+    function validatePasswordField(input) {
+        var pw = (input && input.value) ? input.value : '';
+        var min = parseInt(input.getAttribute("data-password-min") || "12", 10);
+        if (pw.length < min) {
+            return "Password must be at least " + min + " characters.";
+        }
+        if (!/[A-Z]/.test(pw) || !/[a-z]/.test(pw) || !/[0-9]/.test(pw)) {
+            return "Password must include uppercase, lowercase, and a number.";
+        }
+        return null;
+    }
+
+    document.querySelectorAll("form").forEach(function (form) {
+        form.addEventListener("submit", function (ev) {
+            var pwd = form.querySelector(".js-admin-password-field");
+            if (!pwd) return;
+            var err = validatePasswordField(pwd);
+            if (err) {
+                ev.preventDefault();
+                alert(err + "\n\nFull rules:\n• At least " + pwd.getAttribute("data-password-min") + " characters\n• Uppercase, lowercase, and a number");
+                pwd.focus();
+            }
         });
     });
+
+    if (typeof bootstrap === "undefined") return;
+
+    var modalEl = document.getElementById("resetPasswordModal");
+    var modal = modalEl ? bootstrap.Modal.getOrCreateInstance(modalEl) : null;
+    var idField = document.getElementById("resetUserId");
+    var userLabel = document.getElementById("resetUsernameLabel");
+    var pwField = document.getElementById("resetNewPassword");
+    var mustChange = document.getElementById("resetMustChangePassword");
+
+    if (modal && idField && userLabel && pwField && mustChange) {
+        document.querySelectorAll(".js-open-reset-modal").forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                idField.value = btn.getAttribute("data-user-id") || "";
+                userLabel.textContent = btn.getAttribute("data-username") || "this user";
+                pwField.value = "";
+                mustChange.checked = true;
+                modal.show();
+                setTimeout(function () { pwField.focus(); }, 100);
+            });
+        });
+    }
+
+    if (boot && boot.kind === "new_user") {
+        var nu = document.getElementById("newUserModal");
+        if (nu) bootstrap.Modal.getOrCreateInstance(nu).show();
+    } else if (boot && boot.kind === "reset_password" && modal) {
+        modal.show();
+        if (pwField) setTimeout(function () { pwField.focus(); }, 150);
+    }
 });
 </script>
 
