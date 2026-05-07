@@ -158,7 +158,7 @@ require __DIR__ . '/_layout_top.php';
                 <?= csrfInputField() ?>
                 <input type="hidden" name="id" value="<?= (int)$doc['id'] ?>">
                 <div class="mb-2">
-                    <textarea class="form-control" name="body" rows="20" placeholder="# Heading&#10;&#10;Markdown body…"><?= htmlspecialchars((string)($doc['body'] ?? '')) ?></textarea>
+                    <textarea class="form-control" name="body" rows="20" data-mention="1" placeholder="# Heading&#10;&#10;Markdown body… Tag teammates with @username."><?= htmlspecialchars((string)($doc['body'] ?? '')) ?></textarea>
                     <div class="fine-print mt-1"><i class="bi bi-markdown me-1"></i>Markdown rendered on save.</div>
                 </div>
                 <div class="d-flex gap-2">
@@ -216,7 +216,7 @@ require __DIR__ . '/_layout_top.php';
                         <?= st_avatar_html($currentUser['username'] ?? '?') ?>
                     </div>
                     <div class="comment-composer__main">
-                        <textarea class="form-control" name="comment" rows="3" maxlength="2000" placeholder="Markdown supported: **bold**, *italic*, `code`, lists, links…" required></textarea>
+                        <textarea class="form-control" name="comment" rows="3" maxlength="2000" data-mention="1" placeholder="Markdown supported: **bold**, *italic*, `code`, lists, links… Tag teammates with @username." required></textarea>
                         <div class="comment-composer__actions">
                             <span class="fine-print"><i class="bi bi-markdown me-1"></i>Markdown · max 2000 chars</span>
                             <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-send me-1"></i>Post comment</button>

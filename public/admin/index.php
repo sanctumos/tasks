@@ -379,7 +379,7 @@ function st_render_task_assignee_html(array $t): string {
                     <?= csrfInputField() ?>
                     <div class="mb-3">
                         <label class="form-label">Title</label>
-                        <input class="form-control form-control-lg" name="title" required autofocus placeholder="What needs to happen?">
+                        <input class="form-control form-control-lg" name="title" required autofocus placeholder="What needs to happen?" data-mention="1">
                     </div>
                     <div class="row g-3">
                         <div class="col-12 col-md-4">
@@ -434,7 +434,7 @@ function st_render_task_assignee_html(array $t): string {
                         </div>
                         <div class="col-12">
                             <label class="form-label">Body</label>
-                            <textarea class="form-control" name="body" rows="3" placeholder="Optional notes…"></textarea>
+                            <textarea class="form-control" name="body" rows="3" data-mention="1" placeholder="Optional notes… Tag teammates with @username."></textarea>
                         </div>
                     </div>
                 </div>

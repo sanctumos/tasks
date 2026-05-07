@@ -202,7 +202,7 @@ require __DIR__ . '/_layout_top.php';
                 <input type="hidden" name="id" value="<?= (int)$task['id'] ?>">
                 <input type="hidden" name="redirect_to" value="/admin/view.php?id=<?= (int)$task['id'] ?>">
                 <div class="mb-2">
-                    <textarea class="form-control" name="body" rows="8" placeholder="Markdown supported: **bold**, *italic*, `code`, lists, links…"><?= htmlspecialchars((string)($task['body'] ?? '')) ?></textarea>
+                    <textarea class="form-control" name="body" rows="8" data-mention="1" placeholder="Markdown supported: **bold**, *italic*, `code`, lists, links… Tag teammates with @username."><?= htmlspecialchars((string)($task['body'] ?? '')) ?></textarea>
                     <div class="fine-print mt-1"><i class="bi bi-markdown me-1"></i>Markdown rendered on save.</div>
                 </div>
                 <div class="d-flex gap-2">
@@ -259,7 +259,7 @@ require __DIR__ . '/_layout_top.php';
                         <?= st_avatar_html($currentUser['username'] ?? '?') ?>
                     </div>
                     <div class="comment-composer__main">
-                        <textarea class="form-control" name="comment" rows="3" maxlength="2000" placeholder="Markdown supported: **bold**, *italic*, `code`, lists, links…" required></textarea>
+                        <textarea class="form-control" name="comment" rows="3" maxlength="2000" data-mention="1" placeholder="Markdown supported: **bold**, *italic*, `code`, lists, links… Tag teammates with @username." required></textarea>
                         <div class="comment-composer__actions">
                             <span class="fine-print"><i class="bi bi-markdown me-1"></i>Markdown · max 2000 chars</span>
                             <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-send me-1"></i>Post comment</button>
