@@ -12,7 +12,7 @@ $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
     <title><?= htmlspecialchars($pageTitle) ?> · Sanctum Tasks</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/assets/admin.css?v=6" rel="stylesheet">
+    <link href="/assets/admin.css?v=8" rel="stylesheet">
 </head>
 <body class="bg-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark admin-nav">
@@ -28,6 +28,7 @@ $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
             <?php if (isLoggedIn()): ?>
                 <div class="d-flex flex-column flex-lg-row flex-wrap gap-2 ms-lg-auto align-items-stretch align-items-lg-center py-3 py-lg-0">
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/" title="Your projects &amp; all tasks"><i class="bi bi-house-door me-1"></i>Home</a>
+                    <a class="btn btn-outline-light text-center text-lg-start" href="/admin/documentation.php"><i class="bi bi-question-circle me-1"></i>Help</a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/docs.php"><i class="bi bi-journals me-1"></i>Docs</a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/workspace-projects.php"><i class="bi bi-kanban me-1"></i>Projects</a>
                     <?php if (isAdminRole((string)($_SESSION['role'] ?? ''))): ?>

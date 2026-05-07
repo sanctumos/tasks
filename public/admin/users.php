@@ -169,7 +169,8 @@ require __DIR__ . '/_layout_top.php';
         <h1>Users</h1>
         <div class="subtitle"><?= count($users) ?> in this workspace</div>
     </div>
-    <div class="page-header__actions">
+    <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
+        <?= st_doc_help('users-access', 'Users organizations roles access') ?>
         <a class="btn btn-sm btn-outline-secondary" href="/admin/organizations.php"><i class="bi bi-building me-1"></i>Organizations</a>
         <a class="btn btn-sm btn-outline-secondary" href="/admin/settings.php?tab=audit"><i class="bi bi-shield-check me-1"></i>Audit log</a>
         <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newUserModal"><i class="bi bi-person-plus me-1"></i>New user</button>

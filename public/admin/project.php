@@ -224,7 +224,8 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
             <?php if (!empty($project['client_visible'])): ?> · <i class="bi bi-eye"></i> client-visible<?php endif; ?>
         </div>
     </div>
-    <div class="page-header__actions">
+    <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
+        <?= st_doc_help('projects', 'Projects tabs lists docs and members') ?>
         <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#newTaskModal" <?= $canManage ? '' : 'disabled' ?>>
             <i class="bi bi-plus-lg"></i> New task
         </button>

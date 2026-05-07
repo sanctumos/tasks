@@ -319,6 +319,25 @@ body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-t
 /* ---------- Section title row (title + right-side action button) ---------- */
 .section-title-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
 .section-title-row .section-title { margin-bottom: 0; }
+.section-title-row--with-help { align-items: flex-start; }
+
+/* Inline doc help (?): links to /admin/documentation.php#anchor */
+.st-doc-help {
+    color: var(--st-text-muted, #6c757d);
+    text-decoration: none;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+.st-doc-help:hover {
+    color: var(--bs-primary);
+}
+
+/* Rendered in-app user guide */
+.documentation-content { max-width: 52rem; }
+.documentation-content.markdown-body h2 { margin-top: 1.75rem; padding-top: 0.35rem; border-top: 1px solid var(--st-border-subtle, rgba(0,0,0,0.08)); }
+.documentation-content.markdown-body h2:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
 
 /* ---------- Description body ---------- */
 .description-body {

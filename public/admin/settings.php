@@ -61,6 +61,9 @@ function st_settings_tab_link(string $tab, string $active, array $availableTabs,
         <h1>Settings</h1>
         <div class="subtitle">Account &amp; workspace administration for <code><?= htmlspecialchars($currentUser['username']) ?></code></div>
     </div>
+    <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
+        <?= st_doc_help('settings-more', 'Password MFA API keys audit') ?>
+    </div>
 </div>
 
 <nav class="tabbar" aria-label="Settings sections">

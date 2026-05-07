@@ -705,5 +705,14 @@
                 });
             }
         }
+
+        // Help icons → Bootstrap tooltips (in-app docs links)
+        if (typeof bootstrap !== "undefined" && bootstrap.Tooltip) {
+            document.querySelectorAll(".st-doc-help[data-bs-toggle=\"tooltip\"]").forEach((el) => {
+                try {
+                    bootstrap.Tooltip.getOrCreateInstance(el, { trigger: "hover focus" });
+                } catch (_) {}
+            });
+        }
     });
 })();

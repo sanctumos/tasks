@@ -35,6 +35,11 @@ This repository is a fork of a prior task management application. The codebase w
    - Python SDK under `tasks_sdk/`
    - SMCP plugin under `smcp_plugin/tasks/`
 
+## Help & documentation
+
+- **In-app user guide:** After signing in, open **Help** in the admin chrome or go to `/admin/documentation.php`. The page renders `docs/user-guide.md` (product behavior and UI concepts).
+- **API & operators:** See `docs/api.md` and related files under `docs/`.
+
 ## Role model
 
 | Role | Purpose | Typical permissions (current implementation) |

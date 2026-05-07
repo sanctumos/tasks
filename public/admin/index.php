@@ -86,7 +86,8 @@ function st_render_task_assignee_html(array $t): string {
         <h1><i class="bi bi-house-door me-2 text-muted"></i>Home</h1>
         <div class="subtitle">Jump into a project, or scroll for the full cross-project task board below.</div>
     </div>
-    <div class="page-header__actions">
+    <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
+        <span class="d-inline-flex align-items-center" title="Documentation"><?= st_doc_help('home') ?></span>
         <a class="btn btn-outline-secondary btn-sm" href="/admin/workspace-projects.php"><i class="bi bi-grid-3x3-gap me-1"></i>All projects page</a>
     </div>
 </div>
@@ -105,7 +106,7 @@ function st_render_task_assignee_html(array $t): string {
 <?php /* -------- Projects hub (accessible directory projects first) ------- */ ?>
 <section class="st-home-projects mb-5" aria-labelledby="st-home-projects-heading">
     <div class="st-home-projects__toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-        <h2 id="st-home-projects-heading" class="h5 mb-0"><i class="bi bi-kanban me-2 text-muted"></i>Your projects</h2>
+        <h2 id="st-home-projects-heading" class="h5 mb-0 d-flex align-items-center gap-2 flex-wrap"><i class="bi bi-kanban me-2 text-muted"></i>Your projects <?= st_doc_help('projects') ?></h2>
         <div class="d-flex flex-wrap gap-2 align-items-center">
             <span class="text-muted small"><?= count($directoryProjects) ?> you can access</span>
             <a class="btn btn-outline-primary btn-sm" href="/admin/workspace-projects.php"><i class="bi bi-plus-lg me-1"></i>New project</a>
@@ -155,7 +156,7 @@ function st_render_task_assignee_html(array $t): string {
             <h2 id="st-home-master-heading" class="h4 mb-1">All tasks <span class="text-muted fw-normal">across projects</span></h2>
             <div class="subtitle"><?= count($tasks) ?> shown · <?= $total ?> total — board and list mirror every project you can reach.</div>
         </div>
-        <div class="page-header__actions">
+        <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
             <div class="btn-group" role="group" aria-label="View">
                 <button type="button" class="btn btn-sm btn-outline-secondary <?= $initialView === 'board' ? 'active' : '' ?>" data-view-switch="board"><i class="bi bi-kanban me-1"></i>Board</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary <?= $initialView === 'list' ? 'active' : '' ?>" data-view-switch="list"><i class="bi bi-list-ul me-1"></i>List</button>
@@ -209,10 +210,11 @@ function st_render_task_assignee_html(array $t): string {
             <?php endforeach; ?>
         </datalist>
     </div>
-    <div class="filter-bar__actions">
+    <div class="filter-bar__actions d-flex align-items-center flex-wrap gap-2">
         <button class="btn btn-primary" type="submit"><i class="bi bi-funnel-fill me-1"></i>Filter</button>
         <a class="btn btn-outline-secondary" href="/admin/"><i class="bi bi-x-lg"></i></a>
         <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#advFilters" aria-expanded="false"><i class="bi bi-sliders"></i> More</button>
+        <?= st_doc_help('filters', 'How filters and sorting work') ?>
     </div>
     <div class="collapse w-100" id="advFilters">
         <div class="d-flex flex-wrap gap-2 pt-2 border-top mt-2">

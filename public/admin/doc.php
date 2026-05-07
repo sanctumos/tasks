@@ -109,7 +109,8 @@ require __DIR__ . '/_layout_top.php';
         </div>
     </div>
 
-    <div class="page-header__actions task-header__actions">
+    <div class="page-header__actions task-header__actions d-flex align-items-center gap-2">
+        <?= st_doc_help('documents', 'Project documents') ?>
         <div class="dropdown">
             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="bi bi-three-dots"></i>
