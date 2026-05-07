@@ -203,7 +203,7 @@ require __DIR__ . '/_layout_top.php';
                 <input type="hidden" name="redirect_to" value="/admin/view.php?id=<?= (int)$task['id'] ?>">
                 <div class="mb-2">
                     <textarea class="form-control" name="body" rows="8" data-mention="1" placeholder="Markdown supported: **bold**, *italic*, `code`, lists, links… Tag teammates with @username."><?= htmlspecialchars((string)($task['body'] ?? '')) ?></textarea>
-                    <div class="fine-print mt-1"><i class="bi bi-markdown me-1"></i>Markdown rendered on save.</div>
+                    <div class="fine-print mt-1"><i class="bi bi-markdown me-1"></i>Markdown rendered on save. · <i class="bi bi-image me-1"></i>Use <strong>Images &amp; attachments</strong> below for uploads, then paste the snippet here.</div>
                 </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-check-lg me-1"></i>Save</button>
@@ -261,7 +261,7 @@ require __DIR__ . '/_layout_top.php';
                     <div class="comment-composer__main">
                         <textarea class="form-control" name="comment" rows="3" maxlength="2000" data-mention="1" placeholder="Markdown supported: **bold**, *italic*, `code`, lists, links… Tag teammates with @username." required></textarea>
                         <div class="comment-composer__actions">
-                            <span class="fine-print"><i class="bi bi-markdown me-1"></i>Markdown · max 2000 chars</span>
+                            <span class="fine-print"><i class="bi bi-markdown me-1"></i>Markdown · max 2000 chars · screenshots via <strong>Images &amp; attachments</strong></span>
                             <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-send me-1"></i>Post comment</button>
                         </div>
                     </div>
@@ -269,30 +269,74 @@ require __DIR__ . '/_layout_top.php';
             </form>
         </div>
 
-        <?php if ($attachmentCount > 0): ?>
-            <div class="surface surface-pad mb-3" id="attachments">
+        <?php
+            $assetMaxMb = round(TASKS_ASSET_MAX_BYTES / (1024 * 1024), 1);
+            if ($assetMaxMb < 1) {
+                $assetMaxMb = 1;
+            }
+        ?>
+        <div class="surface surface-pad mb-3" id="attachments">
+            <div class="section-title-row">
                 <div class="section-title">
-                    <i class="bi bi-paperclip"></i> Attachments
+                    <i class="bi bi-image"></i> Images &amp; attachments
                     <span class="count"><?= (int)$attachmentCount ?></span>
                 </div>
+            </div>
+            <div
+                class="js-task-image-upload st-image-upload mb-3"
+                role="group"
+                aria-label="Upload task image"
+                data-task-id="<?= (int)$task['id'] ?>"
+                data-csrf="<?= htmlspecialchars(getCsrfToken(), ENT_QUOTES, 'UTF-8') ?>"
+            >
+                <label class="st-image-upload__zone">
+                    <input type="file" class="js-task-image-file d-none" accept="image/png,image/jpeg,image/gif,image/webp">
+                    <span class="st-image-upload__icon"><i class="bi bi-cloud-arrow-up"></i></span>
+                    <span class="st-image-upload__title">Upload an image</span>
+                    <span class="st-image-upload__hint"><?= 'PNG, JPEG, GIF, or WebP · up to ' . htmlspecialchars((string)$assetMaxMb) ?> MB · use <strong>Copy snippet</strong> below and paste into the description or a comment to show it inline.</span>
+                </label>
+                <div class="js-task-image-status st-image-upload__status d-none" aria-live="polite"></div>
+            </div>
+            <?php if ($attachmentCount > 0): ?>
                 <ul class="attachment-list">
-                    <?php foreach ($attachments as $a): ?>
-                        <li>
-                            <i class="bi bi-file-earmark text-muted"></i>
-                            <a href="<?= htmlspecialchars((string)$a['file_url']) ?>" target="_blank" rel="noopener"><?= htmlspecialchars((string)$a['file_name']) ?></a>
-                            <?php if (!empty($a['mime_type'])): ?>
-                                <span class="text-muted small ms-2"><?= htmlspecialchars((string)$a['mime_type']) ?></span>
+                    <?php foreach ($attachments as $a):
+                        $url = (string)$a['file_url'];
+                        $name = (string)$a['file_name'];
+                        $mime = (string)($a['mime_type'] ?? '');
+                        $isImg = ($mime !== '' && str_starts_with($mime, 'image/'));
+                        $mdSnippet = taskAttachmentMarkdownSnippet($name, $url);
+                    ?>
+                        <li class="attachment-list__row">
+                            <?php if ($isImg): ?>
+                                <a class="attachment-list__thumb" href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener">
+                                    <img src="<?= htmlspecialchars($url) ?>" alt="" width="56" height="56" loading="lazy">
+                                </a>
+                            <?php else: ?>
+                                <span class="attachment-list__thumb attachment-list__thumb--file"><i class="bi bi-file-earmark fs-4 text-muted"></i></span>
                             <?php endif; ?>
-                            <?php if (!empty($a['size_bytes'])): ?>
-                                <span class="text-muted small ms-2"><?= (int)$a['size_bytes'] ?> bytes</span>
-                            <?php endif; ?>
-                            <span class="text-muted small ms-2">· <?= htmlspecialchars((string)($a['uploaded_by_username'] ?? '')) ?></span>
+                            <div class="attachment-list__main">
+                                <div class="attachment-list__title">
+                                    <a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($name) ?></a>
+                                </div>
+                                <div class="attachment-list__meta text-muted small">
+                                    <?php if ($mime !== ''): ?><span><?= htmlspecialchars($mime) ?></span><?php endif; ?>
+                                    <?php if (!empty($a['size_bytes'])): ?><span><?= (int)$a['size_bytes'] ?> bytes</span><?php endif; ?>
+                                    <span><?= htmlspecialchars((string)($a['uploaded_by_username'] ?? '')) ?></span>
+                                </div>
+                                <div class="attachment-list__actions btn-group btn-group-sm mt-1" role="group">
+                                    <button type="button" class="btn btn-outline-secondary js-copy-md" data-markdown="<?= htmlspecialchars($mdSnippet, ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-clipboard me-1"></i>Copy snippet</button>
+                                    <button type="button" class="btn btn-outline-secondary js-insert-md-desc" data-markdown="<?= htmlspecialchars($mdSnippet, ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-card-text me-1"></i>Paste into description</button>
+                                    <button type="button" class="btn btn-outline-secondary js-insert-md-comment" data-markdown="<?= htmlspecialchars($mdSnippet, ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-chat-left-text me-1"></i>Paste into comment</button>
+                                </div>
+                            </div>
                         </li>
                     <?php endforeach; ?>
                 </ul>
-                <p class="fine-print mb-0 mt-2">Attachments are added via the API today (`POST /api/add-attachment.php`).</p>
-            </div>
-        <?php endif; ?>
+            <?php else: ?>
+                <p class="text-muted small mb-0">No files yet. Upload above, then use <strong>Copy snippet</strong> and paste into the description or discussion so the image renders inline.</p>
+            <?php endif; ?>
+            <p class="fine-print mb-0 mt-2">Remote links can still be registered via <code>POST /api/add-attachment.php</code>; uploads use <code>POST /api/upload-attachment.php</code> (same from the admin UI).</p>
+        </div>
 
     </div>
 

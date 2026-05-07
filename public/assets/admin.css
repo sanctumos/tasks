@@ -736,3 +736,38 @@ a.mention {
     font-weight: 600;
 }
 a.mention:hover { background: rgba(59, 91, 219, 0.15); }
+
+/* Task image upload (admin view) --------------------------------------- */
+.st-image-upload { max-width: 100%; }
+.st-image-upload__zone {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0.25rem; padding: 1rem 1.25rem; border: 2px dashed var(--st-border-soft, #d8dee9);
+    border-radius: 0.65rem; background: var(--st-bg-soft, #f8f9fc);
+    cursor: pointer; text-align: center; transition: border-color .15s, background .15s;
+}
+.st-image-upload__zone:hover,
+.st-image-upload__zone:focus-within { border-color: var(--st-accent, #3b5bdb); background: rgba(59,91,219,0.04); }
+.st-image-upload__zone.is-dragover { border-color: var(--st-accent, #3b5bdb); background: rgba(59,91,219,0.09); }
+.st-image-upload__icon { font-size: 1.5rem; color: var(--st-accent, #3b5bdb); }
+.st-image-upload__title { font-weight: 600; font-size: 0.98rem; }
+.st-image-upload__hint { font-size: 0.8rem; color: var(--st-text-muted, #64748b); max-width: 36rem; }
+.st-image-upload__status { margin-top: 0.5rem; font-size: 0.85rem; }
+
+.attachment-list { list-style: none; padding: 0; margin: 0; }
+.attachment-list__row {
+    display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.65rem 0;
+    border-top: 1px solid var(--st-border-soft, #e8ecf3);
+}
+.attachment-list__row:first-child { border-top: 0; }
+.attachment-list__thumb {
+    flex-shrink: 0; width: 56px; height: 56px; border-radius: 0.4rem;
+    overflow: hidden; border: 1px solid var(--st-border-soft, #e8ecf3); background: var(--st-bg-soft, #f4f6fa);
+    display: flex; align-items: center; justify-content: center;
+}
+.attachment-list__thumb img {
+    width: 100%; height: 100%; object-fit: cover;
+}
+.attachment-list__thumb--file { cursor: default; }
+.attachment-list__main { min-width: 0; flex: 1; }
+.attachment-list__title { font-weight: 600; word-break: break-word; font-size: 0.93rem; }
+.attachment-list__meta span + span::before { content: " · "; }

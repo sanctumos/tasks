@@ -2946,6 +2946,11 @@ function persistTaskAssetUpload(int $taskId, string $tmpPath, string $mimeType):
     return ['success' => true, 'storage_rel_path' => $rel];
 }
 
+function taskAttachmentMarkdownSnippet(string $fileName, string $fileUrl): string {
+    $alt = str_replace(['[', ']'], '', trim($fileName));
+    return '![' . $alt . '](' . trim($fileUrl) . ')';
+}
+
 function deleteLocalTaskAttachmentFile(array $attachment): void {
     $kind = normalizeTaskAttachmentStorageKind((string)($attachment['storage_kind'] ?? ''));
     if ($kind !== 'local') {

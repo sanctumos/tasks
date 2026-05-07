@@ -502,12 +502,183 @@
         document.querySelectorAll('textarea[data-mention="1"], input[data-mention="1"]').forEach(bindMentionAutocomplete);
     }
 
+    /** Insert markdown text at caret (or append) and fire input for mention/autosize hooks */
+    function insertMarkdownIntoField(field, markdown) {
+        if (!field || markdown === "") return false;
+        const md = markdown + "\n\n";
+        const start = typeof field.selectionStart === "number" ? field.selectionStart : field.value.length;
+        const end = typeof field.selectionEnd === "number" ? field.selectionEnd : field.value.length;
+        const v = field.value || "";
+        field.value = v.slice(0, start) + md + v.slice(end);
+        const caret = start + md.length;
+        try { field.setSelectionRange(caret, caret); } catch (_) {}
+        field.focus();
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+        toast("Inserted");
+        return true;
+    }
+
+    function revealDescriptionEditor() {
+        const form = document.getElementById("description-edit");
+        const display = document.querySelector(".js-inline-edit-target[data-edit-target=\"description-edit\"]");
+        if (!form) return false;
+        form.classList.remove("d-none");
+        if (display) display.classList.add("d-none");
+        const ta = form.querySelector('textarea[name="body"]');
+        if (ta) ta.focus();
+        return true;
+    }
+
+    /** Task detail: multipart upload + attachment snippet shortcuts */
+    function bindTaskImageUpload(root) {
+        if (root.dataset.imageUploadBound === "1") return;
+        root.dataset.imageUploadBound = "1";
+
+        const taskId = root.getAttribute("data-task-id") || "";
+        const csrf = root.getAttribute("data-csrf") || "";
+        const input = root.querySelector(".js-task-image-file");
+        const zone = root.querySelector(".st-image-upload__zone");
+        const statusEl = root.querySelector(".js-task-image-status");
+        if (!input || !zone || taskId === "") return;
+
+        function setStatus(msg, isError) {
+            if (!statusEl) return;
+            statusEl.textContent = msg || "";
+            statusEl.classList.toggle("d-none", msg === "");
+            statusEl.classList.toggle("text-danger", !!isError);
+            statusEl.classList.toggle("text-muted", !isError && msg !== "");
+        }
+
+        async function uploadFile(file) {
+            setStatus("", false);
+            if (!file) return;
+            if (!csrf) {
+                toast("Missing CSRF — refresh the page", "error");
+                return;
+            }
+            setStatus("Uploading…");
+            const fd = new FormData();
+            fd.append("task_id", taskId);
+            fd.append("csrf_token", csrf);
+            fd.append("file", file);
+            try {
+                const res = await fetch("/api/upload-attachment.php", {
+                    method: "POST",
+                    body: fd,
+                    credentials: "same-origin",
+                    headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
+                });
+                let body = null;
+                try { body = await res.json(); } catch (_) {}
+                if (!res.ok) {
+                    const msg =
+                        body && body.error ||
+                        body && body.error_object && body.error_object.message ||
+                        ("Upload failed (" + res.status + ")");
+                    setStatus(msg, true);
+                    toast(msg, "error");
+                    return;
+                }
+                if (body && body.success === false) {
+                    const msg = body.error || "Upload failed";
+                    setStatus(msg, true);
+                    toast(msg, "error");
+                    return;
+                }
+                toast("Image attached");
+                setStatus("");
+                window.location.reload();
+            } catch (err) {
+                setStatus("Network error", true);
+                toast("Network error", "error");
+            }
+        }
+
+        input.addEventListener("change", () => {
+            const file = input.files && input.files[0];
+            if (file) uploadFile(file);
+            input.value = "";
+        });
+
+        ["dragenter", "dragover"].forEach((ev) => {
+            zone.addEventListener(ev, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.add("is-dragover");
+            });
+        });
+        zone.addEventListener("dragleave", (e) => {
+            e.preventDefault();
+            zone.classList.remove("is-dragover");
+        });
+        zone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            zone.classList.remove("is-dragover");
+            const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (file) uploadFile(file);
+        });
+    }
+
+    function bindAttachmentSnippetButtons() {
+        document.body.addEventListener("click", (e) => {
+            const copyBtn = e.target.closest(".js-copy-md");
+            if (copyBtn) {
+                e.preventDefault();
+                const md = copyBtn.getAttribute("data-markdown") || "";
+                if (!md) return;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(md).then(
+                        () => toast("Markdown copied"),
+                        () => toast("Copy failed", "error")
+                    );
+                } else {
+                    try {
+                        const ta = document.createElement("textarea");
+                        ta.value = md;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(ta);
+                        toast("Markdown copied");
+                    } catch (_) { toast("Copy failed", "error"); }
+                }
+                return;
+            }
+
+            const descBtn = e.target.closest(".js-insert-md-desc");
+            if (descBtn) {
+                e.preventDefault();
+                const md = descBtn.getAttribute("data-markdown") || "";
+                revealDescriptionEditor();
+                const ta = document.querySelector("#description-edit textarea[name=\"body\"]");
+                insertMarkdownIntoField(ta, md);
+                return;
+            }
+
+            const cmtBtn = e.target.closest(".js-insert-md-comment");
+            if (cmtBtn) {
+                e.preventDefault();
+                const md = cmtBtn.getAttribute("data-markdown") || "";
+                let ta = document.querySelector('#discussion-composer textarea[name=\"comment\"]');
+                if (!ta) return;
+                if ((ta.value || "").length + md.length + 2 > 2000) {
+                    toast("Comment would exceed 2000 characters — shorten or paste manually", "error");
+                    return;
+                }
+                insertMarkdownIntoField(ta, md);
+                try { document.getElementById("discussion-composer")?.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (_) {}
+            }
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll("form.js-autosave-form").forEach(bindAutosaveForm);
         bindInlineEdit();
         bindCopyLink();
         bindRecurrenceBuilder();
         bindAllMentionFields();
+        document.querySelectorAll(".js-task-image-upload").forEach(bindTaskImageUpload);
+        bindAttachmentSnippetButtons();
 
         // View switcher (board <-> list)
         document.querySelectorAll("[data-view-switch]").forEach((btn) => {

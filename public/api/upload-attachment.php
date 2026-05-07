@@ -1,10 +1,41 @@
 <?php
 require_once __DIR__ . '/../includes/api_auth.php';
-
-$apiUser = requireApiUser();
+require_once __DIR__ . '/../includes/auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     apiError('method.not_allowed', 'Use POST for this endpoint', 405);
+}
+
+$apiUser = null;
+$apiKey = getApiKeyFromRequest();
+if ($apiKey !== null && $apiKey !== '') {
+    $apiUser = validateApiKeyAndGetUser($apiKey);
+    if (!$apiUser) {
+        apiError('auth.invalid_api_key', 'Invalid or missing API key', 401);
+    }
+    $rateState = checkApiRateLimit($apiKey);
+    setRateLimitHeaders($rateState);
+    if (empty($rateState['allowed'])) {
+        header('Retry-After: ' . (int)($rateState['retry_after'] ?? 1));
+        apiError(
+            'rate_limited',
+            'Rate limit exceeded. Slow down and retry later.',
+            429,
+            ['retry_after' => (int)($rateState['retry_after'] ?? 1)],
+            ['rate_limit' => $rateState]
+        );
+    }
+} elseif (isLoggedIn()) {
+    $apiUser = getCurrentUser();
+    if (!$apiUser) {
+        apiError('auth.unauthenticated', 'Authentication required', 401);
+    }
+    $csrf = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null);
+    if (!verifyCsrfToken(is_string($csrf) ? $csrf : null)) {
+        apiError('auth.csrf_failed', 'Invalid or missing CSRF token', 403);
+    }
+} else {
+    apiError('auth.unauthenticated', 'Authentication required', 401);
 }
 
 $taskId = isset($_POST['task_id']) ? (int)$_POST['task_id'] : 0;
@@ -94,7 +125,7 @@ $upd->bindValue(':file_url', $canonicalUrl, SQLITE3_TEXT);
 $upd->bindValue(':id', $attachmentId, SQLITE3_INTEGER);
 $upd->execute();
 
-$markdown = '![' . str_replace([']', '['], '', $originalName) . '](' . $canonicalUrl . ')';
+$markdown = taskAttachmentMarkdownSnippet($originalName, $canonicalUrl);
 
 apiSuccess([
     'task_id' => $taskId,
