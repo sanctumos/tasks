@@ -161,6 +161,29 @@ def main() -> int:
                           })
         r.raise_for_status()
 
+        r = requests.post(
+            f"{base}/api/create-document.php",
+            headers=h,
+            json={
+                "project_id": ops_id,
+                "title": "Handbook overview",
+                "body": "## Ops handbook\n\nIndex lives one level up.",
+                "directory_path": "handbook",
+            },
+        )
+        r.raise_for_status()
+
+        requests.post(
+            f"{base}/api/create-document.php",
+            headers=h,
+            json={
+                "project_id": ops_id,
+                "title": "Escalations",
+                "body": "## When to page\n\n",
+                "directory_path": "handbook/playbooks",
+            },
+        ).raise_for_status()
+
         # Clear must_change_password so each viewport can log in cleanly.
         with sqlite3.connect(str(db_path)) as conn:
             conn.execute("UPDATE users SET must_change_password = 0 WHERE username = ?", (admin_user,))
@@ -192,6 +215,13 @@ def main() -> int:
                 p2 = OUT_DIR / f"doc_view_{label}.png"
                 page.screenshot(path=str(p2), full_page=True)
                 print(f"[{label}] {p2}")
+
+                # Project › Docs tab (folder breadcrumbs + subfolder pills).
+                page.goto(f"{base}/admin/project.php?id={ops_id}&tab=docs", wait_until="networkidle", timeout=30_000)
+                time.sleep(0.4)
+                p3 = OUT_DIR / f"project_docs_folders_{label}.png"
+                page.screenshot(path=str(p3), full_page=True)
+                print(f"[{label}] {p3}")
 
                 ctx.close()
             browser.close()

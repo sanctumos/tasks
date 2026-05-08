@@ -31,39 +31,9 @@ if ($projectFilter > 0) {
 $accessibleProjects = listDirectoryProjectsForUser($currentUser, 500);
 $documents = listDocumentsForUser($currentUser, 500, $projectFilter ?: null);
 $currentDir = normalizeDocumentDirectoryPath((string)($_GET['dir'] ?? ''));
-$dirChildren = [];
-$documentsInDir = [];
-foreach ($documents as $d) {
-    $docDir = normalizeDocumentDirectoryPath((string)($d['directory_path'] ?? ''));
-    if ($currentDir === '') {
-        if ($docDir === '') {
-            $documentsInDir[] = $d;
-            continue;
-        }
-        $top = explode('/', $docDir, 2)[0];
-        if (!isset($dirChildren[$top])) {
-            $dirChildren[$top] = 0;
-        }
-        $dirChildren[$top]++;
-        continue;
-    }
-    if ($docDir === $currentDir) {
-        $documentsInDir[] = $d;
-        continue;
-    }
-    $prefix = $currentDir . '/';
-    if (str_starts_with($docDir, $prefix)) {
-        $rest = substr($docDir, strlen($prefix));
-        $next = explode('/', $rest, 2)[0];
-        if ($next !== '') {
-            if (!isset($dirChildren[$next])) {
-                $dirChildren[$next] = 0;
-            }
-            $dirChildren[$next]++;
-        }
-    }
-}
-ksort($dirChildren, SORT_NATURAL | SORT_FLAG_CASE);
+$aggDocs = aggregateDocumentsForDirectoryView($documents, $currentDir);
+$dirChildren = $aggDocs['dir_children'];
+$documentsInDir = $aggDocs['documents_in_dir'];
 
 $buildDocsUrl = static function (int $projectFilter, string $dirPath = ''): string {
     $q = [];
