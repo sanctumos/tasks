@@ -30,6 +30,52 @@ if ($projectFilter > 0) {
 
 $accessibleProjects = listDirectoryProjectsForUser($currentUser, 500);
 $documents = listDocumentsForUser($currentUser, 500, $projectFilter ?: null);
+$currentDir = normalizeDocumentDirectoryPath((string)($_GET['dir'] ?? ''));
+$dirChildren = [];
+$documentsInDir = [];
+foreach ($documents as $d) {
+    $docDir = normalizeDocumentDirectoryPath((string)($d['directory_path'] ?? ''));
+    if ($currentDir === '') {
+        if ($docDir === '') {
+            $documentsInDir[] = $d;
+            continue;
+        }
+        $top = explode('/', $docDir, 2)[0];
+        if (!isset($dirChildren[$top])) {
+            $dirChildren[$top] = 0;
+        }
+        $dirChildren[$top]++;
+        continue;
+    }
+    if ($docDir === $currentDir) {
+        $documentsInDir[] = $d;
+        continue;
+    }
+    $prefix = $currentDir . '/';
+    if (str_starts_with($docDir, $prefix)) {
+        $rest = substr($docDir, strlen($prefix));
+        $next = explode('/', $rest, 2)[0];
+        if ($next !== '') {
+            if (!isset($dirChildren[$next])) {
+                $dirChildren[$next] = 0;
+            }
+            $dirChildren[$next]++;
+        }
+    }
+}
+ksort($dirChildren, SORT_NATURAL | SORT_FLAG_CASE);
+
+$buildDocsUrl = static function (int $projectFilter, string $dirPath = ''): string {
+    $q = [];
+    if ($projectFilter > 0) {
+        $q['project_id'] = $projectFilter;
+    }
+    $dirPath = normalizeDocumentDirectoryPath($dirPath);
+    if ($dirPath !== '') {
+        $q['dir'] = $dirPath;
+    }
+    return '/admin/docs.php' . ($q ? ('?' . http_build_query($q)) : '');
+};
 
 $flashSuccess = $_SESSION['admin_flash_success'] ?? null;
 $flashError = $_SESSION['admin_flash_error'] ?? null;
@@ -78,14 +124,14 @@ require __DIR__ . '/_layout_top.php';
             <?php endforeach; ?>
         </select>
     </div>
-    <?php if ($projectFilter > 0): ?>
+    <?php if ($projectFilter > 0 || $currentDir !== ''): ?>
         <div class="filter-bar__actions">
-            <a class="btn btn-outline-secondary btn-sm" href="/admin/docs.php"><i class="bi bi-x-lg me-1"></i>Clear filter</a>
+            <a class="btn btn-outline-secondary btn-sm" href="/admin/docs.php"><i class="bi bi-x-lg me-1"></i>Clear filters</a>
         </div>
     <?php endif; ?>
 </form>
 
-<?php if (empty($documents)): ?>
+<?php if (empty($documents) && $currentDir === ''): ?>
     <div class="surface surface-pad text-center">
         <div class="mb-3" style="font-size: 2rem; color: var(--st-text-muted);"><i class="bi bi-journal-text"></i></div>
         <h2 class="h5 mb-1"><?= $selectedProject ? 'No docs in ' . htmlspecialchars($selectedProject['name']) . ' yet' : 'No docs yet' ?></h2>
@@ -95,11 +141,46 @@ require __DIR__ . '/_layout_top.php';
         </a>
     </div>
 <?php else: ?>
+    <?php
+    $crumbParts = $currentDir === '' ? [] : explode('/', $currentDir);
+    $runningPath = '';
+    ?>
+    <div class="surface surface-pad mb-3">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span class="text-muted small"><i class="bi bi-folder2-open me-1"></i>Directory</span>
+            <a class="btn btn-sm <?= $currentDir === '' ? 'btn-primary' : 'btn-outline-secondary' ?>" href="<?= htmlspecialchars($buildDocsUrl($projectFilter, '')) ?>">/</a>
+            <?php foreach ($crumbParts as $part): ?>
+                <?php $runningPath = $runningPath === '' ? $part : ($runningPath . '/' . $part); ?>
+                <span class="text-muted small">/</span>
+                <a class="btn btn-sm <?= $runningPath === $currentDir ? 'btn-primary' : 'btn-outline-secondary' ?>" href="<?= htmlspecialchars($buildDocsUrl($projectFilter, $runningPath)) ?>"><?= htmlspecialchars($part) ?></a>
+            <?php endforeach; ?>
+        </div>
+        <?php if (!empty($dirChildren)): ?>
+            <div class="d-flex flex-wrap gap-2">
+                <?php foreach ($dirChildren as $name => $count): ?>
+                    <?php $target = $currentDir === '' ? $name : ($currentDir . '/' . $name); ?>
+                    <a class="btn btn-sm btn-outline-secondary" href="<?= htmlspecialchars($buildDocsUrl($projectFilter, $target)) ?>">
+                        <i class="bi bi-folder me-1"></i><?= htmlspecialchars($name) ?>
+                        <span class="text-muted">· <?= (int)$count ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        <?php elseif ($currentDir !== ''): ?>
+            <div class="text-muted small">No subdirectories here.</div>
+        <?php endif; ?>
+    </div>
+
+    <?php if (empty($documentsInDir)): ?>
+        <div class="surface surface-pad text-center text-muted">
+            No documents in this directory.
+        </div>
+    <?php else: ?>
     <div class="surface">
         <table class="task-table">
             <thead>
                 <tr>
                     <th>Title</th>
+                    <th>Directory</th>
                     <th>Project</th>
                     <th>Author</th>
                     <th>Comments</th>
@@ -107,11 +188,12 @@ require __DIR__ . '/_layout_top.php';
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($documents as $d): ?>
+                <?php foreach ($documentsInDir as $d): ?>
                     <tr>
                         <td class="task-title-cell">
                             <a href="/admin/doc.php?id=<?= (int)$d['id'] ?>"><?= htmlspecialchars((string)$d['title']) ?></a>
                         </td>
+                        <td><span class="text-muted small"><?= htmlspecialchars((string)(normalizeDocumentDirectoryPath((string)($d['directory_path'] ?? '')) ?: '/')) ?></span></td>
                         <td>
                             <a class="text-decoration-none" href="/admin/project.php?id=<?= (int)$d['project_id'] ?>">
                                 <i class="bi bi-kanban me-1"></i><?= htmlspecialchars((string)$d['project_name']) ?>
@@ -130,6 +212,7 @@ require __DIR__ . '/_layout_top.php';
             </tbody>
         </table>
     </div>
+    <?php endif; ?>
 <?php endif; ?>
 
 <?php require __DIR__ . '/_layout_bottom.php'; ?>

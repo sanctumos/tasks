@@ -8,8 +8,16 @@ $projectId = isset($_GET['project_id']) ? (int)$_GET['project_id'] : null;
 if ($projectId !== null && $projectId <= 0) {
     apiError('validation.invalid_project_id', 'Invalid project_id', 400);
 }
+$directoryPath = isset($_GET['directory_path']) ? normalizeDocumentDirectoryPath((string)$_GET['directory_path']) : null;
 
 $documents = listDocumentsForUser($user, $limit, $projectId);
+$documents = array_values(array_filter(
+    $documents,
+    static function (array $d) use ($directoryPath): bool {
+        if ($directoryPath === null) return true;
+        return normalizeDocumentDirectoryPath((string)($d['directory_path'] ?? '')) === $directoryPath;
+    }
+));
 
 apiSuccess([
     'documents' => $documents,

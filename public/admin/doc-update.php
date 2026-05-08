@@ -26,6 +26,7 @@ if (!$currentUser) {
 $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
 $title = (string)($_POST['title'] ?? '');
 $body = $_POST['body'] ?? null;
+$directoryPath = (string)($_POST['directory_path'] ?? '');
 $projectId = isset($_POST['project_id']) ? (int)$_POST['project_id'] : 0;
 
 if ($id > 0) {
@@ -43,6 +44,7 @@ if ($id > 0) {
     $fields = [];
     if (array_key_exists('title', $_POST)) $fields['title'] = $title;
     if (array_key_exists('body', $_POST)) $fields['body'] = $body;
+    if (array_key_exists('directory_path', $_POST)) $fields['directory_path'] = $directoryPath;
     if ($projectId > 0 && $projectId !== (int)$existing['project_id']) {
         $newProj = getDirectoryProjectById($projectId);
         if ($newProj && userCanAccessDirectoryProject($currentUser, $newProj)) {
@@ -65,7 +67,7 @@ if ($projectId <= 0) {
     exit;
 }
 
-$res = createDocument((int)$currentUser['id'], $projectId, $title, is_string($body) ? $body : null);
+$res = createDocument((int)$currentUser['id'], $projectId, $title, is_string($body) ? $body : null, $directoryPath);
 if (!empty($res['success'])) {
     $_SESSION['admin_flash_success'] = 'Document created.';
     header('Location: /admin/doc.php?id=' . (int)$res['id']);
