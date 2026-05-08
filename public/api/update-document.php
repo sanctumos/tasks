@@ -32,7 +32,7 @@ foreach (['title', 'body', 'status', 'project_id'] as $k) {
     }
 }
 
-$res = updateDocument($id, $fields);
+$res = updateDocument($id, $fields, (int)$user['id']);
 if (!$res['success']) {
     apiError('document.update_failed', $res['error'] ?? 'Update failed', 400);
 }

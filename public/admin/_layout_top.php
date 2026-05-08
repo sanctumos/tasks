@@ -12,7 +12,7 @@ $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
     <title><?= htmlspecialchars($pageTitle) ?> · Sanctum Tasks</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/assets/admin.css?v=8" rel="stylesheet">
+    <link href="/assets/admin.css?v=9" rel="stylesheet">
 </head>
 <body class="bg-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark admin-nav">
@@ -26,8 +26,13 @@ $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
         </button>
         <div class="collapse navbar-collapse" id="adminNavbar">
             <?php if (isLoggedIn()): ?>
+                <?php
+                $layoutUser = getCurrentUser();
+                $stNotifUnread = $layoutUser !== null ? countUnreadNotifications((int)$layoutUser['id']) : 0;
+                ?>
                 <div class="d-flex flex-column flex-lg-row flex-wrap gap-2 ms-lg-auto align-items-stretch align-items-lg-center py-3 py-lg-0">
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/" title="Your projects &amp; all tasks"><i class="bi bi-house-door me-1"></i>Home</a>
+                    <a class="btn btn-outline-light text-center text-lg-start position-relative" href="/admin/notifications.php" title="Assignments, mentions, and activity"><i class="bi bi-bell me-1"></i>Notifications<?php if ($stNotifUnread > 0): ?><span class="badge rounded-pill bg-danger st-nav-notif-badge"><?= $stNotifUnread > 99 ? '99+' : (int)$stNotifUnread ?></span><?php endif; ?></a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/documentation.php"><i class="bi bi-question-circle me-1"></i>Help</a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/docs.php"><i class="bi bi-journals me-1"></i>Docs</a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/workspace-projects.php"><i class="bi bi-kanban me-1"></i>Projects</a>
@@ -38,7 +43,6 @@ $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/settings.php"><i class="bi bi-gear me-1"></i>Settings</a>
                     <hr class="d-lg-none border-secondary opacity-50 my-1 mx-0 w-100">
                     <?php
-                    $layoutUser = isLoggedIn() ? getCurrentUser() : null;
                     $layoutOrgIds = ($layoutUser && userQualifiesForMultiOrganizationMemberships($layoutUser))
                         ? listOrganizationIdsForUserAccess($layoutUser)
                         : [];

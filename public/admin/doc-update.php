@@ -49,7 +49,7 @@ if ($id > 0) {
             $fields['project_id'] = $projectId;
         }
     }
-    $res = updateDocument($id, $fields);
+    $res = updateDocument($id, $fields, (int)$currentUser['id']);
     if (!empty($res['success'])) {
         $_SESSION['admin_flash_success'] = 'Document updated.';
     } else {

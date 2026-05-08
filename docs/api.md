@@ -314,6 +314,17 @@ Admin-only — creates a status (see PHP for body fields).
 | `POST` | `/api/watch-task.php` |
 | `POST` | `/api/unwatch-task.php` |
 
+#### Notifications (per-user feed)
+
+Aggregated **for the authenticated API user only** (cookie session or API key). Rows are created when you are assigned to a task, `@mentioned` in a task body or comment (or document body/comment), when someone comments on a task you watch or are assigned to, or when someone comments on a document you created.
+
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| `GET` | `/api/list-notifications.php` | Query: `limit` (default 50, max 100), `before_id` (cursor — return older than this id), `unread_only` (`1`/`true`). Response includes `notifications`, `next_before_id`, `unread_count`. Each item has `kind`, `title`, `label`, `href` (admin UI path), optional `snippet`, `read_at`, ids. |
+| `POST` | `/api/mark-notifications-read.php` | JSON: `{ "id": 123 }` or `{ "ids": [1,2] }` or `{ "all": true }`. Response includes `unread_count`. |
+
+Kinds include: `task_assigned`, `task_mention`, `task_comment_mention`, `task_comment_activity`, `document_mention`, `document_comment_mention`, `document_comment_activity`.
+
 ---
 
 ### Taxonomy helpers

@@ -98,7 +98,7 @@ if (array_key_exists('recurrence_rule', $body)) {
     $fields['recurrence_rule'] = $body['recurrence_rule'];
 }
 
-$result = updateTask($id, $fields);
+$result = updateTask($id, $fields, (int)$user['id']);
 if (!$result['success']) {
     $statusCode = ($result['error'] ?? '') === 'Task not found' ? 404 : 400;
     apiError('task.update_failed', $result['error'] ?? 'Update failed', $statusCode);

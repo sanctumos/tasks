@@ -4,6 +4,12 @@ require_once __DIR__ . '/../includes/functions.php';
 
 requireAuth();
 
+$currentUser = getCurrentUser();
+if (!$currentUser) {
+    header('Location: /admin/login.php');
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: /admin/');
     exit();
@@ -62,7 +68,7 @@ if (array_key_exists('tags', $_POST)) {
     $fields['tags'] = ($tagsRaw === '') ? [] : preg_split('/[,]+/', $tagsRaw);
 }
 
-$res = updateTask($id, $fields);
+$res = updateTask($id, $fields, (int)$currentUser['id']);
 
 require_once __DIR__ . '/_helpers.php';
 if (st_is_ajax()) {

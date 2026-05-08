@@ -263,6 +263,31 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
         ensureIndexExists($db, 'idx_document_comments_doc', 'CREATE INDEX idx_document_comments_doc ON document_comments(document_id)');
     }
 
+    // In-app notifications (assignments, @mentions, comment activity).
+    if (tableExists($db, 'users')) {
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS user_notifications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                actor_user_id INTEGER DEFAULT NULL,
+                kind TEXT NOT NULL,
+                task_id INTEGER DEFAULT NULL,
+                document_id INTEGER DEFAULT NULL,
+                task_comment_id INTEGER DEFAULT NULL,
+                document_comment_id INTEGER DEFAULT NULL,
+                payload_json TEXT DEFAULT NULL,
+                dedupe_key TEXT DEFAULT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                read_at DATETIME DEFAULT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+                FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        ");
+        ensureIndexExists($db, 'idx_user_notifications_user_created', 'CREATE INDEX idx_user_notifications_user_created ON user_notifications(user_id, created_at DESC)');
+        ensureIndexExists($db, 'idx_user_notifications_user_unread', 'CREATE INDEX idx_user_notifications_user_unread ON user_notifications(user_id, read_at)');
+        ensureIndexExists($db, 'idx_user_notifications_dedupe', 'CREATE UNIQUE INDEX idx_user_notifications_dedupe ON user_notifications(dedupe_key) WHERE dedupe_key IS NOT NULL');
+    }
+
     // Every workspace project needs at least one todo list; tasks with project_id must have list_id.
     // Idempotent: seeds "General" where missing, then backfills tasks.list_id from the project's lists.
     if (tableExists($db, 'projects') && tableExists($db, 'todo_lists') && tableExists($db, 'tasks')) {
