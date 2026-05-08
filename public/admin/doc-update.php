@@ -23,6 +23,38 @@ if (!$currentUser) {
     exit;
 }
 
+if (!empty($_POST['doc_public_share_save'])) {
+    $sid = isset($_POST['id']) ? (int)$_POST['id'] : 0;
+    if ($sid <= 0) {
+        $_SESSION['admin_flash_error'] = 'Invalid document.';
+        header('Location: /admin/docs.php');
+        exit;
+    }
+    $existingShare = getDocumentById($sid, false);
+    if (!$existingShare || !userCanAccessDocument($currentUser, $existingShare)) {
+        $_SESSION['admin_flash_error'] = 'Document not found.';
+        header('Location: /admin/docs.php');
+        exit;
+    }
+    if (!userCanManageDocument($currentUser, $existingShare)) {
+        $_SESSION['admin_flash_error'] = 'You do not have permission to change public sharing.';
+        header('Location: /admin/doc.php?id=' . $sid);
+        exit;
+    }
+    $wantEnabled = isset($_POST['public_link_enabled']);
+    $rotate = isset($_POST['rotate_public_link']);
+    $shareRes = documentSetPublicSharing($sid, (int)$currentUser['id'], $wantEnabled, $rotate && $wantEnabled);
+    if (!empty($shareRes['success'])) {
+        $_SESSION['admin_flash_success'] = $wantEnabled
+            ? ('Public link ' . ($rotate ? 'saved (new link issued).' : 'enabled — copy the URL from the sidebar.'))
+            : 'Public link disabled — the old URL no longer works.';
+    } else {
+        $_SESSION['admin_flash_error'] = $shareRes['error'] ?? 'Could not update public link.';
+    }
+    header('Location: /admin/doc.php?id=' . $sid);
+    exit;
+}
+
 $id = isset($_POST['id']) ? (int)$_POST['id'] : 0;
 $title = (string)($_POST['title'] ?? '');
 $body = $_POST['body'] ?? null;
@@ -67,7 +99,8 @@ if ($projectId <= 0) {
     exit;
 }
 
-$res = createDocument((int)$currentUser['id'], $projectId, $title, is_string($body) ? $body : null, $directoryPath);
+$enableSharing = isset($_POST['public_link_enabled']);
+$res = createDocument((int)$currentUser['id'], $projectId, $title, is_string($body) ? $body : null, $directoryPath, $enableSharing);
 if (!empty($res['success'])) {
     $_SESSION['admin_flash_success'] = 'Document created.';
     header('Location: /admin/doc.php?id=' . (int)$res['id']);

@@ -3211,6 +3211,12 @@ function normalizeDocumentBody($body): ?string {
     return truncateString($body, 100000);
 }
 
+/** 64-character hex secret for unauthenticated `/shared-document.php` access. */
+function normalizeDocumentPublicLinkHexToken($token): ?string {
+    $t = strtolower(trim((string)$token));
+    return preg_match('/^[a-f0-9]{64}$/', $t) ? $t : null;
+}
+
 function normalizeDocumentDirectoryPath($path): string {
     $path = trim((string)$path);
     if ($path === '' || $path === '/') return '';
@@ -3289,7 +3295,7 @@ function userCanManageDocument(array $userRow, ?array $document): bool {
     return $member === 'lead';
 }
 
-function createDocument(int $userId, int $projectId, string $title, ?string $body = null, ?string $directoryPath = null): array {
+function createDocument(int $userId, int $projectId, string $title, ?string $body = null, ?string $directoryPath = null, bool $enablePublicSharing = false): array {
     $title = normalizeDocumentTitle($title);
     if ($title === null) {
         return ['success' => false, 'error' => 'Title is required'];
@@ -3308,16 +3314,26 @@ function createDocument(int $userId, int $projectId, string $title, ?string $bod
         return ['success' => false, 'error' => 'You do not have access to this project'];
     }
 
+    $publicEnabled = $enablePublicSharing ? 1 : 0;
+    $shareTok = '';
+    if ($enablePublicSharing) {
+        $shareTok = bin2hex(random_bytes(32));
+    }
+
     $db = getDbConnection();
     $stmt = $db->prepare("
-        INSERT INTO documents (project_id, title, directory_path, body, status, created_by_user_id, created_at, updated_at)
-        VALUES (:project_id, :title, :directory_path, :body, 'active', :uid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO documents (project_id, title, directory_path, body, status, created_by_user_id,
+            public_link_enabled, public_link_token, created_at, updated_at)
+        VALUES (:project_id, :title, :directory_path, :body, 'active', :uid,
+            :ple, :plink, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ");
     $stmt->bindValue(':project_id', $projectId, SQLITE3_INTEGER);
     $stmt->bindValue(':title', $title, SQLITE3_TEXT);
     $stmt->bindValue(':directory_path', $directoryPath, SQLITE3_TEXT);
     $stmt->bindValue(':body', $body, $body === null ? SQLITE3_NULL : SQLITE3_TEXT);
     $stmt->bindValue(':uid', $userId, SQLITE3_INTEGER);
+    $stmt->bindValue(':ple', $publicEnabled, SQLITE3_INTEGER);
+    $stmt->bindValue(':plink', $shareTok === '' ? null : $shareTok, $shareTok === '' ? SQLITE3_NULL : SQLITE3_TEXT);
     $stmt->execute();
     $id = (int)$db->lastInsertRowID();
     createAuditLog($userId, 'document.create', 'document', (string)$id, ['project_id' => $projectId]);
@@ -3334,6 +3350,7 @@ function getDocumentById(int $id, bool $withRelations = true): ?array {
     $stmt = $db->prepare("
         SELECT d.id, d.project_id, d.title, d.directory_path, d.body, d.status,
                d.created_by_user_id, d.created_at, d.updated_at,
+               d.public_link_enabled, d.public_link_token,
                cu.username AS created_by_username,
                p.name AS project_name,
                (SELECT COUNT(*) FROM document_comments dc WHERE dc.document_id = d.id) AS comment_count
@@ -3350,9 +3367,42 @@ function getDocumentById(int $id, bool $withRelations = true): ?array {
     $row['project_id'] = (int)$row['project_id'];
     $row['created_by_user_id'] = (int)$row['created_by_user_id'];
     $row['comment_count'] = (int)$row['comment_count'];
+    $row['public_link_enabled'] = !empty((int)($row['public_link_enabled'] ?? 0));
+    if (($row['public_link_token'] ?? null) !== null && (string)$row['public_link_token'] === '') {
+        $row['public_link_token'] = null;
+    }
     if ($withRelations) {
         $row['comments'] = listDocumentComments($id, 500, 0);
     }
+    return $row;
+}
+
+/**
+ * Reads an active publicly shared doc by secret token — no authentication.
+ * Omit comments and project internals.
+ */
+function getDocumentByPublicLinkToken(string $rawToken): ?array {
+    $tok = normalizeDocumentPublicLinkHexToken($rawToken);
+    if ($tok === null) {
+        return null;
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare("
+        SELECT d.id, d.title, d.body, d.updated_at, d.public_link_token
+        FROM documents d
+        WHERE d.public_link_token = :t
+          AND d.public_link_enabled != 0
+          AND d.status = 'active'
+        LIMIT 1
+    ");
+    $stmt->bindValue(':t', $tok, SQLITE3_TEXT);
+    $res = $stmt->execute();
+    $row = $res->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        return null;
+    }
+    $row['id'] = (int)$row['id'];
+    unset($row['public_link_token']);
     return $row;
 }
 
@@ -3387,6 +3437,7 @@ function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId 
     $sql = "
         SELECT d.id, d.project_id, d.title, d.directory_path, d.status, d.created_by_user_id,
                d.created_at, d.updated_at,
+               d.public_link_enabled, d.public_link_token,
                cu.username AS created_by_username,
                p.name AS project_name,
                (SELECT COUNT(*) FROM document_comments dc WHERE dc.document_id = d.id) AS comment_count
@@ -3413,6 +3464,10 @@ function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId 
         $r['project_id'] = (int)$r['project_id'];
         $r['created_by_user_id'] = (int)$r['created_by_user_id'];
         $r['comment_count'] = (int)$r['comment_count'];
+        $r['public_link_enabled'] = !empty((int)($r['public_link_enabled'] ?? 0));
+        if (($r['public_link_token'] ?? null) !== null && (string)$r['public_link_token'] === '') {
+            $r['public_link_token'] = null;
+        }
         $rows[] = $r;
     }
     return $rows;
@@ -3467,6 +3522,53 @@ function countDocumentsForUser(array $userRow, ?int $projectId = null): int {
     $res = $stmt->execute();
     $row = $res->fetchArray(SQLITE3_ASSOC);
     return isset($row['c']) ? (int)$row['c'] : 0;
+}
+
+/**
+ * Enables or disables unauthenticated `/shared-document.php` access.
+ * Generates a cryptographically random 256-bit hex token when turning on or rotating.
+ */
+function documentSetPublicSharing(int $documentId, int $actorUserId, bool $enabled, bool $rotateToken): array {
+    $documentId = (int)$documentId;
+    $doc = getDocumentById($documentId, false);
+    if (!$doc) {
+        return ['success' => false, 'error' => 'Document not found'];
+    }
+    $user = getUserById((int)$actorUserId, false);
+    if (!$user || !userCanManageDocument($user, $doc)) {
+        return ['success' => false, 'error' => 'You do not have permission to change public sharing'];
+    }
+
+    $currentTok = normalizeDocumentPublicLinkHexToken((string)($doc['public_link_token'] ?? ''));
+    $newTok = null;
+    $enabledInt = 0;
+    if ($enabled) {
+        $enabledInt = 1;
+        if ($rotateToken || $currentTok === null) {
+            $newTok = bin2hex(random_bytes(32));
+        } else {
+            $newTok = $currentTok;
+        }
+    }
+
+    $db = getDbConnection();
+    $stmt = $db->prepare('
+        UPDATE documents
+           SET public_link_enabled = :e,
+               public_link_token = :tok,
+               updated_at = CURRENT_TIMESTAMP
+         WHERE id = :id
+    ');
+    $stmt->bindValue(':e', $enabledInt, SQLITE3_INTEGER);
+    $stmt->bindValue(':tok', $newTok, $newTok === null ? SQLITE3_NULL : SQLITE3_TEXT);
+    $stmt->bindValue(':id', $documentId, SQLITE3_INTEGER);
+    $stmt->execute();
+    createAuditLog($actorUserId, 'document.public_link', 'document', (string)$documentId, [
+        'enabled' => $enabled,
+        'rotated' => $rotateToken,
+    ]);
+
+    return ['success' => true];
 }
 
 function updateDocument(int $id, array $fields, ?int $actorUserId = null): array {

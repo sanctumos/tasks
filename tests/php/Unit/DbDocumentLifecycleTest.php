@@ -149,4 +149,48 @@ final class DbDocumentLifecycleTest extends TestCase
         $this->assertFalse(userCanAccessDocument($strangerRow, $docRow));
         $this->assertNotContains((int)$doc['id'], array_column(listDocumentsForUser($strangerRow, 200), 'id'));
     }
+
+    public function testDocumentPublicSharingTokenLifecycle(): void
+    {
+        [$uid, $pid] = $this->makeUserAndProject('pub');
+        $private = createDocument($uid, $pid, 'Internal only', '# Hi', null, false);
+        $this->assertTrue($private['success']);
+        $id = (int)$private['id'];
+        $row0 = getDocumentById($id, false);
+        $this->assertNotNull($row0);
+        $this->assertFalse((bool)$row0['public_link_enabled']);
+        $this->assertTrue($row0['public_link_token'] === null || (string)$row0['public_link_token'] === '');
+
+        $on = documentSetPublicSharing($id, $uid, true, false);
+        $this->assertTrue($on['success']);
+        $row1 = getDocumentById($id, false);
+        $this->assertTrue((bool)$row1['public_link_enabled']);
+        $hex = normalizeDocumentPublicLinkHexToken((string)($row1['public_link_token'] ?? ''));
+        $this->assertNotNull($hex);
+
+        $pub = getDocumentByPublicLinkToken($hex);
+        $this->assertNotNull($pub);
+        $this->assertSame($id, (int)$pub['id']);
+        $this->assertStringContainsString('# Hi', (string)$pub['body']);
+
+        $rot = documentSetPublicSharing($id, $uid, true, true);
+        $this->assertTrue($rot['success']);
+        $this->assertNull(getDocumentByPublicLinkToken((string)$hex));
+        $row2 = getDocumentById($id, false);
+        $hex2 = normalizeDocumentPublicLinkHexToken((string)($row2['public_link_token'] ?? ''));
+        $this->assertNotNull($hex2);
+        $this->assertNotSame(strtolower((string)$hex), strtolower((string)$hex2));
+        $this->assertNotNull(getDocumentByPublicLinkToken((string)$hex2));
+
+        $off = documentSetPublicSharing($id, $uid, false, false);
+        $this->assertTrue($off['success']);
+        $this->assertNull(getDocumentByPublicLinkToken((string)$hex2));
+
+        $publicAtCreate = createDocument($uid, $pid, 'Born public', '# X', '', true);
+        $this->assertTrue($publicAtCreate['success']);
+        $rn = getDocumentById((int)$publicAtCreate['id'], false);
+        $this->assertTrue((bool)$rn['public_link_enabled']);
+        $hn = normalizeDocumentPublicLinkHexToken((string)($rn['public_link_token'] ?? ''));
+        $this->assertNotNull($hn);
+    }
 }

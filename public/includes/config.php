@@ -244,6 +244,8 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
                 body TEXT DEFAULT NULL,
                 status TEXT NOT NULL DEFAULT 'active',
                 created_by_user_id INTEGER NOT NULL,
+                public_link_enabled INTEGER NOT NULL DEFAULT 0,
+                public_link_token TEXT DEFAULT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
@@ -251,6 +253,13 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
             )
         ");
         ensureColumnExists($db, 'documents', 'directory_path', "TEXT NOT NULL DEFAULT ''");
+        ensureColumnExists($db, 'documents', 'public_link_enabled', 'INTEGER NOT NULL DEFAULT 0');
+        ensureColumnExists($db, 'documents', 'public_link_token', 'TEXT DEFAULT NULL');
+        ensureIndexExists(
+            $db,
+            'idx_documents_public_link_token_unique',
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_public_link_token_unique ON documents(public_link_token) WHERE public_link_token IS NOT NULL'
+        );
         $db->exec("
             CREATE TABLE IF NOT EXISTS document_comments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

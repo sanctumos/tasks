@@ -569,6 +569,20 @@ curl -sS -X POST \
 
 ---
 
+### Documents — public anonymous read
+
+Project documents normally require session or API credentials. Editors who can **`userCanManageDocument`** may optionally enable **`public_link_enabled`**, which issues a **`public_link_token`** (never returned in JSON) and **`public_share_url`**: **`…/shared-document.php?token=<64-hex>`** for read-only markdown rendering (**comments stay private**).
+
+| Field | Create | Update (`POST /api/update-document.php`) | Returned by API |
+| ----- | ------ | ----------------------------------------- | ----------------- |
+| `public_link_enabled` | Optional boolean (`false` default). | Toggle public access. Omit with `rotate_public_link` only to keep prior setting. | Boolean — effective state (requires valid token internally). |
+| `rotate_public_link` | — | Optional boolean. When **`true`** and sharing stays **on**, issues a new token (old URLs stop working). | — |
+| `public_share_url` | — | — | Full URL while sharing is effectively active; **`null`** when off. **`public_link_token` is never included.** |
+
+Stable origin for `public_share_url`: set **`TASKS_APP_BASE_URL`** (recommended for production).
+
+---
+
 ## SDK
 
 The Python `tasks_sdk` and related clients may lag this document; validate edge cases against this file or the PHP entrypoint.

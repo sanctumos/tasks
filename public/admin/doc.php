@@ -6,7 +6,7 @@
  */
 
 require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/api_auth.php';
 require_once __DIR__ . '/_helpers.php';
 
 requireAuth();
@@ -31,6 +31,10 @@ if (!$currentUser || !userCanAccessDocument($currentUser, $doc)) {
 
 $canManage = userCanManageDocument($currentUser, $doc);
 $accessibleProjects = listDirectoryProjectsForUser($currentUser, 500);
+$documentPublicShareUrl = null;
+if (!empty($doc['public_link_enabled']) && isset($doc['public_link_token']) && is_string($doc['public_link_token'])) {
+    $documentPublicShareUrl = tasksDocumentShareAbsoluteUrl($doc['public_link_token']);
+}
 
 $comments = $doc['comments'] ?? [];
 $commentCount = count($comments);
@@ -289,10 +293,47 @@ require __DIR__ . '/_layout_top.php';
                 </div>
             </div>
             <div class="metadata-rail__row metadata-rail__row--block">
+                <label>Public sharing</label>
+                <?php if ($canManage): ?>
+                <form method="post" action="/admin/doc-update.php" class="m-0">
+                    <?= csrfInputField() ?>
+                    <input type="hidden" name="id" value="<?= (int)$doc['id'] ?>">
+                    <input type="hidden" name="doc_public_share_save" value="1">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="public_link_enabled" id="public_link_enabled"
+                               value="1" <?= !empty($doc['public_link_enabled']) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="public_link_enabled">Anyone with the link can read (no login)</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="rotate_public_link" id="rotate_public_link" value="1">
+                        <label class="fine-print mb-0" for="rotate_public_link">Rotate the secret URL when saving (invalidates prior links).</label>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-outline-primary w-100">Save public visibility</button>
+                </form>
+                <?php if ($documentPublicShareUrl): ?>
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary w-100 js-copy-link"
+                                data-copy-url="<?= htmlspecialchars($documentPublicShareUrl) ?>">
+                            <i class="bi bi-link-45deg"></i> Copy public URL
+                        </button>
+                    </div>
+                <?php endif; ?>
+                <div class="fine-print mt-2 mb-0">Comments stay private. Embedded images hosted as task attachments (<code>/api/get-asset.php</code>) may still require a signed-in viewer.</div>
+                <?php else: ?>
+                    <div class="metadata-rail__value fine-print mb-0">
+                        <?php if (!empty($doc['public_link_enabled'])): ?>
+                            <span class="text-success"><i class="bi bi-globe"></i> Public viewing is enabled. Ask an editor for the audience link.</span>
+                        <?php else: ?>
+                            <span class="text-muted"><i class="bi bi-lock"></i> Restricted — sign in required.</span>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <div class="metadata-rail__row metadata-rail__row--block">
                 <label>Permalink</label>
                 <div class="metadata-rail__value">
                     <code class="fine-print" style="word-break: break-all;">/admin/doc.php?id=<?= (int)$doc['id'] ?></code>
-                    <div class="fine-print mt-1">Paste this in a task comment to link the doc.</div>
+                    <div class="fine-print mt-1">Internal link — paste into task discussion or docs.</div>
                 </div>
             </div>
         </aside>
