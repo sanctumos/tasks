@@ -48,6 +48,21 @@ body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-t
 /* ---------- Navbar ---------- */
 .admin-nav { box-shadow: var(--st-shadow-sm); }
 .admin-nav .navbar-brand { letter-spacing: -0.01em; }
+.admin-nav .st-nav-notif-badge {
+    position: absolute;
+    top: 0.15rem;
+    right: 0.1rem;
+    font-size: 0.65rem;
+    min-width: 1.1rem;
+    padding: 0.12em 0.35em;
+    line-height: 1;
+}
+
+/* ---------- Notifications inbox ---------- */
+.list-group-item.st-notif-unread {
+    background: var(--st-accent-soft);
+    border-left: 3px solid var(--st-accent);
+}
 .admin-nav .btn-outline-light {
     border-color: rgba(255,255,255,0.25);
     font-weight: 500;

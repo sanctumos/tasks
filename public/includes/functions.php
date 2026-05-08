@@ -1423,6 +1423,13 @@ function createTask($title, $status, $createdByUserId, $assignedToUserId = null,
         'priority' => $priority,
         'assigned_to_user_id' => $assignedToUserId,
     ]);
+    $taskRow = getTaskById($id, false);
+    if ($taskRow) {
+        notificationsAfterTaskAssigned($createdByUserId, $taskRow, null, $assignedToUserId);
+        if ($body !== null && trim((string)$body) !== '') {
+            notificationsTaskBodyMentions($createdByUserId, $taskRow, '', (string)$body);
+        }
+    }
     return ['success' => true, 'id' => $id];
 }
 
@@ -1714,7 +1721,7 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
     ];
 }
 
-function updateTask($id, $fields = []): array {
+function updateTask($id, $fields = [], ?int $actorUserId = null): array {
     $id = (int)$id;
     if ($id <= 0) {
         return ['success' => false, 'error' => 'Invalid id'];
@@ -1880,6 +1887,35 @@ function updateTask($id, $fields = []): array {
     }
     $stmt->execute();
     createAuditLog(null, 'task.update', 'task', (string)$id, ['updated_fields' => array_keys($fields)]);
+
+    $fresh = getTaskById($id, false);
+    if ($fresh) {
+        if (array_key_exists('assigned_to_user_id', $fields)) {
+            $rawOld = $existing['assigned_to_user_id'] ?? null;
+            $oldA = $rawOld !== null && $rawOld !== '' ? (int)$rawOld : null;
+            if ($oldA !== null && $oldA <= 0) {
+                $oldA = null;
+            }
+            $rawNew = $fields['assigned_to_user_id'];
+            $newA = ($rawNew === null || $rawNew === '')
+                ? null
+                : (int)$rawNew;
+            if ($newA !== null && $newA <= 0) {
+                $newA = null;
+            }
+            notificationsAfterTaskAssigned($actorUserId, $fresh, $oldA, $newA);
+        }
+        if (array_key_exists('body', $fields)) {
+            $newBody = normalizeTaskBody($fields['body']);
+            $newBodyStr = $newBody ?? '';
+            notificationsTaskBodyMentions(
+                $actorUserId,
+                $fresh,
+                (string)($existing['body'] ?? ''),
+                (string)$newBodyStr
+            );
+        }
+    }
 
     return ['success' => true];
 }
@@ -2844,6 +2880,10 @@ function addTaskComment(int $taskId, int $userId, string $comment): array {
     $createdRow = $sel->execute()->fetchArray(SQLITE3_ASSOC);
     $createdAt = $createdRow ? $createdRow['created_at'] : nowUtc();
     createAuditLog($userId, 'task.comment_add', 'task_comment', (string)$id, ['task_id' => $taskId]);
+    $taskRow = getTaskById($taskId, false);
+    if ($taskRow) {
+        notificationsAfterTaskComment($taskRow, $id, $userId, $comment);
+    }
     return ['success' => true, 'id' => $id, 'created_at' => $createdAt];
 }
 
@@ -3131,7 +3171,7 @@ function bulkUpdateTasks(array $items): array {
                 $fields[$field] = $item[$field];
             }
         }
-        $res = updateTask($id, $fields);
+        $res = updateTask($id, $fields, $createdByUserId);
         $results[] = ['index' => $idx, 'id' => $id] + $res;
         if (!empty($res['success'])) {
             $successCount++;
@@ -3224,6 +3264,10 @@ function createDocument(int $userId, int $projectId, string $title, ?string $bod
     $stmt->execute();
     $id = (int)$db->lastInsertRowID();
     createAuditLog($userId, 'document.create', 'document', (string)$id, ['project_id' => $projectId]);
+    $docRow = getDocumentById($id, false);
+    if ($docRow && $body !== null && trim((string)$body) !== '') {
+        notificationsDocumentBodyMentions($userId, $docRow, '', (string)$body);
+    }
     return ['success' => true, 'id' => $id];
 }
 
@@ -3317,10 +3361,11 @@ function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId 
     return $rows;
 }
 
-function updateDocument(int $id, array $fields): array {
+function updateDocument(int $id, array $fields, ?int $actorUserId = null): array {
     $id = (int)$id;
     if ($id <= 0) return ['success' => false, 'error' => 'Invalid id'];
-    if (!getDocumentById($id, false)) return ['success' => false, 'error' => 'Document not found'];
+    $existingDoc = getDocumentById($id, false);
+    if (!$existingDoc) return ['success' => false, 'error' => 'Document not found'];
 
     $sets = [];
     $params = [':id' => [$id, SQLITE3_INTEGER]];
@@ -3364,6 +3409,19 @@ function updateDocument(int $id, array $fields): array {
     }
     $stmt->execute();
     createAuditLog(null, 'document.update', 'document', (string)$id, ['updated_fields' => array_keys($fields)]);
+    if (array_key_exists('body', $fields)) {
+        $freshDoc = getDocumentById($id, false);
+        if ($freshDoc) {
+            $newBodyNorm = normalizeDocumentBody($fields['body']);
+            $nb = $newBodyNorm ?? '';
+            notificationsDocumentBodyMentions(
+                $actorUserId,
+                $freshDoc,
+                isset($existingDoc['body']) ? (string)$existingDoc['body'] : '',
+                (string)$nb
+            );
+        }
+    }
     return ['success' => true];
 }
 
@@ -3429,6 +3487,11 @@ function addDocumentComment(int $documentId, int $userId, string $comment): arra
     $createdRow = $sel->execute()->fetchArray(SQLITE3_ASSOC);
     $createdAt = $createdRow ? $createdRow['created_at'] : nowUtc();
     createAuditLog($userId, 'document.comment_add', 'document_comment', (string)$id, ['document_id' => $documentId]);
+    $docRow = getDocumentById($documentId, false);
+    if ($docRow) {
+        notificationsAfterDocumentComment($docRow, $id, $userId, $comment);
+    }
     return ['success' => true, 'id' => $id, 'created_at' => $createdAt];
 }
 
+require_once __DIR__ . '/notifications.php';
