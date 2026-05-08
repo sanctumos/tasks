@@ -13,4 +13,6 @@ if (!$doc || !userCanAccessDocument($user, $doc)) {
     apiError('document.not_found', 'Document not found', 404);
 }
 
+$doc = sanitizeDocumentForApiPayload($doc);
+
 apiSuccess(['document' => $doc]);

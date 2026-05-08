@@ -19,6 +19,13 @@ $documents = array_values(array_filter(
     }
 ));
 
+$documents = array_map(
+    static function (array $d): array {
+        return sanitizeDocumentForApiPayload($d);
+    },
+    $documents
+);
+
 apiSuccess([
     'documents' => $documents,
     'count' => count($documents),

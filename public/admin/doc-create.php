@@ -67,6 +67,12 @@ require __DIR__ . '/_layout_top.php';
                 <textarea class="form-control" name="body" rows="14" placeholder="# Overview&#10;&#10;Markdown supported: **bold**, *italic*, `code`, lists, links, code blocks, tables, &gt; blockquotes."></textarea>
                 <div class="fine-print mt-1"><i class="bi bi-markdown me-1"></i>Renders on save. URLs auto-link.</div>
             </div>
+            <div class="col-12">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="public_link_enabled" id="doc_create_public" value="1">
+                    <label class="form-check-label" for="doc_create_public">Enable public viewing link immediately (anonymous read-only HTML; no discussion thread)</label>
+                </div>
+            </div>
         </div>
         <div class="mt-3 d-flex gap-2">
             <button class="btn btn-primary" type="submit"><i class="bi bi-check-lg me-1"></i>Create document</button>

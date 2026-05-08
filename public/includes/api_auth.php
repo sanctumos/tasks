@@ -242,3 +242,47 @@ function requireApiUser(bool $requireAdmin = false): array {
 function requireAdminApiUser(): array {
     return requireApiUser(true);
 }
+
+/**
+ * Canonical HTTPS/HTML origin used in `public_share_url` for documents.
+ */
+function tasksDocumentShareAbsoluteUrl(?string $maybeHexToken): ?string {
+    $t = normalizeDocumentPublicLinkHexToken((string)$maybeHexToken);
+    if ($t === null) {
+        return null;
+    }
+
+    $origin = configuredAppOrigin();
+    if ($origin === null) {
+        // Prefer TASKS_APP_BASE_URL; fallback to inferred request origin (dev / relative installs).
+        $origin = requestOrigin();
+    }
+
+    return $origin . '/shared-document.php?token=' . rawurlencode($t);
+}
+
+/**
+ * Remove `public_link_token` from document JSON while exposing optional `public_share_url`.
+ *
+ * Works for both hydrated `public_link_enabled` (bool|string|int) and raw DB values.
+ *
+ * @param array<string,mixed> $doc
+ * @return array<string,mixed>
+ */
+function sanitizeDocumentForApiPayload(array $doc): array {
+    $rawTok = isset($doc['public_link_token']) ? (string)$doc['public_link_token'] : '';
+    $normTok = normalizeDocumentPublicLinkHexToken($rawTok);
+    unset($doc['public_link_token']);
+
+    $enabledRaw = $doc['public_link_enabled'] ?? false;
+    $enabledIntent = filter_var($enabledRaw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+    if ($enabledIntent === null) {
+        $enabledIntent = ((int)$enabledRaw) === 1;
+    }
+
+    $effective = ($enabledIntent === true) && ($normTok !== null);
+    $doc['public_link_enabled'] = $effective;
+    $doc['public_share_url'] = ($effective ? tasksDocumentShareAbsoluteUrl($normTok) : null);
+
+    return $doc;
+}

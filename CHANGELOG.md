@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Public document viewing (optional)** — `documents.public_link_enabled` + `documents.public_link_token` (partial unique index). Editors with document-manage privilege can expose an unauthenticated **`GET /shared-document.php?token=`** HTML view (markdown body + title only; **no discussion / comments**, `noindex` meta). Tokens are opaque 256-bit hex; rotating invalidates older URLs. API: **`public_link_enabled`** on create/update, optional **`rotate_public_link`** on update; JSON responses omit the raw secret and expose **`public_share_url`** when active ( **`TASKS_APP_BASE_URL` preferred** ; otherwise inferred HTTP origin). Admin: **Docs** create checkbox + doc sidebar visibility form with copy-to-clipboard. Migration notes: `tools/migrations/sanctum_005_document_public_link.sql` (canonical DDL remains `initializeDatabase()`).
+
 ### Changed
 
 - **Tasks require a todo list (`list_id`).** Creating a task now requires an explicit **`list_id`** (GET `/api/list-todo-lists.php?project_id=…`). You may send **`list_id` alone** (project is inferred from the list) or **`project_id` + `list_id`** together (must match). DB bootstrap seeds a **`General`** list for every `projects` row that had none, then backfills **`tasks.list_id`** where **`project_id`** was set — same SQL as `tools/migrations/sanctum_004_task_list_required.sql`. **`POST /api/update-task.php`** rejects clearing **`list_id`**; changing **`project_id`** without **`list_id`** assigns the first list in the target project (must exist). Admin: task rail **List** dropdown (`/admin/view.php`), **New task** modals on `/admin/` and `/admin/project.php` require a list; project pages auto-create **General** when the viewer can manage and no lists exist.

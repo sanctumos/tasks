@@ -167,6 +167,50 @@ def test_document_full_lifecycle_with_comments(php_server):
     assert after_delete.status_code == 404
 
 
+def test_document_public_share_url_and_guest_view(php_server):
+    """Public link exposes title/body via /shared-document.php; API strips raw token."""
+    import urllib.parse as up
+
+    base = php_server.base_url
+    headers = _h(php_server.api_key)
+    tag = uuid.uuid4().hex[:8]
+    pid = _create_project(base, php_server.api_key, f"Publ-{tag}")
+
+    create = requests.post(
+        _url(base, "/api/create-document.php"),
+        headers=headers,
+        json={
+            "project_id": pid,
+            "title": f"Audience doc {tag}",
+            "body": f"# Heading {tag}\n\nParagraph.",
+            "public_link_enabled": True,
+        },
+        timeout=5,
+    )
+    assert create.status_code == 201, create.text
+    doc = create.json()["document"]
+    assert "public_link_token" not in doc
+    url = doc.get("public_share_url") or ""
+    assert "shared-document.php?token=" in url
+    q = up.parse_qs(up.urlparse(url).query).get("token", [None])[0]
+    assert q is not None and len(q) == 64
+
+    html = requests.get(_url(base, f"/shared-document.php?token={q}"), timeout=5)
+    assert html.status_code == 200, html.text
+    assert doc["title"] in html.text
+    assert f"Heading {tag}" in html.text
+
+    revoke = requests.post(
+        _url(base, "/api/update-document.php"),
+        headers=headers,
+        json={"id": int(doc["id"]), "public_link_enabled": False},
+        timeout=5,
+    )
+    assert revoke.status_code == 200
+    stale = requests.get(_url(base, f"/shared-document.php?token={q}"), timeout=5)
+    assert stale.status_code == 404
+
+
 def test_document_endpoints_reject_unknown_ids(php_server):
     base = php_server.base_url
     headers = _h(php_server.api_key)

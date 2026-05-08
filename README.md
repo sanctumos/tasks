@@ -118,8 +118,8 @@ Bootstrap credentials/key are created at first run:
 - Bootstrap API key is either:
   - `TASKS_BOOTSTRAP_API_KEY`, or
   - generated and stored in `db/api_key.txt`
-- Optional canonical app origin for absolute pagination links:
-  - `TASKS_APP_BASE_URL` (for example `https://tasks.example.com`)
+- Optional canonical app origin for absolute pagination links and **`public_share_url`** on directory documents:
+  - `TASKS_APP_BASE_URL` (for example `https://tasks.example.com`) — falls back to inferred request origin when unset
 
 ## Documentation index
 

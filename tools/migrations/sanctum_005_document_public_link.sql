@@ -1,0 +1,8 @@
+-- Document public anonymous read (documents.public_link_enabled + public_link_token).
+--
+-- Idempotent DDL is applied automatically by initializeDatabase()
+-- (`ensureColumnExists` + partial unique index on `public_link_token`).
+--
+-- Inspect before manual intervention:
+--   sqlite3 …/tasks.db "PRAGMA table_info(documents);"
+--
