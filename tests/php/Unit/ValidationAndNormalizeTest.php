@@ -81,4 +81,25 @@ final class ValidationAndNormalizeTest extends TestCase
         $this->assertSame(20, strlen($p));
         $this->assertNull(validatePassword($p));
     }
+
+    public function testAggregateDocumentsForDirectoryView(): void
+    {
+        $docs = [
+            ['id' => 1, 'directory_path' => ''],
+            ['id' => 2, 'directory_path' => 'reports/2026'],
+            ['id' => 3, 'directory_path' => 'reports/2026/q1'],
+        ];
+
+        $root = aggregateDocumentsForDirectoryView($docs, '');
+        $this->assertSame([1], array_column($root['documents_in_dir'], 'id'));
+        $this->assertSame(['reports' => 2], $root['dir_children']);
+
+        $reports = aggregateDocumentsForDirectoryView($docs, 'reports');
+        $this->assertSame([], array_column($reports['documents_in_dir'], 'id'));
+        $this->assertSame(['2026' => 2], $reports['dir_children']);
+
+        $y = aggregateDocumentsForDirectoryView($docs, 'reports/2026');
+        $this->assertSame([2], array_column($y['documents_in_dir'], 'id'));
+        $this->assertSame(['q1' => 1], $y['dir_children']);
+    }
 }

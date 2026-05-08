@@ -92,7 +92,18 @@ if (empty($lists) && $canManage) {
         $lists = listTodoListsForProject($currentUser, $id);
     }
 }
-$projectDocs = listDocumentsForUser($currentUser, 200, $id);
+$projectDocsCount = countDocumentsForUser($currentUser, $id);
+$projectDocCurrentDir = '';
+$projectDocs = [];
+$projectDocsDirChildren = [];
+$projectDocsInDir = [];
+if ($tab === 'docs') {
+    $projectDocCurrentDir = normalizeDocumentDirectoryPath((string)($_GET['dir'] ?? ''));
+    $projectDocs = listDocumentsForUser($currentUser, 500, $id);
+    $aggProjectDocs = aggregateDocumentsForDirectoryView($projectDocs, $projectDocCurrentDir);
+    $projectDocsDirChildren = $aggProjectDocs['dir_children'];
+    $projectDocsInDir = $aggProjectDocs['documents_in_dir'];
+}
 $orgUsers = [];
 $pOrgId = (int)$project['org_id'];
 foreach (listUsers(false) as $u) {
@@ -241,7 +252,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
 <nav class="tabbar" aria-label="Project sections">
     <?= st_tab_link('lists', $tab, 'Lists', 'bi-card-checklist', count($lists)) ?>
     <?= st_tab_link('tasks', $tab, 'Tasks', 'bi-list-check', $totalTasks) ?>
-    <?= st_tab_link('docs', $tab, 'Docs', 'bi-journals', count($projectDocs)) ?>
+    <?= st_tab_link('docs', $tab, 'Docs', 'bi-journals', $projectDocsCount) ?>
     <?= st_tab_link('members', $tab, 'Members', 'bi-people', count($members)) ?>
     <?php if ($canManage): ?>
         <?= st_tab_link('settings', $tab, 'Settings', 'bi-gear', null) ?>
@@ -452,42 +463,99 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
     <?php endif; ?>
 
 <?php elseif ($tab === 'docs'): ?>
+    <?php
+    $buildProjectDocsUrl = static function (int $projectId, string $dirPath = ''): string {
+        $dirPath = normalizeDocumentDirectoryPath($dirPath);
+        $q = ['id' => $projectId, 'tab' => 'docs'];
+        if ($dirPath !== '') {
+            $q['dir'] = $dirPath;
+        }
+        return '/admin/project.php?' . http_build_query($q);
+    };
+    ?>
 
     <div class="surface surface-pad mb-3">
-        <div class="section-title-row">
-            <div class="section-title"><i class="bi bi-journals"></i> Documents <span class="count"><?= count($projectDocs) ?></span></div>
-            <a class="btn btn-primary btn-sm" href="/admin/doc-create.php?project_id=<?= (int)$id ?>"><i class="bi bi-plus-lg me-1"></i>New doc</a>
+        <div class="section-title-row align-items-start flex-wrap gap-2">
+            <div class="section-title"><i class="bi bi-journals"></i> Documents <span class="count"><?= (int)$projectDocsCount ?></span></div>
+            <div class="d-flex align-items-center flex-wrap gap-2 ms-auto">
+                <a class="btn btn-outline-secondary btn-sm" href="/admin/docs.php?project_id=<?= (int)$id ?><?= $projectDocCurrentDir !== '' ? '&dir=' . rawurlencode($projectDocCurrentDir) : '' ?>">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Docs workspace
+                </a>
+                <a class="btn btn-primary btn-sm" href="/admin/doc-create.php?project_id=<?= (int)$id ?>"><i class="bi bi-plus-lg me-1"></i>New doc</a>
+            </div>
         </div>
-        <?php if (!$projectDocs): ?>
+        <?php if ($projectDocsCount === 0 && $projectDocCurrentDir === ''): ?>
             <p class="text-muted small mb-0">No docs in this project yet. Use Docs for long-form reference material — specs, runbooks, decision records, onboarding notes — with their own discussion thread.</p>
         <?php else: ?>
-            <table class="task-table">
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Author</th>
-                        <th>Comments</th>
-                        <th>Updated</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($projectDocs as $d): ?>
-                        <tr>
-                            <td class="task-title-cell">
-                                <a href="/admin/doc.php?id=<?= (int)$d['id'] ?>"><?= htmlspecialchars((string)$d['title']) ?></a>
-                            </td>
-                            <td><?= htmlspecialchars((string)$d['created_by_username']) ?></td>
-                            <td><i class="bi bi-chat-text text-muted me-1"></i><?= (int)$d['comment_count'] ?></td>
-                            <td>
-                                <span title="<?= htmlspecialchars(st_absolute_time_attr($d['updated_at'] ?? null)) ?>">
-                                    <?= htmlspecialchars(st_absolute_time($d['updated_at'] ?? null)) ?>
-                                    <span class="text-muted small">(<?= st_relative_time($d['updated_at'] ?? null) ?>)</span>
-                                </span>
-                            </td>
-                        </tr>
+            <?php if ($projectDocsCount > 500): ?>
+            <p class="text-muted small mb-3">Folder navigation here uses your <?= count($projectDocs) ?> most recently updated documents (capped list). Total in project: <?= (int)$projectDocsCount ?>. Use <strong>Docs workspace</strong> for the full chronological list.</p>
+            <?php endif; ?>
+            <?php
+            $crumbPartsProject = $projectDocCurrentDir === '' ? [] : explode('/', $projectDocCurrentDir);
+            $runningPathProject = '';
+            ?>
+            <div class="surface surface-pad mb-3">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <span class="text-muted small"><i class="bi bi-folder2-open me-1"></i>Directory</span>
+                    <a class="btn btn-sm <?= $projectDocCurrentDir === '' ? 'btn-primary' : 'btn-outline-secondary' ?>" href="<?= htmlspecialchars($buildProjectDocsUrl($id, '')) ?>">/</a>
+                    <?php foreach ($crumbPartsProject as $part): ?>
+                        <?php $runningPathProject = $runningPathProject === '' ? $part : ($runningPathProject . '/' . $part); ?>
+                        <span class="text-muted small">/</span>
+                        <a class="btn btn-sm <?= $runningPathProject === $projectDocCurrentDir ? 'btn-primary' : 'btn-outline-secondary' ?>" href="<?= htmlspecialchars($buildProjectDocsUrl($id, $runningPathProject)) ?>"><?= htmlspecialchars($part) ?></a>
                     <?php endforeach; ?>
-                </tbody>
-            </table>
+                </div>
+                <?php if (!empty($projectDocsDirChildren)): ?>
+                    <div class="d-flex flex-wrap gap-2">
+                        <?php foreach ($projectDocsDirChildren as $name => $cnt): ?>
+                            <?php $target = $projectDocCurrentDir === '' ? $name : ($projectDocCurrentDir . '/' . $name); ?>
+                            <a class="btn btn-sm btn-outline-secondary" href="<?= htmlspecialchars($buildProjectDocsUrl($id, $target)) ?>">
+                                <i class="bi bi-folder me-1"></i><?= htmlspecialchars($name) ?>
+                                <span class="text-muted">· <?= (int)$cnt ?></span>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php elseif ($projectDocCurrentDir !== ''): ?>
+                    <div class="text-muted small">No subdirectories here.</div>
+                <?php endif; ?>
+            </div>
+
+            <?php if (empty($projectDocsInDir)): ?>
+                <div class="surface surface-pad text-center text-muted mb-3">
+                    No documents in this directory.
+                </div>
+            <?php else: ?>
+            <div class="surface">
+                <table class="task-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Directory</th>
+                            <th>Author</th>
+                            <th>Comments</th>
+                            <th>Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($projectDocsInDir as $d): ?>
+                            <tr>
+                                <td class="task-title-cell">
+                                    <a href="/admin/doc.php?id=<?= (int)$d['id'] ?>"><?= htmlspecialchars((string)$d['title']) ?></a>
+                                </td>
+                                <td><span class="text-muted small"><?= htmlspecialchars((string)(normalizeDocumentDirectoryPath((string)($d['directory_path'] ?? '')) ?: '/')) ?></span></td>
+                                <td><?= htmlspecialchars((string)$d['created_by_username']) ?></td>
+                                <td><i class="bi bi-chat-text text-muted me-1"></i><?= (int)$d['comment_count'] ?></td>
+                                <td>
+                                    <span title="<?= htmlspecialchars(st_absolute_time_attr($d['updated_at'] ?? null)) ?>">
+                                        <?= htmlspecialchars(st_absolute_time($d['updated_at'] ?? null)) ?>
+                                        <span class="text-muted small">(<?= st_relative_time($d['updated_at'] ?? null) ?>)</span>
+                                    </span>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 

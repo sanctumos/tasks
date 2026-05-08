@@ -3225,6 +3225,47 @@ function normalizeDocumentDirectoryPath($path): string {
     return truncateString(implode('/', $clean), 500);
 }
 
+/**
+ * Virtual folder grouping for docs list UIs (/admin/docs.php and project › Docs tab).
+ * $currentDir uses normalized slash paths; '' means project/library root segment.
+ *
+ * @param array<int, array<string,mixed>> $documents Rows from listDocumentsForUser()
+ * @return array{dir_children: array<string,int>, documents_in_dir: array<int, array<string,mixed>>}
+ */
+function aggregateDocumentsForDirectoryView(array $documents, string $currentDir): array {
+    $currentDir = normalizeDocumentDirectoryPath($currentDir);
+    $dirChildren = [];
+    $documentsInDir = [];
+    foreach ($documents as $d) {
+        $docDir = normalizeDocumentDirectoryPath((string)($d['directory_path'] ?? ''));
+        if ($currentDir === '') {
+            if ($docDir === '') {
+                $documentsInDir[] = $d;
+                continue;
+            }
+            $top = explode('/', $docDir, 2)[0];
+            if ($top !== '') {
+                $dirChildren[$top] = ($dirChildren[$top] ?? 0) + 1;
+            }
+            continue;
+        }
+        if ($docDir === $currentDir) {
+            $documentsInDir[] = $d;
+            continue;
+        }
+        $prefix = $currentDir . '/';
+        if (str_starts_with($docDir, $prefix)) {
+            $rest = substr($docDir, strlen($prefix));
+            $next = explode('/', $rest, 2)[0];
+            if ($next !== '') {
+                $dirChildren[$next] = ($dirChildren[$next] ?? 0) + 1;
+            }
+        }
+    }
+    ksort($dirChildren, SORT_NATURAL | SORT_FLAG_CASE);
+    return ['dir_children' => $dirChildren, 'documents_in_dir' => $documentsInDir];
+}
+
 function userCanAccessDocument(array $userRow, ?array $document): bool {
     if (!$document) return false;
     $pid = (int)($document['project_id'] ?? 0);
@@ -3375,6 +3416,57 @@ function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId 
         $rows[] = $r;
     }
     return $rows;
+}
+
+/** Same access rules as listDocumentsForUser; total row count for badges and empty checks. */
+function countDocumentsForUser(array $userRow, ?int $projectId = null): int {
+    $uid = (int)$userRow['id'];
+    $orgIds = listOrganizationIdsForUserAccess($userRow);
+    if ($orgIds === []) {
+        return 0;
+    }
+    $pk = normalizePersonKind($userRow['person_kind'] ?? 'team_member');
+    $clientOnly = ($pk === 'client');
+    $canSeeAll = userHasUnrestrictedOrgDirectoryAccess($userRow);
+
+    $db = getDbConnection();
+    $bind = [':uid' => [$uid, SQLITE3_INTEGER]];
+    $orgPlaceholders = [];
+    foreach ($orgIds as $i => $oid) {
+        $k = ':org' . $i;
+        $orgPlaceholders[] = $k;
+        $bind[$k] = [$oid, SQLITE3_INTEGER];
+    }
+    $orgIn = implode(', ', $orgPlaceholders);
+    $cvJoin = $clientOnly ? ' AND p.client_visible = 1' : '';
+    $accessClause = $canSeeAll
+        ? ''
+        : ' AND (p.all_access = 1 OR EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id = p.id AND pm.user_id = :uid))';
+    $projectClause = '';
+    if ($projectId !== null && $projectId > 0) {
+        $projectClause = ' AND d.project_id = :pid';
+        $bind[':pid'] = [$projectId, SQLITE3_INTEGER];
+    }
+
+    $sql = "
+        SELECT COUNT(*) AS c
+        FROM documents d
+        JOIN users cu ON cu.id = d.created_by_user_id
+        JOIN projects p ON p.id = d.project_id
+        WHERE d.status != 'trashed'
+          AND p.status != 'trashed'
+          AND p.org_id IN ($orgIn)
+          {$cvJoin}
+          {$accessClause}
+          {$projectClause}
+    ";
+    $stmt = $db->prepare($sql);
+    foreach ($bind as $k => $v) {
+        $stmt->bindValue($k, $v[0], $v[1]);
+    }
+    $res = $stmt->execute();
+    $row = $res->fetchArray(SQLITE3_ASSOC);
+    return isset($row['c']) ? (int)$row['c'] : 0;
 }
 
 function updateDocument(int $id, array $fields, ?int $actorUserId = null): array {
