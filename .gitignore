@@ -29,6 +29,10 @@ Thumbs.db
 *.log
 *.tmp
 
+# Task attachment blobs (stored under public/uploads/ so multihost deploy preserves them)
+public/uploads/task-assets/**/*
+!public/uploads/task-assets/.gitkeep
+
 # Playwright design-smoke screenshot output (regenerate locally)
 tools/design-smoke/output/
 

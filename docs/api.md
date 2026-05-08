@@ -293,6 +293,7 @@ Admin-only — creates a status (see PHP for body fields).
   - `file` (required upload field)
 - Allowed MIME types: `image/png`, `image/jpeg`, `image/gif`, `image/webp`
 - Max size: `TASKS_ASSET_MAX_BYTES` (default 8 MiB)
+- **Disk layout:** default `TASKS_ASSET_STORAGE_DIR` is **`public/uploads/task-assets/`** (under the web docroot’s `uploads/` tree). That matches standard multihost **`deploy.sh`** behavior: `public/` is mirrored with `--delete`, but **`public/uploads/` is preserved**. Bytes are still served **only** through `GET /api/get-asset.php` (task ACL), not as public hotlinks. Override `TASKS_ASSET_STORAGE_DIR` only for legacy installs (e.g. older `storage/task-assets` paths).
 
 **Authentication (either):**
 

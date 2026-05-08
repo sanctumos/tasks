@@ -37,7 +37,10 @@ define('LOGIN_LOCK_SECONDS', (int)envOrDefault('TASKS_LOGIN_LOCK_SECONDS', 900))
 define('API_RATE_LIMIT_REQUESTS', (int)envOrDefault('TASKS_API_RATE_LIMIT_REQUESTS', 240));
 define('API_RATE_LIMIT_WINDOW_SECONDS', (int)envOrDefault('TASKS_API_RATE_LIMIT_WINDOW_SECONDS', 60));
 define('APP_DEBUG', envBool('TASKS_APP_DEBUG', false));
-define('TASKS_ASSET_STORAGE_DIR', envOrDefault('TASKS_ASSET_STORAGE_DIR', __DIR__ . '/../../storage/task-assets'));
+// Default under docroot public/uploads/ — multihost deploy mirrors public/ with --delete but
+// preserves uploads/ (SITE-DESIGN-GUIDE §7). Override TASKS_ASSET_STORAGE_DIR only if you must
+// keep a legacy path (e.g. migrate blobs from storage/task-assets).
+define('TASKS_ASSET_STORAGE_DIR', envOrDefault('TASKS_ASSET_STORAGE_DIR', __DIR__ . '/../uploads/task-assets'));
 define('TASKS_ASSET_MAX_BYTES', (int)envOrDefault('TASKS_ASSET_MAX_BYTES', 8 * 1024 * 1024));
 // Only use X-Forwarded-For / CF-Connecting-IP when behind a trusted proxy (H-02)
 define('TRUST_PROXY', envBool('TASKS_TRUST_PROXY', false));
