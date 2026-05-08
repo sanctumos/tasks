@@ -126,8 +126,23 @@ function normalizedPortFromServer(string $scheme): ?int {
     return $port;
 }
 
+/**
+ * Recover from broken env paste like "https://ahttps://b" — keep leftmost absolute origin.
+ */
+function sanitizeTasksEnvAppBaseUrl(string $raw): string {
+    $raw = trim($raw);
+    if ($raw === '') {
+        return '';
+    }
+    $parts = preg_split('#(?=https?://)#i', $raw, -1, PREG_SPLIT_NO_EMPTY);
+    if (count($parts) > 1) {
+        return trim($parts[0]);
+    }
+    return trim($parts[0] ?? $raw);
+}
+
 function configuredAppOrigin(): ?string {
-    $configured = trim((string)envOrDefault('TASKS_APP_BASE_URL', ''));
+    $configured = sanitizeTasksEnvAppBaseUrl(trim((string)envOrDefault('TASKS_APP_BASE_URL', '')));
     if ($configured === '') {
         return null;
     }
@@ -165,7 +180,16 @@ function requestOrigin(): string {
 
     $scheme = requestScheme();
     $host = 'localhost';
-    foreach ([(string)($_SERVER['SERVER_ADDR'] ?? ''), (string)($_SERVER['SERVER_NAME'] ?? '')] as $candidate) {
+    // Prefer vhost-visible Host header before bind IP (better fallback share links behind nginx/php-fpm).
+    foreach ([
+        (string)($_SERVER['HTTP_HOST'] ?? ''),
+        (string)($_SERVER['SERVER_NAME'] ?? ''),
+        (string)($_SERVER['SERVER_ADDR'] ?? ''),
+    ] as $candidate) {
+        $candidate = trim(explode(',', $candidate, 2)[0]);
+        if ($candidate === '') {
+            continue;
+        }
         $sanitized = sanitizeUrlHost($candidate);
         if ($sanitized !== null) {
             $host = $sanitized;

@@ -117,8 +117,11 @@
         document.querySelectorAll(".js-copy-link").forEach((el) => {
             el.addEventListener("click", (e) => {
                 e.preventDefault();
-                const path = el.getAttribute("data-copy-url") || window.location.pathname + window.location.search;
-                const url = window.location.origin + path;
+                const raw = (el.getAttribute("data-copy-url") || window.location.pathname + window.location.search || "").trim();
+                // Absolute URLs (public share links, external links) — do not prepend location.origin or we get doubled hosts.
+                const url = /^https?:\/\//i.test(raw)
+                    ? raw
+                    : window.location.origin + (raw.startsWith("/") ? raw : "/" + raw);
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(url).then(
                         () => toast("Link copied"),

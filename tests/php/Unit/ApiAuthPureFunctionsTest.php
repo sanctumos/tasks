@@ -36,6 +36,16 @@ final class ApiAuthPureFunctionsTest extends TestCase
         $this->assertSame('https://tasks.example.com', configuredAppOrigin());
     }
 
+    public function testConfiguredAppOriginStripsConcatenatedPaste(): void
+    {
+        require_once dirname(__DIR__, 3) . '/public/includes/api_auth.php';
+
+        putenv('TASKS_APP_BASE_URL=https://tasks.example.comhttps://10.20.30.40');
+        $_ENV['TASKS_APP_BASE_URL'] = getenv('TASKS_APP_BASE_URL');
+
+        $this->assertSame('https://tasks.example.com', configuredAppOrigin());
+    }
+
     public function testPaginationMeta(): void
     {
         require_once dirname(__DIR__, 3) . '/public/includes/api_auth.php';
