@@ -58,6 +58,11 @@ require __DIR__ . '/_layout_top.php';
                 </select>
             </div>
             <div class="col-12">
+                <label class="form-label">Directory <span class="fine-print">(optional)</span></label>
+                <input class="form-control" name="directory_path" maxlength="500" placeholder="examples: onboarding / vendor/acme / research/2026-q2">
+                <div class="fine-print mt-1">Use slash-separated folders to organize large doc sets in the library.</div>
+            </div>
+            <div class="col-12">
                 <label class="form-label">Body <span class="fine-print">(Markdown)</span></label>
                 <textarea class="form-control" name="body" rows="14" placeholder="# Overview&#10;&#10;Markdown supported: **bold**, *italic*, `code`, lists, links, code blocks, tables, &gt; blockquotes."></textarea>
                 <div class="fine-print mt-1"><i class="bi bi-markdown me-1"></i>Renders on save. URLs auto-link.</div>

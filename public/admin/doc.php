@@ -51,6 +51,13 @@ if (!empty($doc['project_name'])) {
         'label' => (string)$doc['project_name'],
     ];
 }
+$docDir = normalizeDocumentDirectoryPath((string)($doc['directory_path'] ?? ''));
+if ($docDir !== '') {
+    $adminBreadcrumbs[] = [
+        'href' => '/admin/docs.php?project_id=' . (int)$doc['project_id'] . '&dir=' . rawurlencode($docDir),
+        'label' => $docDir,
+    ];
+}
 $crumbTitle = strlen($doc['title']) > 56 ? (substr($doc['title'], 0, 53) . '…') : $doc['title'];
 $adminBreadcrumbs[] = ['label' => $crumbTitle];
 
@@ -246,6 +253,23 @@ require __DIR__ . '/_layout_top.php';
                 <?php else: ?>
                 <div class="metadata-rail__value">
                     <a href="/admin/project.php?id=<?= (int)$doc['project_id'] ?>"><?= htmlspecialchars((string)$doc['project_name']) ?></a>
+                </div>
+                <?php endif; ?>
+            </div>
+            <div class="metadata-rail__row metadata-rail__row--block">
+                <label>Directory</label>
+                <?php if ($canManage): ?>
+                <form method="post" action="/admin/doc-update.php" class="m-0">
+                    <?= csrfInputField() ?>
+                    <input type="hidden" name="id" value="<?= (int)$doc['id'] ?>">
+                    <input class="form-control form-control-sm" name="directory_path" maxlength="500" value="<?= htmlspecialchars((string)($doc['directory_path'] ?? '')) ?>" placeholder="optional/path">
+                    <div class="mt-2 d-grid">
+                        <button class="btn btn-sm btn-outline-secondary" type="submit">Save directory</button>
+                    </div>
+                </form>
+                <?php else: ?>
+                <div class="metadata-rail__value">
+                    <span class="text-muted"><?= htmlspecialchars($docDir !== '' ? $docDir : '/') ?></span>
                 </div>
                 <?php endif; ?>
             </div>

@@ -237,6 +237,7 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id INTEGER NOT NULL,
                 title TEXT NOT NULL,
+                directory_path TEXT NOT NULL DEFAULT '',
                 body TEXT DEFAULT NULL,
                 status TEXT NOT NULL DEFAULT 'active',
                 created_by_user_id INTEGER NOT NULL,
@@ -246,6 +247,7 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
                 FOREIGN KEY(created_by_user_id) REFERENCES users(id)
             )
         ");
+        ensureColumnExists($db, 'documents', 'directory_path', "TEXT NOT NULL DEFAULT ''");
         $db->exec("
             CREATE TABLE IF NOT EXISTS document_comments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

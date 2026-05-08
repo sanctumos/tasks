@@ -15,12 +15,13 @@ if ($body === null) {
 $projectId = isset($body['project_id']) ? (int)$body['project_id'] : 0;
 $title = (string)($body['title'] ?? '');
 $content = $body['body'] ?? null;
+$directoryPath = isset($body['directory_path']) ? (string)$body['directory_path'] : '';
 
 if ($projectId <= 0) {
     apiError('validation.invalid_project_id', 'project_id is required', 400);
 }
 
-$result = createDocument((int)$user['id'], $projectId, $title, $content);
+$result = createDocument((int)$user['id'], $projectId, $title, $content, $directoryPath);
 if (!$result['success']) {
     apiError('document.create_failed', $result['error'] ?? 'Create failed', 400);
 }

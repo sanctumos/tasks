@@ -26,7 +26,7 @@ if (!userCanManageDocument($user, $existing)) {
 }
 
 $fields = [];
-foreach (['title', 'body', 'status', 'project_id'] as $k) {
+foreach (['title', 'body', 'status', 'project_id', 'directory_path'] as $k) {
     if (array_key_exists($k, $body)) {
         $fields[$k] = $body[$k];
     }

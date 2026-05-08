@@ -3171,7 +3171,7 @@ function bulkUpdateTasks(array $items): array {
                 $fields[$field] = $item[$field];
             }
         }
-        $res = updateTask($id, $fields, $createdByUserId);
+        $res = updateTask($id, $fields, null);
         $results[] = ['index' => $idx, 'id' => $id] + $res;
         if (!empty($res['success'])) {
             $successCount++;
@@ -3211,6 +3211,20 @@ function normalizeDocumentBody($body): ?string {
     return truncateString($body, 100000);
 }
 
+function normalizeDocumentDirectoryPath($path): string {
+    $path = trim((string)$path);
+    if ($path === '' || $path === '/') return '';
+    $parts = preg_split('#/+#', str_replace('\\', '/', $path));
+    if (!is_array($parts)) return '';
+    $clean = [];
+    foreach ($parts as $part) {
+        $part = trim((string)$part);
+        if ($part === '' || $part === '.' || $part === '..') continue;
+        $clean[] = truncateString($part, 80);
+    }
+    return truncateString(implode('/', $clean), 500);
+}
+
 function userCanAccessDocument(array $userRow, ?array $document): bool {
     if (!$document) return false;
     $pid = (int)($document['project_id'] ?? 0);
@@ -3234,12 +3248,13 @@ function userCanManageDocument(array $userRow, ?array $document): bool {
     return $member === 'lead';
 }
 
-function createDocument(int $userId, int $projectId, string $title, ?string $body = null): array {
+function createDocument(int $userId, int $projectId, string $title, ?string $body = null, ?string $directoryPath = null): array {
     $title = normalizeDocumentTitle($title);
     if ($title === null) {
         return ['success' => false, 'error' => 'Title is required'];
     }
     $body = normalizeDocumentBody($body);
+    $directoryPath = normalizeDocumentDirectoryPath($directoryPath ?? '');
     $proj = getDirectoryProjectById($projectId);
     if (!$proj) {
         return ['success' => false, 'error' => 'Project not found'];
@@ -3254,11 +3269,12 @@ function createDocument(int $userId, int $projectId, string $title, ?string $bod
 
     $db = getDbConnection();
     $stmt = $db->prepare("
-        INSERT INTO documents (project_id, title, body, status, created_by_user_id, created_at, updated_at)
-        VALUES (:project_id, :title, :body, 'active', :uid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO documents (project_id, title, directory_path, body, status, created_by_user_id, created_at, updated_at)
+        VALUES (:project_id, :title, :directory_path, :body, 'active', :uid, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ");
     $stmt->bindValue(':project_id', $projectId, SQLITE3_INTEGER);
     $stmt->bindValue(':title', $title, SQLITE3_TEXT);
+    $stmt->bindValue(':directory_path', $directoryPath, SQLITE3_TEXT);
     $stmt->bindValue(':body', $body, $body === null ? SQLITE3_NULL : SQLITE3_TEXT);
     $stmt->bindValue(':uid', $userId, SQLITE3_INTEGER);
     $stmt->execute();
@@ -3275,7 +3291,7 @@ function getDocumentById(int $id, bool $withRelations = true): ?array {
     if ($id <= 0) return null;
     $db = getDbConnection();
     $stmt = $db->prepare("
-        SELECT d.id, d.project_id, d.title, d.body, d.status,
+        SELECT d.id, d.project_id, d.title, d.directory_path, d.body, d.status,
                d.created_by_user_id, d.created_at, d.updated_at,
                cu.username AS created_by_username,
                p.name AS project_name,
@@ -3328,7 +3344,7 @@ function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId 
     }
 
     $sql = "
-        SELECT d.id, d.project_id, d.title, d.status, d.created_by_user_id,
+        SELECT d.id, d.project_id, d.title, d.directory_path, d.status, d.created_by_user_id,
                d.created_at, d.updated_at,
                cu.username AS created_by_username,
                p.name AS project_name,
@@ -3380,6 +3396,11 @@ function updateDocument(int $id, array $fields, ?int $actorUserId = null): array
         $body = normalizeDocumentBody($fields['body']);
         $sets[] = 'body = :body';
         $params[':body'] = [$body, $body === null ? SQLITE3_NULL : SQLITE3_TEXT];
+    }
+    if (array_key_exists('directory_path', $fields)) {
+        $directoryPath = normalizeDocumentDirectoryPath($fields['directory_path']);
+        $sets[] = 'directory_path = :directory_path';
+        $params[':directory_path'] = [$directoryPath, SQLITE3_TEXT];
     }
     if (array_key_exists('status', $fields)) {
         $status = strtolower(trim((string)$fields['status']));
