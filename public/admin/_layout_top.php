@@ -12,7 +12,7 @@ $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
     <title><?= htmlspecialchars($pageTitle) ?> · Sanctum Tasks</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/assets/admin.css?v=9" rel="stylesheet">
+    <link href="/assets/admin.css?v=10" rel="stylesheet">
 </head>
 <body class="bg-light">
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark admin-nav">
@@ -32,15 +32,22 @@ $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
                 ?>
                 <div class="d-flex flex-column flex-lg-row flex-wrap gap-2 ms-lg-auto align-items-stretch align-items-lg-center py-3 py-lg-0">
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/" title="Your projects &amp; all tasks"><i class="bi bi-house-door me-1"></i>Home</a>
-                    <a class="btn btn-outline-light text-center text-lg-start position-relative" href="/admin/notifications.php" title="Assignments, mentions, and activity"><i class="bi bi-bell me-1"></i>Notifications<?php if ($stNotifUnread > 0): ?><span class="badge rounded-pill bg-danger st-nav-notif-badge"><?= $stNotifUnread > 99 ? '99+' : (int)$stNotifUnread ?></span><?php endif; ?></a>
-                    <a class="btn btn-outline-light text-center text-lg-start" href="/admin/documentation.php"><i class="bi bi-question-circle me-1"></i>Help</a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/docs.php"><i class="bi bi-journals me-1"></i>Docs</a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/workspace-projects.php"><i class="bi bi-kanban me-1"></i>Projects</a>
-                    <?php if (isAdminRole((string)($_SESSION['role'] ?? ''))): ?>
-                        <a class="btn btn-outline-light text-center text-lg-start" href="/admin/organizations.php"><i class="bi bi-building me-1"></i>Organizations</a>
-                        <a class="btn btn-outline-light text-center text-lg-start" href="/admin/users.php"><i class="bi bi-people me-1"></i>Users</a>
-                    <?php endif; ?>
-                    <a class="btn btn-outline-light text-center text-lg-start" href="/admin/settings.php"><i class="bi bi-gear me-1"></i>Settings</a>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light text-center text-lg-start dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-gear me-1"></i>Settings
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/admin/settings.php"><i class="bi bi-gear me-2"></i>Settings</a></li>
+                            <li><a class="dropdown-item" href="/admin/documentation.php"><i class="bi bi-question-circle me-2"></i>Help</a></li>
+                            <?php if (isAdminRole((string)($_SESSION['role'] ?? ''))): ?>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="/admin/organizations.php"><i class="bi bi-building me-2"></i>Organizations</a></li>
+                                <li><a class="dropdown-item" href="/admin/users.php"><i class="bi bi-people me-2"></i>Users</a></li>
+                            <?php endif; ?>
+                        </ul>
+                    </div>
                     <hr class="d-lg-none border-secondary opacity-50 my-1 mx-0 w-100">
                     <?php
                     $layoutOrgIds = ($layoutUser && userQualifiesForMultiOrganizationMemberships($layoutUser))
@@ -65,7 +72,13 @@ $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
                             </select>
                         </form>
                     <?php endif; ?>
-                    <span class="navbar-text text-white-50 small px-lg-2 py-1 text-center text-lg-start"><i class="bi bi-person-circle me-1"></i><?= htmlspecialchars($_SESSION['username'] ?? '') ?></span>
+                    <span class="navbar-text text-white-50 small px-lg-2 py-1 text-center text-lg-start d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-person-circle"></i><?= htmlspecialchars($_SESSION['username'] ?? '') ?>
+                        <a class="btn btn-outline-light btn-sm st-nav-notif-btn position-relative" href="/admin/notifications.php" title="Assignments, mentions, and activity" aria-label="Notifications">
+                            <i class="bi bi-bell"></i>
+                            <?php if ($stNotifUnread > 0): ?><span class="badge rounded-pill bg-danger st-nav-notif-badge"><?= $stNotifUnread > 99 ? '99+' : (int)$stNotifUnread ?></span><?php endif; ?>
+                        </a>
+                    </span>
                     <form method="post" action="/admin/logout.php" class="m-0">
                         <?= csrfInputField() ?>
                         <button class="btn btn-outline-light admin-nav-cta" type="submit"><i class="bi bi-box-arrow-right me-1"></i>Logout</button>
