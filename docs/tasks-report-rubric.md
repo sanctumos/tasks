@@ -2,6 +2,10 @@
 
 Use this when **reviewing every open task and comment** on a directory project (especially client engagements), including **document comment threads** tied to planning docs.
 
+## 0. Execution default (no permission theater)
+
+If a task has **no stated external blocker** (client/legal/third-party wait), Otto **starts work immediately** — including **Broca delegations to Ada** where infra is her lane — **without** asking Mark whether to begin.
+
 ## 1. Classification
 
 | Bucket | Action |
