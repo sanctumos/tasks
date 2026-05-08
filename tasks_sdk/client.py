@@ -5,6 +5,7 @@ Main client class for interacting with the Sanctum Tasks API.
 """
 
 import json
+import os
 from typing import Optional, Dict, Any, List
 import requests
 
@@ -570,6 +571,69 @@ class TasksClient:
         if size_bytes is not None:
             payload['size_bytes'] = size_bytes
         return self._request('POST', 'add-attachment.php', data=payload)
+
+    def upload_attachment(self, task_id: int, file_path: str, mime_type: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Multipart upload of an image file stored by Tasks (local asset); returns file_url and markdown snippet.
+
+        Uses POST /api/upload-attachment.php — do not send JSON Content-Type (multipart boundary required).
+        """
+        path = os.path.abspath(file_path)
+        if not os.path.isfile(path):
+            raise ValidationError(f"File not found: {path}", status_code=400, response={})
+
+        lower = path.lower()
+        mt = mime_type
+        if mt is None:
+            if lower.endswith('.webp'):
+                mt = 'image/webp'
+            elif lower.endswith('.png'):
+                mt = 'image/png'
+            elif lower.endswith('.jpg') or lower.endswith('.jpeg'):
+                mt = 'image/jpeg'
+            elif lower.endswith('.gif'):
+                mt = 'image/gif'
+            else:
+                mt = 'application/octet-stream'
+
+        url = f"{self.api_base}/upload-attachment.php"
+        headers = {'X-API-Key': self.api_key}
+        with open(path, 'rb') as fh:
+            files = {'file': (os.path.basename(path), fh, mt)}
+            data = {'task_id': str(task_id)}
+            try:
+                response = requests.post(url, headers=headers, files=files, data=data, timeout=120)
+            except requests.exceptions.RequestException as e:
+                raise APIError(f"Request failed: {str(e)}")
+
+        try:
+            response_data = response.json()
+        except ValueError:
+            raise APIError(f"Invalid JSON response: {response.text[:200]}")
+
+        error_obj = response_data.get("error_object") if isinstance(response_data, dict) else None
+        error_msg = (
+            response_data.get("error")
+            if isinstance(response_data, dict)
+            else None
+        ) or (
+            error_obj.get("message")
+            if isinstance(error_obj, dict)
+            else None
+        ) or f"API error: {response.status_code}"
+
+        if response.status_code == 401:
+            raise AuthenticationError(error_msg, status_code=401, response=response_data)
+        if response.status_code == 404:
+            raise NotFoundError(error_msg, status_code=404, response=response_data)
+        if response.status_code in (400, 405, 422):
+            raise ValidationError(error_msg, status_code=response.status_code, response=response_data)
+        if response.status_code == 429:
+            raise APIError(error_msg, status_code=429, response=response_data)
+        if response.status_code >= 400:
+            raise APIError(error_msg, status_code=response.status_code, response=response_data)
+
+        return response_data if isinstance(response_data, dict) else {}
 
     def list_watchers(self, task_id: int) -> List[Dict[str, Any]]:
         response = self._request('GET', 'list-watchers.php', params={'task_id': task_id})
