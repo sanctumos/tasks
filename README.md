@@ -83,6 +83,7 @@ Full endpoint reference: [docs/api.md](docs/api.md)
 ## Repository structure
 
 - `public/` - web-accessible PHP/UI/API code
+- `public/uploads/task-assets/` - inline task image uploads (API/admin); default `TASKS_ASSET_STORAGE_DIR`; blobs gitignored; lives under `public/uploads/` so standard multihost **deploy preserves uploads** across rsync `--delete`
 - `db/` - SQLite database files and runtime secrets (ignored in git)
 - `docs/` - architecture, API, integration, and operational docs
 - `tasks_sdk/` - Python SDK (HTTP client for this API)
