@@ -5,10 +5,11 @@
 ### Fixed
 
 - **`js-copy-link`** no longer prepends `window.location.origin` when `data-copy-url` is already absolute — fixes doubled hosts like `https://tasks.example…https://…/shared-document.php` on **Copy public URL**. Admin JS cache-bust `?v=5`.
-- **`TASKS_APP_BASE_URL`** tolerates accidental double-pasted origins (`https://ahttps://b` → `https://a`). **`requestOrigin()`** fallback now prefers **`HTTP_HOST`** over the PHP-FPM bind IP so anonymous share links match the public hostname when **`TASKS_APP_BASE_URL` is unset.**
+- **`TASKS_APP_BASE_URL`** tolerates accidental double-pasted origins (`https://ahttps://b` → `https://a`). Canonical public document links still rely on **`TASKS_APP_BASE_URL`** (or **`requestOrigin()`** without trusting client **`Host`** — bind IP/username may appear when unset).
 
 ### Added
 
+- **Regression tests for doubled public-share copy URLs** — static **`admin.js`** contract (`tests/integration/test_admin_js_copy_link_contract.py`) plus **`@pytest.mark.browser`** Playwright coverage for the authenticated **Copy public URL** sidebar control (`tests/integration/test_browser_copy_link_public_share_url.py`). CI installs **Playwright chromium** before `pytest -q`.
 - **Public document viewing (optional)** — `documents.public_link_enabled` + `documents.public_link_token` (partial unique index). Editors with document-manage privilege can expose an unauthenticated **`GET /shared-document.php?token=`** HTML view (markdown body + title only; **no discussion / comments**, `noindex` meta). Tokens are opaque 256-bit hex; rotating invalidates older URLs. API: **`public_link_enabled`** on create/update, optional **`rotate_public_link`** on update; JSON responses omit the raw secret and expose **`public_share_url`** when active ( **`TASKS_APP_BASE_URL` preferred** ; otherwise inferred HTTP origin). Admin: **Docs** create checkbox + doc sidebar visibility form with copy-to-clipboard. Migration notes: `tools/migrations/sanctum_005_document_public_link.sql` (canonical DDL remains `initializeDatabase()`).
 
 ### Changed

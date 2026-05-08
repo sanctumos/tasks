@@ -54,8 +54,24 @@ This means app startup applies safe, additive migrations automatically.
 
 Repository CI workflow (`.github/workflows/ci.yml`) runs:
 
+- PHPUnit (unit/integration/e2e via Composer scripts)
+- `pytest -q` on `tests/` (PHP HTTP integration harness + **`@pytest.browser`** Playwright checks)
 - PHP syntax lint over `public/**/*.php`
 - Python checks for SDK/plugin import and syntax
+
+### Browser regressions (`@pytest.mark.browser`)
+
+Some UI bugs (clipboard / `admin.js`) are guarded by Chromium via Playwright (`tests/integration/test_browser_*.py`).
+
+Locally:
+
+```bash
+python -m pip install playwright
+python -m playwright install chromium
+pytest tests/integration/test_browser_copy_link_public_share_url.py -q
+```
+
+Pure-JS regressions without a browser: `tests/integration/test_admin_js_copy_link_contract.py`.
 
 Run equivalent checks locally:
 
@@ -69,6 +85,10 @@ python - <<'PY'
 from tasks_sdk import TasksClient
 print("SDK import OK:", TasksClient.__name__)
 PY
+
+# pytest (needs PHP on PATH); optional playwright for browser-marked tests above
+composer run test:php
+pytest -q
 ```
 
 ## Backup and restore (SQLite)

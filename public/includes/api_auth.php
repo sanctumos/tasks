@@ -180,11 +180,10 @@ function requestOrigin(): string {
 
     $scheme = requestScheme();
     $host = 'localhost';
-    // Prefer vhost-visible Host header before bind IP (better fallback share links behind nginx/php-fpm).
+    // Do not trust client-supplied Host for origin URLs when TRUST_PROXY is off (pagination / SSRF regressions).
     foreach ([
-        (string)($_SERVER['HTTP_HOST'] ?? ''),
-        (string)($_SERVER['SERVER_NAME'] ?? ''),
         (string)($_SERVER['SERVER_ADDR'] ?? ''),
+        (string)($_SERVER['SERVER_NAME'] ?? ''),
     ] as $candidate) {
         $candidate = trim(explode(',', $candidate, 2)[0]);
         if ($candidate === '') {
