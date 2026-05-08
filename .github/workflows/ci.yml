@@ -43,7 +43,8 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          python -m pip install requests pytest pytest-cov
+          python -m pip install requests pytest pytest-cov playwright
+          python -m playwright install chromium
 
       - name: PHP syntax lint
         run: |
