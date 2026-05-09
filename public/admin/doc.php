@@ -105,7 +105,14 @@ require __DIR__ . '/_layout_top.php';
 
         <div class="task-header__chips">
             <span class="meta-chip" title="Document ID">#<?= (int)$doc['id'] ?></span>
-            <a class="meta-chip meta-chip--link" href="/admin/project.php?id=<?= (int)$doc['project_id'] ?>" title="Open project">
+            <?php
+            $projectDocsTabQuery = ['id' => (int)$doc['project_id'], 'tab' => 'docs'];
+            if ($docDir !== '') {
+                $projectDocsTabQuery['dir'] = $docDir;
+            }
+            $projectDocsTabHref = '/admin/project.php?' . http_build_query($projectDocsTabQuery);
+            ?>
+            <a class="meta-chip meta-chip--link" href="<?= htmlspecialchars($projectDocsTabHref) ?>" title="Open project (Docs tab)">
                 <i class="bi bi-kanban"></i><?= htmlspecialchars((string)$doc['project_name']) ?>
             </a>
             <span class="meta-chip" title="<?= htmlspecialchars(st_absolute_time_attr($doc['created_at'] ?? null)) ?>">
