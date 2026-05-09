@@ -232,6 +232,22 @@ def test_create_document_requires_project_id(php_server):
     )
     assert r2.status_code == 400, r2.text
 
+    r3 = requests.post(
+        _url(base, "/api/create-document.php"),
+        headers=headers,
+        json={"project_id": None, "title": "Null pid"},
+        timeout=5,
+    )
+    assert r3.status_code == 400, r3.text
+
+    r4 = requests.post(
+        _url(base, "/api/create-document.php"),
+        headers=headers,
+        json={"project_id": "x", "title": "Bad pid type"},
+        timeout=5,
+    )
+    assert r4.status_code == 400, r4.text
+
 
 def test_document_endpoints_reject_unknown_ids(php_server):
     base = php_server.base_url
