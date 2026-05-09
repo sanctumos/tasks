@@ -24,6 +24,15 @@ if (empty($accessibleProjects)) {
 }
 
 $preselectId = isset($_GET['project_id']) ? (int)$_GET['project_id'] : 0;
+$preselectValid = false;
+if ($preselectId > 0) {
+    foreach ($accessibleProjects as $p) {
+        if ((int)$p['id'] === $preselectId) {
+            $preselectValid = true;
+            break;
+        }
+    }
+}
 
 $pageTitle = 'New document';
 $adminBreadcrumbs = [
@@ -52,8 +61,11 @@ require __DIR__ . '/_layout_top.php';
             <div class="col-12 col-md-4">
                 <label class="form-label">Project</label>
                 <select class="form-select" name="project_id" required>
+                    <?php if (!$preselectValid): ?>
+                        <option value="" disabled selected>Select a project…</option>
+                    <?php endif; ?>
                     <?php foreach ($accessibleProjects as $p): ?>
-                        <option value="<?= (int)$p['id'] ?>" <?= $preselectId === (int)$p['id'] ? 'selected' : '' ?>><?= htmlspecialchars((string)$p['name']) ?></option>
+                        <option value="<?= (int)$p['id'] ?>" <?= ($preselectValid && $preselectId === (int)$p['id']) ? 'selected' : '' ?>><?= htmlspecialchars((string)$p['name']) ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
