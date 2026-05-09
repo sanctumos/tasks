@@ -211,6 +211,28 @@ def test_document_public_share_url_and_guest_view(php_server):
     assert stale.status_code == 404
 
 
+def test_create_document_requires_project_id(php_server):
+    """API and DB layer reject creates with missing or zero project_id."""
+    base = php_server.base_url
+    headers = _h(php_server.api_key)
+    r = requests.post(
+        _url(base, "/api/create-document.php"),
+        headers=headers,
+        json={"title": "Orphan doc attempt"},
+        timeout=5,
+    )
+    assert r.status_code == 400, r.text
+    body = r.json()
+    assert body.get("success") is False
+    r2 = requests.post(
+        _url(base, "/api/create-document.php"),
+        headers=headers,
+        json={"project_id": 0, "title": "Bad pid"},
+        timeout=5,
+    )
+    assert r2.status_code == 400, r2.text
+
+
 def test_document_endpoints_reject_unknown_ids(php_server):
     base = php_server.base_url
     headers = _h(php_server.api_key)

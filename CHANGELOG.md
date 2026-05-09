@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- **Documents must belong to a project** — `createDocument()` rejects `project_id <= 0` with a clear error (DB already had `NOT NULL`). **New doc** admin form no longer defaults to the first project in the list: users choose **Select a project…** unless opened with a valid `?project_id=` (e.g. from a project’s **New doc** button).
 - **`js-copy-link`** no longer prepends `window.location.origin` when `data-copy-url` is already absolute — fixes doubled hosts like `https://tasks.example…https://…/shared-document.php` on **Copy public URL**. Admin JS cache-bust `?v=5`.
 - **`TASKS_APP_BASE_URL`** tolerates accidental double-pasted origins (`https://ahttps://b` → `https://a`). Canonical public document links still rely on **`TASKS_APP_BASE_URL`** (or **`requestOrigin()`** without trusting client **`Host`** — bind IP/username may appear when unset).
 

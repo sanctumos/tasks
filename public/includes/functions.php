@@ -3300,6 +3300,9 @@ function createDocument(int $userId, int $projectId, string $title, ?string $bod
     if ($title === null) {
         return ['success' => false, 'error' => 'Title is required'];
     }
+    if ($projectId <= 0) {
+        return ['success' => false, 'error' => 'project_id is required'];
+    }
     $body = normalizeDocumentBody($body);
     $directoryPath = normalizeDocumentDirectoryPath($directoryPath ?? '');
     $proj = getDirectoryProjectById($projectId);

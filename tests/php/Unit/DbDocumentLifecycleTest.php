@@ -36,6 +36,10 @@ final class DbDocumentLifecycleTest extends TestCase
         $badProject = createDocument($uid, 999999, 'Whatever', 'body');
         $this->assertFalse($badProject['success']);
 
+        $noProjectId = createDocument($uid, 0, 'Whatever', 'body');
+        $this->assertFalse($noProjectId['success']);
+        $this->assertSame('project_id is required', $noProjectId['error'] ?? null);
+
         $ok = createDocument($uid, $pid, 'Spec — onboarding flow', "# Title\n\nBody **bold**.");
         $this->assertTrue($ok['success'], (string)($ok['error'] ?? 'create doc'));
 
