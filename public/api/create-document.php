@@ -12,7 +12,19 @@ if ($body === null) {
     apiError('validation.invalid_json', 'Invalid JSON body', 400);
 }
 
-$projectId = isset($body['project_id']) ? (int)$body['project_id'] : 0;
+// project_id is mandatory: must appear in JSON and be a positive integer (FK to directory project).
+if (!is_array($body) || !array_key_exists('project_id', $body)) {
+    apiError('validation.invalid_project_id', 'project_id is required', 400);
+}
+$projectId = filter_var(
+    $body['project_id'],
+    FILTER_VALIDATE_INT,
+    ['options' => ['min_range' => 1]]
+);
+if ($projectId === false) {
+    apiError('validation.invalid_project_id', 'project_id must be a positive integer', 400);
+}
+
 $title = (string)($body['title'] ?? '');
 $content = $body['body'] ?? null;
 $directoryPath = isset($body['directory_path']) ? (string)$body['directory_path'] : '';
@@ -20,10 +32,6 @@ $directoryPath = isset($body['directory_path']) ? (string)$body['directory_path'
 $wantPublicSharing = isset($body['public_link_enabled'])
     ? filter_var($body['public_link_enabled'], FILTER_VALIDATE_BOOLEAN)
     : false;
-
-if ($projectId <= 0) {
-    apiError('validation.invalid_project_id', 'project_id is required', 400);
-}
 
 $result = createDocument((int)$user['id'], $projectId, $title, $content, $directoryPath, $wantPublicSharing);
 if (!$result['success']) {
