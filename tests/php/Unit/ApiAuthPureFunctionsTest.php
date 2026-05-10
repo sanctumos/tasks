@@ -12,7 +12,16 @@ final class ApiAuthPureFunctionsTest extends TestCase
     {
         putenv('TASKS_APP_BASE_URL');
         unset($_ENV['TASKS_APP_BASE_URL']);
-        unset($_SERVER['HTTPS'], $_SERVER['SERVER_PORT'], $_SERVER['SERVER_NAME'], $_SERVER['SERVER_ADDR']);
+        unset(
+            $_SERVER['HTTPS'],
+            $_SERVER['SERVER_PORT'],
+            $_SERVER['SERVER_NAME'],
+            $_SERVER['SERVER_ADDR'],
+            $_SERVER['HTTP_X_FORWARDED_PROTO'],
+            $_SERVER['HTTP_X_FORWARDED_HOST'],
+            $_SERVER['HTTP_X_FORWARDED_PORT'],
+            $_SERVER['REMOTE_ADDR'],
+        );
         parent::tearDown();
     }
 
@@ -58,5 +67,20 @@ final class ApiAuthPureFunctionsTest extends TestCase
         $this->assertSame(25, $meta['total']);
         $this->assertSame(10, $meta['next_offset']);
         $this->assertNotNull($meta['next_url']);
+    }
+
+    public function testRequestOriginPrefersServerNameOverBindIp(): void
+    {
+        require_once dirname(__DIR__, 3) . '/public/includes/api_auth.php';
+
+        putenv('TASKS_APP_BASE_URL');
+        unset($_ENV['TASKS_APP_BASE_URL']);
+
+        $_SERVER['HTTPS'] = 'on';
+        $_SERVER['SERVER_PORT'] = '443';
+        $_SERVER['SERVER_NAME'] = 'tasks.example.com';
+        $_SERVER['SERVER_ADDR'] = '64.95.10.156';
+
+        $this->assertSame('https://tasks.example.com', requestOrigin());
     }
 }

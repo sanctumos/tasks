@@ -67,6 +67,12 @@ function setRateLimitHeaders(array $rateState): void {
 }
 
 function requestScheme(): string {
+    if (tasksTrustedProxyConnection()) {
+        $xfp = strtolower(trim((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
+        if ($xfp === 'https' || $xfp === 'http') {
+            return $xfp;
+        }
+    }
     $https = strtolower((string)($_SERVER['HTTPS'] ?? ''));
     return ($https !== '' && $https !== 'off') ? 'https' : 'http';
 }
@@ -126,6 +132,23 @@ function normalizedPortFromServer(string $scheme): ?int {
     return $port;
 }
 
+/** Prefer X-Forwarded-Port when behind a trusted proxy; otherwise SERVER_PORT. */
+function normalizedPortFromForwardedOrServer(string $scheme): ?int {
+    if (tasksTrustedProxyConnection()) {
+        $raw = trim((string)($_SERVER['HTTP_X_FORWARDED_PORT'] ?? ''));
+        if ($raw !== '' && ctype_digit($raw)) {
+            $port = (int)$raw;
+            if ($port > 0 && $port <= 65535) {
+                if (($scheme === 'http' && $port === 80) || ($scheme === 'https' && $port === 443)) {
+                    return null;
+                }
+                return $port;
+            }
+        }
+    }
+    return normalizedPortFromServer($scheme);
+}
+
 /**
  * Recover from broken env paste like "https://ahttps://b" — keep leftmost absolute origin.
  */
@@ -179,11 +202,23 @@ function requestOrigin(): string {
     }
 
     $scheme = requestScheme();
+
+    // Trusted reverse proxy: prefer forwarded virtual host (public hostname), not the upstream bind IP.
+    if (tasksTrustedProxyConnection()) {
+        $xfh = trim(explode(',', (string)($_SERVER['HTTP_X_FORWARDED_HOST'] ?? ''), 2)[0]);
+        $san = sanitizeUrlHost($xfh);
+        if ($san !== null) {
+            $port = normalizedPortFromForwardedOrServer($scheme);
+            $portSuffix = $port !== null ? (':' . $port) : '';
+            return $scheme . '://' . $san . $portSuffix;
+        }
+    }
+
     $host = 'localhost';
-    // Do not trust client-supplied Host for origin URLs when TRUST_PROXY is off (pagination / SSRF regressions).
+    // Prefer SERVER_NAME (vhost / server_name) over SERVER_ADDR (bind IP); never trust client Host here (SSRF).
     foreach ([
-        (string)($_SERVER['SERVER_ADDR'] ?? ''),
         (string)($_SERVER['SERVER_NAME'] ?? ''),
+        (string)($_SERVER['SERVER_ADDR'] ?? ''),
     ] as $candidate) {
         $candidate = trim(explode(',', $candidate, 2)[0]);
         if ($candidate === '') {
@@ -195,7 +230,7 @@ function requestOrigin(): string {
             break;
         }
     }
-    $port = normalizedPortFromServer($scheme);
+    $port = normalizedPortFromForwardedOrServer($scheme);
     $portSuffix = $port !== null ? (':' . $port) : '';
     return $scheme . '://' . $host . $portSuffix;
 }
