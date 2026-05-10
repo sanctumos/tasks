@@ -8,17 +8,26 @@ function nowUtc(): string {
     return gmdate('Y-m-d H:i:s');
 }
 
+/** True when the direct TCP peer is allow-listed as a trusted reverse proxy (see TASKS_TRUST_PROXY). */
+function tasksTrustedProxyConnection(): bool {
+    if (!TRUST_PROXY) {
+        return false;
+    }
+    $remoteAddr = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    if ($remoteAddr === '') {
+        return false;
+    }
+    $trustedList = array_map('trim', array_filter(explode(',', (string)TRUSTED_PROXY_IPS)));
+    return $trustedList !== [] && in_array($remoteAddr, $trustedList, true);
+}
+
 function requestIpAddress(): string {
     $remoteAddr = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
     if ($remoteAddr === '') {
         return 'unknown';
     }
 
-    if (!TRUST_PROXY) {
-        return $remoteAddr;
-    }
-    $trustedList = array_map('trim', array_filter(explode(',', (string)TRUSTED_PROXY_IPS)));
-    if ($trustedList === [] || !in_array($remoteAddr, $trustedList, true)) {
+    if (!tasksTrustedProxyConnection()) {
         return $remoteAddr;
     }
 
