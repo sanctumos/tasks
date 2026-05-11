@@ -615,7 +615,8 @@ function initializeDatabase() {
     ensureIndexExists($db, 'idx_comments_task', 'CREATE INDEX idx_comments_task ON task_comments(task_id)');
     ensureIndexExists($db, 'idx_watchers_user', 'CREATE INDEX idx_watchers_user ON task_watchers(user_id)');
     ensureIndexExists($db, 'idx_attachments_task', 'CREATE INDEX idx_attachments_task ON task_attachments(task_id)');
-    ensureIndexExists($db, 'idx_audit_logs_action_time', 'CREATE INDEX idx_audit_logs_action_time ON audit_logs(action, created_at)');
+        ensureIndexExists($db, 'idx_audit_logs_action_time', 'CREATE INDEX idx_audit_logs_action_time ON audit_logs(action, created_at)');
+        ensureIndexExists($db, 'idx_audit_logs_created_at', 'CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at)');
 
     applySanctumSchemaMigrations($db);
 

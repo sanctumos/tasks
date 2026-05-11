@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Directory activity timeline (Basecamp-style)** — audit-backed feeds scoped by **`project_id`** or by **`user_id`** (actor), with pagination via **`before_id`**. PHP: `public/includes/activity_feed.php` (`listDirectoryProjectActivity`, `listUserActivityFeedForViewer`, enrichment for summaries/links). API: **`GET /api/list-activity.php`**. Admin: **Activity** nav, **`/admin/activity.php`**, **Activity** tab on **`/admin/project.php`**, and a **Recent activity** block on the home dashboard; styles in **`public/assets/admin.css`**. Task deletes record **`project_id`** / title in audit metadata so they remain visible after the row is gone. Index: **`audit_logs(created_at)`** (bootstrap / `config.php`). Tests: **`tests/php/Unit/ActivityFeedTest.php`**, pytest **`test_list_activity_*`** in **`tests/integration/test_php_api_admin_integration.py`**.
+
 ### Fixed
 
 - **Project workspace** — define `st_tab_link()` **before** `_layout_top.php` runs so tab HTML never follows a function declaration after partial output (avoids blank/broken project pages on some PHP/production setups).

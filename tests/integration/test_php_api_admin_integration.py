@@ -838,3 +838,111 @@ def test_lockout_after_repeated_failed_logins(php_lockout_server):
     payload = locked.json()
     assert payload["error_object"]["code"] == "auth.login_failed"
     assert payload["error_object"]["details"]["lockout_seconds"] > 0
+
+
+def test_list_activity_requires_exactly_one_scope(php_server):
+    base_url = php_server.base_url
+    headers = _auth_headers(php_server.api_key)
+
+    missing = requests.get(_api_url(base_url, "/api/list-activity.php"), headers=headers, timeout=5)
+    assert missing.status_code == 400
+    assert missing.json()["error_object"]["code"] == "validation.bad_request"
+
+    both = requests.get(
+        _api_url(base_url, "/api/list-activity.php"),
+        headers=headers,
+        params={"project_id": 1, "user_id": 1},
+        timeout=5,
+    )
+    assert both.status_code == 400
+
+
+def test_list_activity_project_and_user_feeds(php_server):
+    base_url = php_server.base_url
+    admin_headers = _auth_headers(php_server.api_key)
+    token = uuid.uuid4().hex[:8]
+
+    health = requests.get(
+        _api_url(base_url, "/api/health.php"),
+        headers=admin_headers,
+        timeout=5,
+    )
+    assert health.status_code == 200
+    admin_user_id = int(health.json()["user"]["id"])
+
+    proj_id = _create_directory_project(base_url, php_server.api_key, f"Activity-{token}")
+    list_id = _first_list_id(base_url, php_server.api_key, proj_id)
+
+    create_resp = requests.post(
+        _api_url(base_url, "/api/create-task.php"),
+        headers=admin_headers,
+        json={
+            "title": f"Timeline task {token}",
+            "status": "todo",
+            "priority": "normal",
+            "project_id": proj_id,
+            "list_id": list_id,
+        },
+        timeout=5,
+    )
+    assert create_resp.status_code == 201
+    task_id = int(create_resp.json()["task"]["id"])
+
+    requests.post(
+        _api_url(base_url, "/api/create-comment.php"),
+        headers=admin_headers,
+        json={"task_id": task_id, "comment": "visible on activity"},
+        timeout=5,
+    )
+
+    proj_feed = requests.get(
+        _api_url(base_url, "/api/list-activity.php"),
+        headers=admin_headers,
+        params={"project_id": proj_id, "limit": 50},
+        timeout=5,
+    )
+    assert proj_feed.status_code == 200
+    pdata = proj_feed.json()["data"]
+    actions = {e["action"] for e in pdata["events"]}
+    assert "task.create" in actions
+    assert "task.comment_add" in actions
+    for ev in pdata["events"]:
+        assert "ip_address" not in ev
+
+    user_feed = requests.get(
+        _api_url(base_url, "/api/list-activity.php"),
+        headers=admin_headers,
+        params={"user_id": admin_user_id},
+        timeout=5,
+    )
+    assert user_feed.status_code == 200
+    udata = user_feed.json()["data"]
+    assert udata["count"] == len(udata["events"])
+    u_actions = {e["action"] for e in udata["events"]}
+    assert "task.create" in u_actions
+
+    member_user = f"member_act_{token}"
+    create_member = requests.post(
+        _api_url(base_url, "/api/create-user.php"),
+        headers=admin_headers,
+        json={
+            "username": member_user,
+            "password": "MemberPass123456",
+            "role": "member",
+            "must_change_password": False,
+            "create_api_key": True,
+        },
+        timeout=5,
+    )
+    assert create_member.status_code == 201
+    member_key = create_member.json()["api_key"]
+    member_headers = _auth_headers(member_key)
+
+    forbidden = requests.get(
+        _api_url(base_url, "/api/list-activity.php"),
+        headers=member_headers,
+        params={"user_id": admin_user_id},
+        timeout=5,
+    )
+    assert forbidden.status_code == 403
+    assert forbidden.json()["error_object"]["code"] == "auth.forbidden"

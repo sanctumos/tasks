@@ -39,7 +39,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
 
 $canManage = userCanManageDirectoryProject($currentUser, $project);
 $tab = (string)($_GET['tab'] ?? 'lists');
-if (!in_array($tab, ['tasks', 'lists', 'docs', 'members', 'settings'], true)) {
+if (!in_array($tab, ['tasks', 'lists', 'activity', 'docs', 'members', 'settings'], true)) {
     $tab = 'lists';
 }
 
@@ -119,6 +119,11 @@ if ($tab === 'docs') {
     $aggProjectDocs = aggregateDocumentsForDirectoryView($projectDocs, $projectDocCurrentDir);
     $projectDocsDirChildren = $aggProjectDocs['dir_children'];
     $projectDocsInDir = $aggProjectDocs['documents_in_dir'];
+}
+$projectActivityItems = [];
+$projectActivityBefore = isset($_GET['before_id']) ? (int)$_GET['before_id'] : 0;
+if ($tab === 'activity') {
+    $projectActivityItems = listDirectoryProjectActivity($id, 80, $projectActivityBefore > 0 ? $projectActivityBefore : null);
 }
 $orgUsers = [];
 $pOrgId = (int)$project['org_id'];
@@ -215,6 +220,7 @@ $pageTitle = $project['name'];
 $tabHuman = [
     'tasks' => 'Tasks',
     'lists' => 'Lists',
+    'activity' => 'Activity',
     'docs' => 'Docs',
     'members' => 'Members',
     'settings' => 'Settings',
@@ -260,6 +266,7 @@ require __DIR__ . '/_layout_top.php';
 <nav class="tabbar" aria-label="Project sections">
     <?= st_tab_link('lists', $tab, 'Lists', 'bi-card-checklist', count($lists)) ?>
     <?= st_tab_link('tasks', $tab, 'Tasks', 'bi-list-check', $totalTasks) ?>
+    <?= st_tab_link('activity', $tab, 'Activity', 'bi-activity', null) ?>
     <?= st_tab_link('docs', $tab, 'Docs', 'bi-journals', $projectDocsCount) ?>
     <?= st_tab_link('members', $tab, 'Members', 'bi-people', count($members)) ?>
     <?php if ($canManage): ?>
@@ -468,6 +475,41 @@ require __DIR__ . '/_layout_top.php';
                 <?php foreach ($tasksUnfiled as $t): echo $renderTodoRow($t); endforeach; ?>
             </ol>
         </section>
+    <?php endif; ?>
+
+<?php elseif ($tab === 'activity'): ?>
+    <div class="surface surface-pad mb-3">
+        <div class="section-title"><i class="bi bi-activity"></i> Project activity</div>
+        <p class="text-muted small mb-0">Chronological feed from this project’s tasks, docs, lists, and membership — same idea as Basecamp’s <strong>Activity</strong> / timeline.</p>
+    </div>
+    <?php if (empty($projectActivityItems)): ?>
+        <div class="surface surface-pad text-center text-muted">
+            <p class="mb-0">No recorded activity yet. Create tasks, comment, or edit docs — events show up here.</p>
+        </div>
+    <?php else: ?>
+        <ul class="activity-feed list-unstyled mb-0">
+            <?php foreach ($projectActivityItems as $ev): ?>
+                <li class="activity-feed__item surface surface-pad">
+                    <div class="activity-feed__icon"><i class="bi <?= htmlspecialchars((string)($ev['icon'] ?? 'bi-activity')) ?>"></i></div>
+                    <div class="activity-feed__body">
+                        <a class="activity-feed__summary stretched-link" href="<?= htmlspecialchars((string)($ev['href'] ?? '/admin/')) ?>"><?= htmlspecialchars((string)($ev['summary'] ?? '')) ?></a>
+                        <div class="activity-feed__meta text-muted small">
+                            <span title="<?= htmlspecialchars(st_absolute_time_attr($ev['created_at'] ?? null)) ?>"><?= htmlspecialchars(st_absolute_time($ev['created_at'] ?? null)) ?></span>
+                            <span class="ms-1">· <?= htmlspecialchars(st_relative_time($ev['created_at'] ?? null)) ?></span>
+                        </div>
+                    </div>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+        <?php
+        $oldestId = (int)($projectActivityItems[count($projectActivityItems) - 1]['id'] ?? 0);
+        if ($oldestId > 0 && count($projectActivityItems) >= 80):
+            $moreQ = http_build_query(['id' => $id, 'tab' => 'activity', 'before_id' => $oldestId]);
+            ?>
+            <div class="text-center mt-3">
+                <a class="btn btn-outline-secondary btn-sm" href="/admin/project.php?<?= htmlspecialchars($moreQ) ?>">Load older</a>
+            </div>
+        <?php endif; ?>
     <?php endif; ?>
 
 <?php elseif ($tab === 'docs'): ?>

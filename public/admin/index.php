@@ -67,6 +67,11 @@ $flashError = $_SESSION['admin_flash_error'] ?? null;
 $flashSuccess = $_SESSION['admin_flash_success'] ?? null;
 unset($_SESSION['admin_flash_error'], $_SESSION['admin_flash_success']);
 
+$homeActivityFeed = listUserActivityFeedForViewer($currentUser, (int)$currentUser['id'], 10, null);
+if ($homeActivityFeed === null) {
+    $homeActivityFeed = [];
+}
+
 $pageTitle = 'Home';
 $adminBreadcrumbs = [['label' => 'Home']];
 require __DIR__ . '/_layout_top.php';
@@ -147,6 +152,26 @@ function st_render_task_assignee_html(array $t): string {
         </div>
     <?php endif; ?>
 </section>
+
+<?php if (!empty($homeActivityFeed)): ?>
+<section class="st-home-activity mb-5" aria-labelledby="st-home-activity-heading">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <h2 id="st-home-activity-heading" class="h5 mb-0 d-flex align-items-center gap-2"><i class="bi bi-activity me-2 text-muted"></i>Recent activity</h2>
+        <a class="btn btn-outline-secondary btn-sm" href="/admin/activity.php">Full timeline</a>
+    </div>
+    <ul class="activity-feed activity-feed--compact list-unstyled mb-0">
+        <?php foreach ($homeActivityFeed as $ev): ?>
+            <li class="activity-feed__item surface surface-pad mb-2">
+                <div class="activity-feed__icon"><i class="bi <?= htmlspecialchars((string)($ev['icon'] ?? 'bi-activity')) ?>"></i></div>
+                <div class="activity-feed__body">
+                    <a class="activity-feed__summary stretched-link text-decoration-none" href="<?= htmlspecialchars((string)($ev['href'] ?? '/admin/')) ?>"><?= htmlspecialchars((string)($ev['summary'] ?? '')) ?></a>
+                    <div class="activity-feed__meta text-muted small"><?= htmlspecialchars(st_relative_time($ev['created_at'] ?? null)) ?></div>
+                </div>
+            </li>
+        <?php endforeach; ?>
+    </ul>
+</section>
+<?php endif; ?>
 
 <hr class="st-home-rule text-muted opacity-50 my-5" aria-hidden="true">
 
