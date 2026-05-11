@@ -1934,6 +1934,7 @@ function deleteTask($id): array {
     if ($id <= 0) {
         return ['success' => false, 'error' => 'Invalid id'];
     }
+    $existing = getTaskById($id, false);
     $db = getDbConnection();
     $attachments = listTaskAttachments($id);
     foreach ($attachments as $attachment) {
@@ -1942,7 +1943,15 @@ function deleteTask($id): array {
     $stmt = $db->prepare("DELETE FROM tasks WHERE id = :id");
     $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
     $stmt->execute();
-    createAuditLog(null, 'task.delete', 'task', (string)$id);
+    $meta = [];
+    if ($existing) {
+        $pid = (int)($existing['project_id'] ?? 0);
+        if ($pid > 0) {
+            $meta['project_id'] = $pid;
+        }
+        $meta['title'] = (string)($existing['title'] ?? '');
+    }
+    createAuditLog(null, 'task.delete', 'task', (string)$id, $meta);
     return ['success' => true];
 }
 
@@ -3721,4 +3730,5 @@ function addDocumentComment(int $documentId, int $userId, string $comment): arra
     return ['success' => true, 'id' => $id, 'created_at' => $createdAt];
 }
 
+require_once __DIR__ . '/activity_feed.php';
 require_once __DIR__ . '/notifications.php';

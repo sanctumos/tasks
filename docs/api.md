@@ -326,6 +326,23 @@ Aggregated **for the authenticated API user only** (cookie session or API key). 
 
 Kinds include: `task_assigned`, `task_mention`, `task_comment_mention`, `task_comment_activity`, `document_mention`, `document_comment_mention`, `document_comment_activity`.
 
+#### Directory activity (timeline)
+
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| `GET` | `/api/list-activity.php` | **Exactly one** of `project_id` or `user_id`. |
+
+**Query parameters**
+
+| Name | Required | Notes |
+| ---- | -------- | ----- |
+| `project_id` | One-of | Events tied to this directory project (task lifecycle, comments, attachments, watchers, documents, doc comments, project membership/settings, list creation, task deletes with `project_id` in audit metadata). Caller must pass `userCanAccessDirectoryProject`. |
+| `user_id` | One-of | Events where that user is the **actor**, limited to directory projects the caller can access. **403** if the caller may not read another user’s feed (members and limited managers cannot query other users; **self** is always allowed). Admins and unrestricted managers may query peers. |
+| `limit` | No | Default **50**, max **200**. |
+| `before_id` | No | Cursor: return rows with audit log `id` **strictly less** than this value (older items). |
+
+**Response `200`:** `events` (each item includes `id`, `actor_user_id`, `actor_username`, `action`, `entity_type`, `entity_id`, `metadata`, `created_at`, human `summary`, admin `href`, Bootstrap-icon `icon`, optional `task_title` / `document_title`), and `count`. **`ip_address` is never included** in API JSON.
+
 ---
 
 ### Taxonomy helpers

@@ -835,3 +835,47 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
 @media (max-width: 575.98px) {
     .st-home-projects__toolbar { flex-direction: column; align-items: flex-start; }
 }
+
+/* ---------- Activity timeline (Basecamp-style feed) ---------- */
+.activity-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.activity-feed__item {
+    display: grid;
+    grid-template-columns: 2.35rem 1fr;
+    gap: 0.75rem;
+    align-items: flex-start;
+    position: relative;
+}
+.activity-feed__icon {
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 999px;
+    background: var(--st-bg-soft, #f1f5f9);
+    border: 1px solid var(--st-border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--st-accent, #3b5bdb);
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+.activity-feed__summary {
+    font-weight: 500;
+    color: var(--st-text-primary);
+    line-height: 1.35;
+}
+.activity-feed__summary:hover {
+    color: var(--st-accent);
+}
+.activity-feed__meta { margin-top: 0.2rem; }
+.activity-feed--compact .activity-feed__item {
+    margin-bottom: 0.35rem;
+}
+.activity-feed--compact .activity-feed__icon {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.9rem;
+}
