@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Project Timeline tab** (`/admin/project.php?tab=timeline`) — thirteen **Monday–Sunday (UTC)** columns centered on the week of optional **`anchor=Y-m-d`**, with **Today** week highlighted, tasks placed by **`due_at`**, **« 6w / 1w ›** navigation (Basecamp Lineup / Schedule–style), plus side lists for **no due date** and **due outside the window**. Tab badge shows count of tasks with any due date. **Docs** tab links no longer carry `dir=` onto other tabs.
+
 ### Fixed
 
 - **`public_share_url` / pagination origins no longer prefer bind IP over vhost hostname** — `requestOrigin()` now uses **`SERVER_NAME` before `SERVER_ADDR`**, and when **`TASKS_TRUST_PROXY`** + **`TASKS_TRUSTED_PROXY_IPS`** match the direct peer, **`X-Forwarded-Host`** / **`X-Forwarded-Proto`** / optional **`X-Forwarded-Port`** build the origin (TLS-terminated proxies). Fixes **Copy public URL** copying `https://64.x…/` when **`TASKS_APP_BASE_URL`** is unset. **Production:** still set **`TASKS_APP_BASE_URL=https://tasks.decisionsciencecorp.com`** for a canonical origin regardless of PHP-FPM socket vars.
