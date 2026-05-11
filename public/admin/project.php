@@ -1,7 +1,7 @@
 <?php
 /**
  * Project workspace v2 — single project surface with tabs:
- *   Tasks  ·  Lists  ·  Members  ·  Settings
+ *   Lists  ·  Tasks  ·  Timeline  ·  Docs  ·  Members  ·  Settings
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -23,7 +23,7 @@ if (!$project || !userCanAccessDirectoryProject($currentUser, $project)) {
 
 $canManage = userCanManageDirectoryProject($currentUser, $project);
 $tab = (string)($_GET['tab'] ?? 'lists');
-if (!in_array($tab, ['tasks', 'lists', 'docs', 'members', 'settings'], true)) {
+if (!in_array($tab, ['tasks', 'lists', 'timeline', 'docs', 'members', 'settings'], true)) {
     $tab = 'lists';
 }
 
@@ -137,6 +137,13 @@ foreach ($legacyTasksResult['tasks'] as $lt) {
 }
 $totalTasks = count($projectTasks);
 
+$timelineScheduledCount = 0;
+foreach ($projectTasks as $_t) {
+    if (!empty($_t['due_at'])) {
+        $timelineScheduledCount++;
+    }
+}
+
 $statuses = listTaskStatuses();
 $statusMap = [];
 foreach ($statuses as $s) { $statusMap[$s['slug']] = $s; }
@@ -199,6 +206,7 @@ $pageTitle = $project['name'];
 $tabHuman = [
     'tasks' => 'Tasks',
     'lists' => 'Lists',
+    'timeline' => 'Timeline',
     'docs' => 'Docs',
     'members' => 'Members',
     'settings' => 'Settings',
@@ -218,9 +226,11 @@ require __DIR__ . '/_layout_top.php';
 function st_tab_link(string $tab, string $active, string $label, string $icon, ?int $count = null): string {
     $cls = $active === $tab ? 'active' : '';
     $q = ['id' => (int)($_GET['id'] ?? 0), 'tab' => $tab];
-    $dir = normalizeDocumentDirectoryPath((string)($_GET['dir'] ?? ''));
-    if ($dir !== '') {
-        $q['dir'] = $dir;
+    if ($tab === 'docs') {
+        $dir = normalizeDocumentDirectoryPath((string)($_GET['dir'] ?? ''));
+        if ($dir !== '') {
+            $q['dir'] = $dir;
+        }
     }
     $href = '/admin/project.php?' . http_build_query($q);
     $countHtml = $count !== null ? '<span class="count">' . (int)$count . '</span>' : '';
@@ -257,6 +267,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
 <nav class="tabbar" aria-label="Project sections">
     <?= st_tab_link('lists', $tab, 'Lists', 'bi-card-checklist', count($lists)) ?>
     <?= st_tab_link('tasks', $tab, 'Tasks', 'bi-list-check', $totalTasks) ?>
+    <?= st_tab_link('timeline', $tab, 'Timeline', 'bi-calendar3', $timelineScheduledCount) ?>
     <?= st_tab_link('docs', $tab, 'Docs', 'bi-journals', $projectDocsCount) ?>
     <?= st_tab_link('members', $tab, 'Members', 'bi-people', count($members)) ?>
     <?php if ($canManage): ?>
@@ -562,6 +573,188 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
             </div>
             <?php endif; ?>
         <?php endif; ?>
+    </div>
+
+<?php elseif ($tab === 'timeline'):
+    $tzUtc = new DateTimeZone('UTC');
+    $mondayOf = static function (DateTimeImmutable $d): DateTimeImmutable {
+        $n = (int)$d->format('N');
+        return $d->setTime(0, 0, 0)->modify('-' . ($n - 1) . ' days');
+    };
+    $today = new DateTimeImmutable('now', $tzUtc)->setTime(0, 0, 0);
+    $anchorRaw = trim((string)($_GET['anchor'] ?? ''));
+    $anchorDay = $today;
+    if ($anchorRaw !== '') {
+        $parsed = DateTimeImmutable::createFromFormat('Y-m-d', $anchorRaw, $tzUtc);
+        if ($parsed instanceof DateTimeImmutable) {
+            $anchorDay = $parsed->setTime(0, 0, 0);
+        }
+    }
+    $centerMonday = $mondayOf($anchorDay);
+    $windowStart = $centerMonday->modify('-6 weeks');
+    $todayMonday = $mondayOf($today);
+
+    $weekColumns = [];
+    for ($wi = 0; $wi < 13; $wi++) {
+        $w = $windowStart->modify('+' . $wi . ' weeks');
+        $sun = $w->modify('+6 days');
+        $weekColumns[] = [
+            'mon' => $w,
+            'key' => $w->format('Y-m-d'),
+            'label' => $w->format('M j') . ' – ' . $sun->format('M j'),
+            'is_today_week' => $w->format('Y-m-d') === $todayMonday->format('Y-m-d'),
+        ];
+    }
+
+    $bucketKeys = [];
+    foreach ($weekColumns as $wc) {
+        $bucketKeys[$wc['key']] = true;
+    }
+    $buckets = [];
+    foreach (array_keys($bucketKeys) as $bk) {
+        $buckets[$bk] = [];
+    }
+    $unscheduled = [];
+    $outsideWindow = [];
+    foreach ($projectTasks as $t) {
+        $due = trim((string)($t['due_at'] ?? ''));
+        if ($due === '') {
+            $unscheduled[] = $t;
+            continue;
+        }
+        $datePart = substr($due, 0, 10);
+        $parsedDue = DateTimeImmutable::createFromFormat('Y-m-d', $datePart, $tzUtc);
+        if (!$parsedDue instanceof DateTimeImmutable) {
+            $unscheduled[] = $t;
+            continue;
+        }
+        $dueMonday = $mondayOf($parsedDue);
+        $key = $dueMonday->format('Y-m-d');
+        if (isset($buckets[$key])) {
+            $buckets[$key][] = $t;
+        } else {
+            $outsideWindow[] = $t;
+        }
+    }
+    foreach ($buckets as &$rows) {
+        usort($rows, static function (array $a, array $b): int {
+            $ad = (string)($a['due_at'] ?? '');
+            $bd = (string)($b['due_at'] ?? '');
+            if ($ad !== $bd) {
+                return strcmp($ad, $bd);
+            }
+            return strcmp((string)($a['title'] ?? ''), (string)($b['title'] ?? ''));
+        });
+    }
+    unset($rows);
+    usort($unscheduled, static function (array $a, array $b): int {
+        return strcmp((string)($b['updated_at'] ?? ''), (string)($a['updated_at'] ?? ''));
+    });
+    usort($outsideWindow, static function (array $a, array $b): int {
+        return strcmp((string)($a['due_at'] ?? ''), (string)($b['due_at'] ?? ''));
+    });
+
+    $baseTimeline = '/admin/project.php?' . http_build_query(['id' => $id, 'tab' => 'timeline']);
+    $linkAnchor = static function (string $base, string $ymd): string {
+        return $base . '&anchor=' . rawurlencode($ymd);
+    };
+    $prev1 = $linkAnchor($baseTimeline, $centerMonday->modify('-1 weeks')->format('Y-m-d'));
+    $next1 = $linkAnchor($baseTimeline, $centerMonday->modify('+1 weeks')->format('Y-m-d'));
+    $prev6 = $linkAnchor($baseTimeline, $centerMonday->modify('-6 weeks')->format('Y-m-d'));
+    $next6 = $linkAnchor($baseTimeline, $centerMonday->modify('+6 weeks')->format('Y-m-d'));
+    $todayUrl = $linkAnchor($baseTimeline, $today->format('Y-m-d'));
+    $rangeLabel = $weekColumns[0]['mon']->format('M j, Y') . ' — ' . $weekColumns[12]['mon']->modify('+6 days')->format('M j, Y');
+    ?>
+
+    <div class="timeline-intro surface surface-pad mb-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+                <div class="section-title mb-1"><i class="bi bi-calendar3"></i> Timeline</div>
+                <p class="text-muted small mb-0">
+                    Thirteen weeks centered on the week of <strong><?= htmlspecialchars($centerMonday->format('M j, Y')) ?></strong>
+                    (like Basecamp Lineup / Schedule — due dates only; open a task to change dates).
+                </p>
+            </div>
+            <div class="timeline-toolbar btn-group btn-group-sm" role="group" aria-label="Move timeline window">
+                <a class="btn btn-outline-secondary" href="<?= htmlspecialchars($prev6) ?>" title="Six weeks earlier">« 6w</a>
+                <a class="btn btn-outline-secondary" href="<?= htmlspecialchars($prev1) ?>" title="One week earlier">‹</a>
+                <a class="btn btn-outline-primary" href="<?= htmlspecialchars($todayUrl) ?>">Today</a>
+                <a class="btn btn-outline-secondary" href="<?= htmlspecialchars($next1) ?>" title="One week later">›</a>
+                <a class="btn btn-outline-secondary" href="<?= htmlspecialchars($next6) ?>" title="Six weeks later">6w »</a>
+            </div>
+        </div>
+        <div class="text-muted small mt-2"><i class="bi bi-grip-vertical"></i> <?= htmlspecialchars($rangeLabel) ?> <span class="ms-1">· UTC week boundaries (Mon–Sun)</span></div>
+    </div>
+
+    <div class="timeline-layout">
+        <div class="timeline-strip-wrap surface">
+            <div class="timeline-strip" role="list" aria-label="Tasks by week">
+                <?php foreach ($weekColumns as $wc):
+                    $key = $wc['key'];
+                    $rows = $buckets[$key] ?? [];
+                    $wcCls = 'timeline-week' . (!empty($wc['is_today_week']) ? ' timeline-week--today' : '');
+                    ?>
+                    <section class="<?= htmlspecialchars($wcCls) ?>" aria-label="Week of <?= htmlspecialchars($wc['label']) ?>">
+                        <header class="timeline-week__head">
+                            <div class="timeline-week__title"><?= htmlspecialchars($wc['label']) ?></div>
+                            <div class="timeline-week__meta text-muted"><?= count($rows) ?> due</div>
+                        </header>
+                        <div class="timeline-week__body">
+                            <?php if (empty($rows)): ?>
+                                <div class="timeline-week__empty text-muted">—</div>
+                            <?php else: ?>
+                                <?php foreach ($rows as $t):
+                                    $isDone = (int)($t['status_is_done'] ?? 0) === 1;
+                                    $chipCls = 'timeline-chip' . ($isDone ? ' timeline-chip--done' : '');
+                                    ?>
+                                    <a class="<?= htmlspecialchars($chipCls) ?>" href="/admin/view.php?id=<?= (int)$t['id'] ?>">
+                                        <span class="timeline-chip__title"><?= htmlspecialchars((string)($t['title'] ?? '')) ?></span>
+                                        <span class="timeline-chip__sub text-muted"><?= htmlspecialchars(substr((string)($t['due_at'] ?? ''), 0, 10)) ?></span>
+                                    </a>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </section>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <aside class="timeline-sidebar">
+            <div class="surface surface-pad mb-3">
+                <div class="section-title"><i class="bi bi-inbox"></i> No due date <span class="count"><?= count($unscheduled) ?></span></div>
+                <p class="text-muted small">Set a due date on the task to place it on the strip.</p>
+                <?php if (empty($unscheduled)): ?>
+                    <p class="text-muted small mb-0">Nothing here — every task in this view has a due date, or there are no tasks yet.</p>
+                <?php else: ?>
+                    <ul class="timeline-sidebar-list list-unstyled mb-0">
+                        <?php foreach (array_slice($unscheduled, 0, 40) as $t): ?>
+                            <li>
+                                <a href="/admin/view.php?id=<?= (int)$t['id'] ?>"><?= htmlspecialchars((string)($t['title'] ?? '')) ?></a>
+                                <span class="text-muted small"> · <?= htmlspecialchars(st_relative_time($t['updated_at'] ?? null)) ?></span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <?php if (count($unscheduled) > 40): ?>
+                        <p class="text-muted small mb-0 mt-2">Showing 40 of <?= count($unscheduled) ?> — use <strong>Tasks</strong> for the full list.</p>
+                    <?php endif; ?>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!empty($outsideWindow)): ?>
+                <div class="surface surface-pad">
+                    <div class="section-title"><i class="bi bi-calendar-x"></i> Due outside this window <span class="count"><?= count($outsideWindow) ?></span></div>
+                    <p class="text-muted small">Earlier or later than the 13 weeks shown — use arrows or pick a center date with <code>?anchor=Y-m-d</code>.</p>
+                    <ul class="timeline-sidebar-list list-unstyled mb-0">
+                        <?php foreach (array_slice($outsideWindow, 0, 25) as $t): ?>
+                            <li>
+                                <a href="/admin/view.php?id=<?= (int)$t['id'] ?>"><?= htmlspecialchars((string)($t['title'] ?? '')) ?></a>
+                                <span class="text-muted small"> · <?= htmlspecialchars(substr((string)($t['due_at'] ?? ''), 0, 10)) ?></span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+            <?php endif; ?>
+        </aside>
     </div>
 
 <?php elseif ($tab === 'members'): ?>
