@@ -21,6 +21,22 @@ if (!$project || !userCanAccessDirectoryProject($currentUser, $project)) {
     exit;
 }
 
+/**
+ * Project tab links — must be declared before any HTML output (see _layout_top).
+ */
+function st_tab_link(string $tab, string $active, string $label, string $icon, ?int $count = null): string {
+    $cls = $active === $tab ? 'active' : '';
+    $q = ['id' => (int)($_GET['id'] ?? 0), 'tab' => $tab];
+    $dir = normalizeDocumentDirectoryPath((string)($_GET['dir'] ?? ''));
+    if ($dir !== '') {
+        $q['dir'] = $dir;
+    }
+    $href = '/admin/project.php?' . http_build_query($q);
+    $countHtml = $count !== null ? '<span class="count">' . (int)$count . '</span>' : '';
+    $aria = $active === $tab ? ' aria-current="page"' : '';
+    return '<a class="' . $cls . '" href="' . htmlspecialchars($href) . '"' . $aria . '><i class="bi ' . htmlspecialchars($icon) . '"></i><span>' . htmlspecialchars($label) . '</span>' . $countHtml . '</a>';
+}
+
 $canManage = userCanManageDirectoryProject($currentUser, $project);
 $tab = (string)($_GET['tab'] ?? 'lists');
 if (!in_array($tab, ['tasks', 'lists', 'docs', 'members', 'settings'], true)) {
@@ -214,19 +230,6 @@ if ($tab === 'lists') {
     $adminBreadcrumbs[] = ['label' => $tabHuman];
 }
 require __DIR__ . '/_layout_top.php';
-
-function st_tab_link(string $tab, string $active, string $label, string $icon, ?int $count = null): string {
-    $cls = $active === $tab ? 'active' : '';
-    $q = ['id' => (int)($_GET['id'] ?? 0), 'tab' => $tab];
-    $dir = normalizeDocumentDirectoryPath((string)($_GET['dir'] ?? ''));
-    if ($dir !== '') {
-        $q['dir'] = $dir;
-    }
-    $href = '/admin/project.php?' . http_build_query($q);
-    $countHtml = $count !== null ? '<span class="count">' . (int)$count . '</span>' : '';
-    $aria = $active === $tab ? ' aria-current="page"' : '';
-    return '<a class="' . $cls . '" href="' . htmlspecialchars($href) . '"' . $aria . '><i class="bi ' . htmlspecialchars($icon) . '"></i><span>' . htmlspecialchars($label) . '</span>' . $countHtml . '</a>';
-}
 ?>
 
 <div class="page-header">
