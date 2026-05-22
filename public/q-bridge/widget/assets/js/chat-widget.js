@@ -16,13 +16,15 @@
         position: 'bottom-right',
         theme: 'light',
         title: 'Chat with us',
+        chatterUsername: '',
         primaryColor: '#007bff',
         greeting: 'Hello! How can I help you today?',
         language: 'en',
         autoOpen: false,
         notifications: true,
         sound: true,
-        persistSession: false
+        persistSession: false,
+        historyLimit: 6
     };
 
     // Widget state
@@ -35,25 +37,22 @@
         messageCount: 0,
         eventListeners: {},
         typingTimeout: null,
-        lastResponseSince: null
+        lastResponseSince: null,
+        seenMessageIds: {},
+        historyLoading: false
     };
 
     // Widget HTML template
     const widgetTemplate = `
         <div class="sanctum-chat-widget" data-position="${config.position}" data-theme="${config.theme}">
-            <!-- Chat Bubble -->
-            <div class="sanctum-chat-bubble" id="sanctum-chat-bubble">
-                <svg viewBox="0 0 24 24">
-                    <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-                </svg>
-                <div class="notification-badge sanctum-hidden" id="sanctum-notification-badge">0</div>
-            </div>
-            
-            <!-- Chat Window -->
+            <!-- Chat Window (above bubble in layout) -->
             <div class="sanctum-chat-window" id="sanctum-chat-window">
                 <!-- Chat Header -->
                 <div class="sanctum-chat-header">
-                    <h3 id="sanctum-chat-title">${config.title}</h3>
+                    <div class="sanctum-chat-header-titles">
+                        <h3 id="sanctum-chat-title">${config.title}</h3>
+                        <p class="sanctum-chat-chatter" id="sanctum-chat-chatter"></p>
+                    </div>
                     <button class="close-btn" id="sanctum-chat-close">
                         <svg viewBox="0 0 24 24" width="20" height="20">
                             <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/>
@@ -85,6 +84,14 @@
                         </svg>
                     </button>
                 </div>
+            </div>
+
+            <!-- Chat Bubble — always bottom-right anchor -->
+            <div class="sanctum-chat-bubble" id="sanctum-chat-bubble">
+                <svg viewBox="0 0 24 24">
+                    <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
+                </svg>
+                <div class="notification-badge sanctum-hidden" id="sanctum-notification-badge">0</div>
             </div>
         </div>
     `;
@@ -208,6 +215,17 @@
             return (data && data.responses) ? data.responses : [];
         },
 
+        async getHistory(limit) {
+            if (!state.sessionId) {
+                throw new Error('No active session');
+            }
+            const data = await this.request('history', {
+                session_id: state.sessionId,
+                limit: String(limit || config.historyLimit || 6)
+            }, 'GET');
+            return data || { items: [], latest_response_at: null };
+        },
+
         // Update session
         async updateSession() {
             if (!state.sessionId) {
@@ -240,8 +258,11 @@
                 send: document.getElementById('sanctum-chat-send'),
                 close: document.getElementById('sanctum-chat-close'),
                 title: document.getElementById('sanctum-chat-title'),
+                chatter: document.getElementById('sanctum-chat-chatter'),
                 notificationBadge: document.getElementById('sanctum-notification-badge')
             };
+
+            this.applyChatterLabel();
 
             // Apply custom styles
             this.applyCustomStyles();
@@ -263,6 +284,20 @@
 
             if (config.autoOpen) {
                 setTimeout(() => this.open(), 1000);
+            }
+        },
+
+        applyChatterLabel() {
+            const name = (config.chatterUsername || '').trim();
+            if (!this.elements.chatter) {
+                return;
+            }
+            if (name) {
+                this.elements.chatter.textContent = 'You: ' + name;
+                this.elements.chatter.classList.remove('sanctum-hidden');
+            } else {
+                this.elements.chatter.textContent = '';
+                this.elements.chatter.classList.add('sanctum-hidden');
             }
         },
 
@@ -352,6 +387,9 @@
             
             // Clear notification badge
             this.clearNotifications();
+
+            this.loadRecentHistory();
+            this.pollForResponses();
         },
 
         // Close chat window
@@ -398,14 +436,101 @@
             }
         },
 
+        renderGreeting() {
+            const greeting = config.greeting || 'Hello! How can I help you today?';
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'sanctum-message';
+            const avatar = document.createElement('div');
+            avatar.className = 'sanctum-message-avatar';
+            avatar.textContent = 'Q';
+            const messageContent = document.createElement('div');
+            messageContent.className = 'sanctum-message-content';
+            messageContent.innerHTML = utils.sanitizeHtml(greeting);
+            const time = document.createElement('div');
+            time.className = 'sanctum-message-time';
+            time.textContent = utils.formatTime(new Date());
+            messageContent.appendChild(time);
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            this.elements.messages.appendChild(messageDiv);
+        },
+
+        clearMessagePane() {
+            if (!this.elements.messages) {
+                return;
+            }
+            this.elements.messages.innerHTML = '';
+            state.seenMessageIds = {};
+            state.messageCount = 0;
+        },
+
+        async loadRecentHistory() {
+            if (!state.sessionId || state.historyLoading) {
+                return;
+            }
+            state.historyLoading = true;
+            try {
+                const limit = config.historyLimit || 6;
+                const data = await api.getHistory(limit);
+                const items = (data && data.items) ? data.items : [];
+
+                this.clearMessagePane();
+
+                if (items.length === 0) {
+                    this.renderGreeting();
+                } else {
+                    items.forEach((item) => {
+                        const role = item.role === 'user' ? 'user' : 'bot';
+                        const ts = item.timestamp ? new Date(item.timestamp) : new Date();
+                        this.addMessage(item.text, role, {
+                            messageId: item.id,
+                            timestamp: ts,
+                            skipSeenCheck: true
+                        });
+                    });
+                }
+
+                if (data && data.latest_response_at) {
+                    state.lastResponseSince = data.latest_response_at;
+                }
+                try {
+                    const sinceKey = 'sanctum_q_since_' + state.sessionId;
+                    if (state.lastResponseSince) {
+                        localStorage.setItem(sinceKey, state.lastResponseSince);
+                    }
+                } catch (e) { /* ignore */ }
+            } catch (error) {
+                console.warn('Could not load Q chat history:', error);
+                if (this.elements.messages && this.elements.messages.childElementCount === 0) {
+                    this.renderGreeting();
+                }
+            } finally {
+                state.historyLoading = false;
+            }
+        },
+
         // Add message to chat
-        addMessage(content, type = 'bot') {
+        addMessage(content, type = 'bot', options) {
+            options = options || {};
+            if (options.messageId) {
+                if (state.seenMessageIds[options.messageId]) {
+                    return;
+                }
+                state.seenMessageIds[options.messageId] = true;
+            } else if (!options.skipSeenCheck && type === 'user') {
+                options.messageId = 'local-u-' + Date.now();
+                state.seenMessageIds[options.messageId] = true;
+            }
+
             const messageDiv = document.createElement('div');
             messageDiv.className = `sanctum-message ${type}`;
             
             const avatar = document.createElement('div');
             avatar.className = 'sanctum-message-avatar';
-            avatar.textContent = type === 'user' ? 'U' : 'S';
+            const chatter = (config.chatterUsername || '').trim();
+            avatar.textContent = type === 'user'
+                ? (chatter ? chatter.charAt(0).toUpperCase() : 'U')
+                : 'Q';
             
             const messageContent = document.createElement('div');
             messageContent.className = 'sanctum-message-content';
@@ -413,7 +538,7 @@
             
             const time = document.createElement('div');
             time.className = 'sanctum-message-time';
-            time.textContent = utils.formatTime(new Date());
+            time.textContent = utils.formatTime(options.timestamp || new Date());
             
             messageContent.appendChild(time);
             messageDiv.appendChild(avatar);
@@ -421,13 +546,12 @@
             
             this.elements.messages.appendChild(messageDiv);
             
-            // Scroll to bottom
-            this.elements.messages.scrollTop = this.elements.messages.scrollHeight;
+            if (!options.skipScroll) {
+                this.elements.messages.scrollTop = this.elements.messages.scrollHeight;
+            }
             
-            // Update message count
             state.messageCount++;
             
-            // Show notification if chat is closed
             if (!state.isOpen && type === 'bot') {
                 this.showNotification();
             }
@@ -572,12 +696,22 @@
                     this.hideTypingIndicator();
                     
                     responses.forEach(response => {
-                        this.addMessage(response.response, 'bot');
+                        const rid = response.id ? ('r-' + response.id) : null;
+                        this.addMessage(response.response, 'bot', { messageId: rid });
                         this.emit('message', { message: response.response, type: 'bot' });
                         if (response.timestamp) {
                             state.lastResponseSince = response.timestamp;
+                            try {
+                                localStorage.setItem(
+                                    'sanctum_q_since_' + state.sessionId,
+                                    state.lastResponseSince
+                                );
+                            } catch (e) { /* ignore */ }
                         }
                     });
+                    if (responses.length) {
+                        this.elements.messages.scrollTop = this.elements.messages.scrollHeight;
+                    }
                 }
                 
                 // Continue polling if chat is open
@@ -620,6 +754,8 @@
                     try {
                         state.sessionId = localStorage.getItem(storageKey) || utils.generateSessionId();
                         localStorage.setItem(storageKey, state.sessionId);
+                        const sinceKey = 'sanctum_q_since_' + state.sessionId;
+                        state.lastResponseSince = localStorage.getItem(sinceKey) || null;
                     } catch (e) {
                         state.sessionId = utils.generateSessionId();
                     }
@@ -633,6 +769,7 @@
                 if (config.title && ui.elements && ui.elements.title) {
                     ui.elements.title.textContent = config.title;
                 }
+                ui.applyChatterLabel();
                 
                 state.isInitialized = true;
             }
