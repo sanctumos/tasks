@@ -11,14 +11,18 @@
     // Default configuration
     let config = {
         apiKey: null,
+        apiBase: '/q-bridge/api/v1/',
+        useSessionAuth: false,
         position: 'bottom-right',
         theme: 'light',
         title: 'Chat with us',
         primaryColor: '#007bff',
+        greeting: 'Hello! How can I help you today?',
         language: 'en',
         autoOpen: false,
         notifications: true,
-        sound: true
+        sound: true,
+        persistSession: false
     };
 
     // Widget state
@@ -30,7 +34,8 @@
         uid: null,
         messageCount: 0,
         eventListeners: {},
-        typingTimeout: null
+        typingTimeout: null,
+        lastResponseSince: null
     };
 
     // Widget HTML template
@@ -61,7 +66,7 @@
                     <div class="sanctum-message">
                         <div class="sanctum-message-avatar">S</div>
                         <div class="sanctum-message-content">
-                            Hello! How can I help you today?
+                            ${config.greeting}
                             <div class="sanctum-message-time">${new Date().toLocaleTimeString()}</div>
                         </div>
                     </div>
@@ -135,28 +140,44 @@
 
     // API communication
     const api = {
-        // Make API request
-        async request(action, data = {}, method = 'POST') {
-            try {
-                const response = await fetch('/api/v1/?action=' + action, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + config.apiKey
-                    },
-                    body: method === 'POST' ? JSON.stringify(data) : undefined
+        url(action, query) {
+            const base = (config.apiBase || '/q-bridge/api/v1/').replace(/\/?$/, '/');
+            let u = base + '?action=' + encodeURIComponent(action);
+            if (query) {
+                Object.keys(query).forEach(function (k) {
+                    u += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(query[k]);
                 });
+            }
+            return u;
+        },
 
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        headers() {
+            const h = { 'Content-Type': 'application/json' };
+            if (!config.useSessionAuth && config.apiKey) {
+                h['Authorization'] = 'Bearer ' + config.apiKey;
+            }
+            return h;
+        },
+
+        async request(action, data, method) {
+            method = method || 'POST';
+            try {
+                const opts = {
+                    method: method,
+                    headers: this.headers(),
+                    credentials: config.useSessionAuth ? 'include' : 'same-origin'
+                };
+                if (method === 'POST' && data) {
+                    opts.body = JSON.stringify(data);
                 }
-
+                const response = await fetch(this.url(action, method === 'GET' ? data : null), opts);
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
                 const result = await response.json();
-                
                 if (!result.success) {
                     throw new Error(result.error || 'API request failed');
                 }
-
                 return result.data;
             } catch (error) {
                 console.error('Sanctum Chat Widget API Error:', error);
@@ -164,33 +185,27 @@
             }
         },
 
-        // Send message
         async sendMessage(message) {
             if (!state.sessionId) {
                 throw new Error('No active session');
             }
-
-            const data = {
+            return await this.request('messages', {
                 session_id: state.sessionId,
                 message: message,
+                timestamp: new Date().toISOString(),
                 uid: state.uid
-            };
-
-            return await this.request('inbox', data);
+            }, 'POST');
         },
 
-        // Get messages
-        async getMessages() {
+        async getMessages(since) {
             if (!state.sessionId) {
                 throw new Error('No active session');
             }
-
-            const data = {
+            const data = await this.request('responses', {
                 session_id: state.sessionId,
-                uid: state.uid
-            };
-
-            return await this.request('responses', data);
+                since: since || ''
+            }, 'GET');
+            return (data && data.responses) ? data.responses : [];
         },
 
         // Update session
@@ -237,7 +252,15 @@
             // Set initial theme
             this.setTheme(config.theme);
             
-            // Auto-open if configured
+            const greetBlock = this.elements.messages.querySelector('.sanctum-message-content');
+            if (greetBlock && config.greeting) {
+                const timeEl = greetBlock.querySelector('.sanctum-message-time');
+                greetBlock.textContent = config.greeting + ' ';
+                if (timeEl) {
+                    greetBlock.appendChild(timeEl);
+                }
+            }
+
             if (config.autoOpen) {
                 setTimeout(() => this.open(), 1000);
             }
@@ -542,7 +565,8 @@
             if (!state.sessionId) return;
             
             try {
-                const responses = await api.getMessages();
+                const since = state.lastResponseSince || '';
+                const responses = await api.getMessages(since);
                 
                 if (responses && responses.length > 0) {
                     this.hideTypingIndicator();
@@ -550,6 +574,9 @@
                     responses.forEach(response => {
                         this.addMessage(response.response, 'bot');
                         this.emit('message', { message: response.response, type: 'bot' });
+                        if (response.timestamp) {
+                            state.lastResponseSince = response.timestamp;
+                        }
                     });
                 }
                 
@@ -582,22 +609,30 @@
     const SanctumChat = {
         // Initialize widget
         init(options = {}) {
-            // Validate required options
-            if (!options.apiKey) {
-                throw new Error('API key is required');
-            }
-            
-            // Merge options with defaults
             Object.assign(config, options);
-            
-            // Initialize if not already done
+            if (!config.useSessionAuth && !config.apiKey) {
+                throw new Error('API key is required unless useSessionAuth is true');
+            }
+
             if (!state.isInitialized) {
-                // Generate session ID and UID
-                state.sessionId = utils.generateSessionId();
+                const storageKey = 'sanctum_q_chat_session_id';
+                if (config.persistSession) {
+                    try {
+                        state.sessionId = localStorage.getItem(storageKey) || utils.generateSessionId();
+                        localStorage.setItem(storageKey, state.sessionId);
+                    } catch (e) {
+                        state.sessionId = utils.generateSessionId();
+                    }
+                } else {
+                    state.sessionId = utils.generateSessionId();
+                }
                 state.uid = utils.generateUid();
                 
                 // Initialize UI
                 ui.init();
+                if (config.title && ui.elements && ui.elements.title) {
+                    ui.elements.title.textContent = config.title;
+                }
                 
                 state.isInitialized = true;
             }

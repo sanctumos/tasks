@@ -45,6 +45,8 @@ define('TASKS_ASSET_MAX_BYTES', (int)envOrDefault('TASKS_ASSET_MAX_BYTES', 8 * 1
 // Only use X-Forwarded-For / CF-Connecting-IP when behind a trusted proxy (H-02)
 define('TRUST_PROXY', envBool('TASKS_TRUST_PROXY', false));
 define('TRUSTED_PROXY_IPS', envOrDefault('TASKS_TRUSTED_PROXY_IPS', ''));
+/** Ask Q bubble + /q-bridge/ (set TASKS_Q_BRIDGE_ENABLED=0 to hide). */
+define('TASKS_Q_BRIDGE_ENABLED', envBool('TASKS_Q_BRIDGE_ENABLED', true));
 
 // Initialize session (admin UI uses session auth)
 if (session_status() === PHP_SESSION_NONE) {
