@@ -2,6 +2,7 @@
 <div id="st-toast-host" class="st-toast-host" aria-live="polite" aria-atomic="true"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/assets/admin.js?v=5"></script>
+<?php require __DIR__ . '/_ask_q.php'; ?>
 <script>
     // Pretty-print datetime-local fields with stored UTC values
     document.querySelectorAll('input[type="datetime-local"][data-utc]').forEach(function(el){

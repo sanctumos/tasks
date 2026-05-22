@@ -60,9 +60,39 @@ switch ($action) {
         case 'session_messages':
             handle_session_messages();
             break;
+    case 'resolve_user_key':
+        handle_resolve_user_key();
+        break;
            default:
                send_error_response('Invalid action', 400);
                break;
+}
+
+/**
+ * POST action=resolve_user_key — Broca plugin only (poll API key).
+ * Returns hidden per-user Tasks API key for SMCP tool injection.
+ */
+function handle_resolve_user_key() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        send_error_response('Method not allowed', 405);
+    }
+    require_auth();
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        send_error_response('Invalid JSON', 400);
+    }
+    $tasksUserId = (int)($input['tasks_user_id'] ?? 0);
+    if ($tasksUserId <= 0) {
+        send_error_response('Missing tasks_user_id', 400);
+    }
+    require_once dirname(__DIR__, 3) . '/includes/config.php';
+    require_once dirname(__DIR__, 3) . '/includes/functions.php';
+    $plain = getQBridgeDefaultApiKeyPlaintextForUser($tasksUserId);
+    if ($plain === null || $plain === '') {
+        send_error_response('Could not resolve user key', 404);
+    }
+    log_api_request('/api/resolve_user_key', 'POST');
+    send_success_response(['tasks_user_id' => $tasksUserId, 'api_key' => $plain]);
 }
 
 /**
