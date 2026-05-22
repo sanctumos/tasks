@@ -105,6 +105,16 @@ def main() -> int:
                     return 1
                 page.wait_for_timeout(800)
                 bubble = page.locator("#sanctum-chat-bubble")
+                page.wait_for_function(
+                    "() => typeof window.SanctumMarkdownLite !== 'undefined'",
+                    timeout=10000,
+                )
+                md = page.evaluate(
+                    "() => window.SanctumMarkdownLite.toHtml('**bold** and `code`\\n\\n- one')"
+                )
+                if "<strong>bold</strong>" not in md or "<code>code</code>" not in md:
+                    print(f"FAIL: markdown render {md!r} ({label})", file=sys.stderr)
+                    return 1
                 bubble.wait_for(state="visible", timeout=10000)
                 out = OUT / f"ask_q_{label}.png"
                 page.screenshot(path=str(out), full_page=False)
