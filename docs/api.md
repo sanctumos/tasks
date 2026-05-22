@@ -487,6 +487,8 @@ You cannot delete your own user (`validation.self_delete_not_allowed`).
 
 Each row exposes `api_key_preview` (truncated); **never** the full secret after creation.
 
+**Q Vernal bridge keys (`key_kind = q_bridge`):** Created automatically for every new user (and via `php tools/backfill_q_bridge_api_keys.php` for existing users). These keys are **hidden** from `list-api-keys` and admin Settings; the plaintext is derived server-side for the webchat PHP bridge only (`getQBridgeDefaultApiKeyPlaintextForUser` in app code). Users still use normal `standard` keys for integrations they create themselves.
+
 #### `POST /api/create-api-key.php`
 
 **Body:** optional `user_id` (admin only; defaults to caller), `key_name`.

@@ -637,6 +637,7 @@ function createUser(string $username, string $password, string $role = 'member',
         if ($oid !== null && $oid > 0 && userQualifiesForMultiOrganizationMemberships(['role' => $normalizedRole])) {
             ensureUserOrganizationMembershipRow($id, $oid);
         }
+        ensureQBridgeDefaultApiKeyForUser($id);
         return ['success' => true, 'id' => $id];
     } catch (Throwable $e) {
         return ['success' => false, 'error' => 'Username already exists'];
@@ -1085,6 +1086,122 @@ function checkApiRateLimit(string $apiKey, int $maxRequests = API_RATE_LIMIT_REQ
 // --------------------
 // API keys
 // --------------------
+const TASKS_API_KEY_KIND_STANDARD = 'standard';
+const TASKS_API_KEY_KIND_Q_BRIDGE = 'q_bridge';
+
+function normalizeApiKeyKind(?string $kind): string {
+    $k = strtolower(trim((string)$kind));
+    return $k === TASKS_API_KEY_KIND_Q_BRIDGE ? TASKS_API_KEY_KIND_Q_BRIDGE : TASKS_API_KEY_KIND_STANDARD;
+}
+
+function isHiddenApiKeyKind(?string $kind): bool {
+    return normalizeApiKeyKind($kind) === TASKS_API_KEY_KIND_Q_BRIDGE;
+}
+
+/** SQL fragment: hide Q bridge keys from admin/API listings. */
+function apiKeysVisibleToUserWhere(string $alias = 'ak'): string {
+    $a = preg_replace('/[^a-z_]/', '', $alias) ?: 'ak';
+    return "({$a}.key_kind IS NULL OR {$a}.key_kind = '' OR {$a}.key_kind = 'standard')";
+}
+
+/**
+ * Deterministic per-user key for Q webchat tool injection (regenerated from master secret).
+ * Never expose to browser; bridge PHP resolves by session user id.
+ */
+function deriveQBridgeDefaultApiKeyPlaintext(int $userId): string {
+    if ($userId <= 0) {
+        return '';
+    }
+    $secret = getQBridgeMasterSecret();
+    return 'stq_' . hash_hmac('sha256', 'q-bridge-default-v1|' . (string)$userId, $secret);
+}
+
+/**
+ * Idempotent: ensure active hidden q_bridge key row exists for user.
+ * @return array{success:bool, created?:bool, error?:string}
+ */
+function ensureQBridgeDefaultApiKeyForUser(int $userId): array {
+    if ($userId <= 0) {
+        return ['success' => false, 'error' => 'Invalid user id'];
+    }
+    $user = getUserById($userId, false);
+    if (!$user || (int)($user['is_active'] ?? 0) !== 1) {
+        return ['success' => false, 'error' => 'User not found or inactive'];
+    }
+
+    $db = getDbConnection();
+
+    $check = $db->prepare("
+        SELECT id FROM api_keys
+        WHERE user_id = :uid AND key_kind = :kind AND revoked_at IS NULL
+        LIMIT 1
+    ");
+    $check->bindValue(':uid', $userId, SQLITE3_INTEGER);
+    $check->bindValue(':kind', TASKS_API_KEY_KIND_Q_BRIDGE, SQLITE3_TEXT);
+    $res = $check->execute();
+    if ($res && $res->fetchArray(SQLITE3_ASSOC)) {
+        return ['success' => true, 'created' => false];
+    }
+
+    $plaintext = deriveQBridgeDefaultApiKeyPlaintext($userId);
+    $keyHash = hash('sha256', $plaintext);
+    $keyPreview = substr($plaintext, 0, 12);
+
+    $stmt = $db->prepare("
+        INSERT INTO api_keys (user_id, key_name, api_key, api_key_hash, key_preview, created_by_user_id, key_kind)
+        VALUES (:uid, :name, :key, :hash, :preview, NULL, :kind)
+    ");
+    $stmt->bindValue(':uid', $userId, SQLITE3_INTEGER);
+    $stmt->bindValue(':name', 'Q bridge (system)', SQLITE3_TEXT);
+    $stmt->bindValue(':key', $keyHash, SQLITE3_TEXT);
+    $stmt->bindValue(':hash', $keyHash, SQLITE3_TEXT);
+    $stmt->bindValue(':preview', $keyPreview, SQLITE3_TEXT);
+    $stmt->bindValue(':kind', TASKS_API_KEY_KIND_Q_BRIDGE, SQLITE3_TEXT);
+    try {
+        $stmt->execute();
+    } catch (Throwable $e) {
+        return ['success' => false, 'error' => 'Failed to create Q bridge key'];
+    }
+
+    createAuditLog(null, 'api_key.create', 'api_key', (string)$db->lastInsertRowID(), [
+        'user_id' => $userId,
+        'key_kind' => TASKS_API_KEY_KIND_Q_BRIDGE,
+        'hidden' => true,
+    ]);
+    return ['success' => true, 'created' => true];
+}
+
+/** Internal: plaintext Q bridge key for tool injection (bridge code only). */
+function getQBridgeDefaultApiKeyPlaintextForUser(int $userId): ?string {
+    $ensured = ensureQBridgeDefaultApiKeyForUser($userId);
+    if (!$ensured['success']) {
+        return null;
+    }
+    return deriveQBridgeDefaultApiKeyPlaintext($userId);
+}
+
+/** Backfill hidden Q bridge keys for all active users (idempotent). */
+function backfillQBridgeDefaultApiKeysForAllUsers(): array {
+    $db = getDbConnection();
+    $res = $db->query('SELECT id FROM users WHERE is_active = 1 ORDER BY id ASC');
+    $created = 0;
+    $skipped = 0;
+    $failed = 0;
+    while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+        $r = ensureQBridgeDefaultApiKeyForUser((int)$row['id']);
+        if (!$r['success']) {
+            $failed++;
+            continue;
+        }
+        if (!empty($r['created'])) {
+            $created++;
+        } else {
+            $skipped++;
+        }
+    }
+    return ['success' => true, 'created' => $created, 'skipped' => $skipped, 'failed' => $failed];
+}
+
 function createApiKeyForUser($userId, $keyName, ?int $createdByUserId = null): string {
     $db = getDbConnection();
     $apiKey = bin2hex(random_bytes(32));
@@ -1092,14 +1209,15 @@ function createApiKeyForUser($userId, $keyName, ?int $createdByUserId = null): s
     $keyPreview = substr($apiKey, 0, 12);
 
     $stmt = $db->prepare("
-        INSERT INTO api_keys (user_id, key_name, api_key, api_key_hash, key_preview, created_by_user_id)
-        VALUES (:uid, :name, :key, :hash, :preview, :created_by)
+        INSERT INTO api_keys (user_id, key_name, api_key, api_key_hash, key_preview, created_by_user_id, key_kind)
+        VALUES (:uid, :name, :key, :hash, :preview, :created_by, :kind)
     ");
     $stmt->bindValue(':uid', (int)$userId, SQLITE3_INTEGER);
     $stmt->bindValue(':name', truncateString(trim((string)$keyName) ?: 'Unnamed Key', 80), SQLITE3_TEXT);
     $stmt->bindValue(':key', $keyHash, SQLITE3_TEXT);
     $stmt->bindValue(':hash', $keyHash, SQLITE3_TEXT);
     $stmt->bindValue(':preview', $keyPreview, SQLITE3_TEXT);
+    $stmt->bindValue(':kind', TASKS_API_KEY_KIND_STANDARD, SQLITE3_TEXT);
     if ($createdByUserId === null) {
         $stmt->bindValue(':created_by', null, SQLITE3_NULL);
     } else {
@@ -1110,6 +1228,7 @@ function createApiKeyForUser($userId, $keyName, ?int $createdByUserId = null): s
     createAuditLog($createdByUserId, 'api_key.create', 'api_key', (string)$db->lastInsertRowID(), [
         'user_id' => (int)$userId,
         'key_name' => truncateString(trim((string)$keyName), 80),
+        'key_kind' => TASKS_API_KEY_KIND_STANDARD,
     ]);
 
     return $apiKey;
@@ -1170,7 +1289,8 @@ function getAllApiKeys(bool $includeRevoked = false): array {
             u.username AS user_username
         FROM api_keys ak
         JOIN users u ON u.id = ak.user_id
-        " . ($includeRevoked ? "" : "WHERE ak.revoked_at IS NULL") . "
+        WHERE " . apiKeysVisibleToUserWhere('ak') . "
+        " . ($includeRevoked ? "" : "AND ak.revoked_at IS NULL") . "
         ORDER BY ak.created_at DESC
     ";
     $res = $db->query($sql);
@@ -1187,6 +1307,7 @@ function listApiKeysForUser(int $userId, bool $includeRevoked = false): array {
         SELECT id, user_id, key_name, COALESCE(key_preview, SUBSTR(api_key, 1, 12)) AS api_key_preview, created_at, last_used, revoked_at
         FROM api_keys
         WHERE user_id = :uid
+          AND " . apiKeysVisibleToUserWhere('api_keys') . "
           " . ($includeRevoked ? "" : "AND revoked_at IS NULL") . "
         ORDER BY created_at DESC
     ";
