@@ -9,7 +9,7 @@ import sys
 import urllib.error
 import urllib.request
 
-LETTA_BASE = os.getenv("LETTA_BASE", "https://127.0.0.1:8283").rstrip("/")
+LETTA_BASE = os.getenv("LETTA_BASE", "http://127.0.0.1:18283").rstrip("/")
 AGENT_ID = os.getenv("Q_VERNAL_AGENT_ID", "agent-4afbed9b-a6c0-403f-8499-4fb75b83c095")
 SERVER_NAME = os.getenv("Q_SMCP_SERVER_NAME", "q-vernal-smcp")
 RUN_SCRIPT = os.getenv(

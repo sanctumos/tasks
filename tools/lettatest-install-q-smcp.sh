@@ -33,10 +33,13 @@ if [ ! -d "\$SMCP_ROOT/.venv" ]; then
 fi
 "\$SMCP_ROOT/.venv/bin/pip" install -q -r "\$SMCP_ROOT/plugins/tasks/requirements.txt" 2>/dev/null || true
 
-POLL=\$(cat /var/www/tasks.decisionsciencecorp.com/db/q_bridge_poll_api_key.txt 2>/dev/null || echo "")
+POLL=\$(grep '^TASKS_Q_BRIDGE_POLL_API_KEY=' "$BROCA_Q/.env" 2>/dev/null | cut -d= -f2- | tr -d '\"' || true)
+if [ -z "\$POLL" ]; then
+  POLL=\$(cat /var/www/tasks.decisionsciencecorp.com/db/q_bridge_poll_api_key.txt 2>/dev/null || true)
+fi
 cat > "\$SMCP_ROOT/env.smcp" <<ENV
 MCP_PLUGINS_DIR=\$SMCP_ROOT/plugins
-PYTHONPATH=\$TASKS_ROOT:\$SMCP_ROOT/plugins:\$TASKS_ROOT/../tasks_sdk
+PYTHONPATH=\$TASKS_ROOT:\$TASKS_ROOT/smcp_plugin
 TASKS_API_BASE_URL=https://tasks.decisionsciencecorp.com
 TASKS_Q_BRIDGE_API_URL=https://tasks.decisionsciencecorp.com/q-bridge/
 TASKS_Q_BRIDGE_POLL_API_KEY=\${POLL}
@@ -52,7 +55,7 @@ cd "\$SMCP_HOME"
 VENV_PY="\$SMCP_HOME/.venv/bin/python"
 [ -x "\$VENV_PY" ] || VENV_PY=python3
 [ -f "\$SMCP_HOME/env.smcp" ] && set -a && . "\$SMCP_HOME/env.smcp" && set +a
-export PYTHONPATH="/opt/sanctum-q/sanctum-tasks:/opt/sanctum-q/sanctum-tasks/tasks_sdk:\${SMCP_HOME}/plugins:\${PYTHONPATH:-}"
+export PYTHONPATH="\${SMCP_HOME}/../sanctum-tasks:\${SMCP_HOME}/../sanctum-tasks/smcp_plugin:\${PYTHONPATH:-}"
 exec "\$VENV_PY" smcp_stdio.py
 SCRIPT
 chmod +x "\$SMCP_ROOT/run-smcp-stdio-for-letta.sh"
