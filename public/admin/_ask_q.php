@@ -7,9 +7,10 @@ if (!isLoggedIn() || !defined('TASKS_Q_BRIDGE_ENABLED') || !TASKS_Q_BRIDGE_ENABL
 }
 $qTitle = 'Q. Vernal';
 $qColor = '#4a5568';
+$qChatterUsername = trim((string)($_SESSION['username'] ?? ''));
 ?>
-<link rel="stylesheet" href="/q-bridge/widget/assets/css/widget.css?v=1">
-<script src="/q-bridge/widget/assets/js/chat-widget.js?v=2"></script>
+<link rel="stylesheet" href="/q-bridge/widget/assets/css/widget.css?v=3">
+<script src="/q-bridge/widget/assets/js/chat-widget.js?v=5"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     if (typeof SanctumChat === 'undefined') {
@@ -23,9 +24,11 @@ document.addEventListener('DOMContentLoaded', function () {
             position: 'bottom-right',
             theme: 'light',
             title: <?= json_encode($qTitle, JSON_UNESCAPED_UNICODE) ?>,
+            chatterUsername: <?= json_encode($qChatterUsername, JSON_UNESCAPED_UNICODE) ?>,
             primaryColor: <?= json_encode($qColor) ?>,
             greeting: 'Hi — I\'m Q. Ask me anything about your tasks.',
             persistSession: true,
+            historyLimit: 6,
             autoOpen: false
         });
     } catch (e) {

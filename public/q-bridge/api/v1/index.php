@@ -10,6 +10,7 @@ require_once '../../includes/api_response.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/utils.php';
 require_once '../../includes/tasks_session.php';
+require_once '../../includes/chatter.php';
 require_once '../../config/database.php';
 
 init_database();
@@ -63,6 +64,9 @@ switch ($action) {
     case 'resolve_user_key':
         handle_resolve_user_key();
         break;
+    case 'history':
+        handle_history();
+        break;
            default:
                send_error_response('Invalid action', 400);
                break;
@@ -93,6 +97,50 @@ function handle_resolve_user_key() {
     }
     log_api_request('/api/resolve_user_key', 'POST');
     send_success_response(['tasks_user_id' => $tasksUserId, 'api_key' => $plain]);
+}
+
+/**
+ * GET action=history — last N user/Q turns for this browser session (Tasks login).
+ */
+function handle_history() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        send_error_response('Method not allowed', 405);
+    }
+    check_rate_limit('/api/history');
+
+    $session_id = sanitize_input($_GET['session_id'] ?? '');
+    $limit = min(20, max(1, (int)($_GET['limit'] ?? 6)));
+
+    if ($session_id === '' || !validate_session_id($session_id)) {
+        send_error_response('Invalid session ID', 400);
+    }
+
+    $tasksUserId = require_tasks_logged_in_user_id();
+    if (!q_bridge_session_belongs_to_tasks_user($session_id, $tasksUserId)) {
+        send_success_response([
+            'session_id' => $session_id,
+            'items' => [],
+            'latest_response_at' => null,
+        ]);
+        return;
+    }
+
+    if (!is_session_active($session_id)) {
+        send_success_response([
+            'session_id' => $session_id,
+            'items' => [],
+            'latest_response_at' => null,
+        ]);
+        return;
+    }
+
+    $payload = q_bridge_fetch_recent_history($session_id, $limit);
+    log_api_request('/api/history', 'GET');
+    send_success_response([
+        'session_id' => $session_id,
+        'items' => $payload['items'],
+        'latest_response_at' => $payload['latest_response_at'],
+    ]);
 }
 
 /**
@@ -135,8 +183,10 @@ function handle_messages() {
         $tasksUserId = require_tasks_logged_in_user_id();
 
         $pdo = get_db_connection();
-        
-        $sessionMeta = ['tasks_user_id' => $tasksUserId];
+
+        $ctx = q_bridge_prepare_chatter_context($tasksUserId, ['tasks_user_id' => $tasksUserId]);
+        $sessionMeta = $ctx['session_meta'];
+        $isFirstContact = $ctx['is_first_contact'];
 
         // Check/create session
         if (!is_session_active($session_id)) {
@@ -168,7 +218,9 @@ function handle_messages() {
             'session_id' => $session_id,
             'timestamp' => $timestamp,
             'uid' => $uid,
-            'is_new_user' => $is_new_user
+            'is_new_user' => $is_new_user,
+            'tasks_username' => $sessionMeta['tasks_username'] ?? null,
+            'is_first_contact' => $isFirstContact,
         ], 'Message received');
         
     } catch (Exception $e) {
@@ -235,7 +287,17 @@ function handle_inbox() {
             if (isset($meta['tasks_user_id'])) {
                 $row['tasks_user_id'] = (int)$meta['tasks_user_id'];
             }
+            if (!empty($meta['tasks_username'])) {
+                $row['tasks_username'] = (string)$meta['tasks_username'];
+            }
+            if (!empty($meta['tasks_display_name'])) {
+                $row['tasks_display_name'] = (string)$meta['tasks_display_name'];
+            }
             unset($row['session_metadata']);
+            $row['is_first_contact'] = q_bridge_is_first_contact_for_inbox_row(
+                (int)($row['tasks_user_id'] ?? 0),
+                (int)$row['id']
+            );
         }
         unset($row);
         

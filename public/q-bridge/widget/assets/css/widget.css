@@ -65,12 +65,23 @@
     z-index: var(--widget-z-index);
     transition: var(--widget-transition);
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 12px;
+    pointer-events: none;
     * {
         box-sizing: border-box;
     }
 }
 
-/* Chat bubble */
+.sanctum-chat-widget .sanctum-chat-bubble,
+.sanctum-chat-widget .sanctum-chat-window.open {
+    pointer-events: auto;
+}
+
+/* Chat bubble — order 2 keeps it on the anchored corner when panel opens */
 .sanctum-chat-bubble {
     width: 60px;
     height: 60px;
@@ -85,6 +96,8 @@
     transition: var(--widget-transition);
     position: relative;
     overflow: hidden;
+    order: 2;
+    flex-shrink: 0;
 }
 
 .sanctum-chat-bubble:hover {
@@ -126,7 +139,7 @@
     100% { transform: scale(1); }
 }
 
-/* Chat window */
+/* Chat window — stacked above bubble; no layout footprint when closed */
 .sanctum-chat-window {
     background: var(--widget-bg);
     border: 1px solid var(--widget-border);
@@ -135,16 +148,19 @@
     width: 350px;
     max-width: calc(100vw - 40px);
     height: 500px;
-    max-height: calc(100vh - 40px);
-    display: flex;
+    max-height: calc(100vh - 120px);
     flex-direction: column;
     overflow: hidden;
     transition: var(--widget-transition);
     opacity: 0;
-    transform: scale(0.8);
+    transform: scale(0.92);
+    transform-origin: bottom right;
+    display: none;
+    order: 1;
 }
 
 .sanctum-chat-window.open {
+    display: flex;
     opacity: 1;
     transform: scale(1);
 }
@@ -160,10 +176,23 @@
     border-radius: var(--widget-radius) var(--widget-radius) 0 0;
 }
 
+.sanctum-chat-header-titles {
+    flex: 1;
+    min-width: 0;
+}
+
 .sanctum-chat-header h3 {
     margin: 0;
     font-size: 16px;
     font-weight: 600;
+}
+
+.sanctum-chat-chatter {
+    margin: 2px 0 0;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.92;
+    line-height: 1.3;
 }
 
 .sanctum-chat-header .close-btn {
@@ -376,25 +405,49 @@
     fill: currentColor;
 }
 
-/* Position variants */
+/* Position variants — anchor launcher corner; panel grows inward from that corner */
 .sanctum-chat-widget[data-position="bottom-right"] {
     bottom: var(--widget-margin);
     right: var(--widget-margin);
+    top: auto;
+    left: auto;
 }
 
 .sanctum-chat-widget[data-position="bottom-left"] {
     bottom: var(--widget-margin);
     left: var(--widget-margin);
+    top: auto;
+    right: auto;
+    align-items: flex-start;
+}
+
+.sanctum-chat-widget[data-position="bottom-left"] .sanctum-chat-window {
+    transform-origin: bottom left;
 }
 
 .sanctum-chat-widget[data-position="top-right"] {
     top: var(--widget-margin);
     right: var(--widget-margin);
+    bottom: auto;
+    left: auto;
+    flex-direction: column-reverse;
 }
 
 .sanctum-chat-widget[data-position="top-left"] {
     top: var(--widget-margin);
     left: var(--widget-margin);
+    bottom: auto;
+    right: auto;
+    align-items: flex-start;
+    flex-direction: column-reverse;
+}
+
+.sanctum-chat-widget[data-position="top-left"] .sanctum-chat-window {
+    transform-origin: top left;
+}
+
+.sanctum-chat-widget[data-position="top-right"] .sanctum-chat-window {
+    transform-origin: top right;
 }
 
 /* Mobile responsiveness */
@@ -484,8 +537,9 @@
     pointer-events: none;
 }
 
-/* Focus management */
-.sanctum-chat-widget:focus-within {
+/* Focus management — bubble/window only (avoid shifting outline on whole stack) */
+.sanctum-chat-bubble:focus-visible,
+.sanctum-chat-window:focus-within {
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }

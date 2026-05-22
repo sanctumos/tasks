@@ -108,13 +108,48 @@ def main() -> int:
                 bubble.wait_for(state="visible", timeout=10000)
                 out = OUT / f"ask_q_{label}.png"
                 page.screenshot(path=str(out), full_page=False)
+                box_closed = bubble.bounding_box()
+                if not box_closed:
+                    print(f"FAIL: no bubble box ({label})", file=sys.stderr)
+                    return 1
+                margin = 80
+                if box_closed["y"] + box_closed["height"] < size[1] - margin:
+                    print(
+                        f"FAIL: bubble not bottom-anchored when closed "
+                        f"y={box_closed['y']:.0f} h={size[1]} ({label})",
+                        file=sys.stderr,
+                    )
+                    return 1
                 bubble.click()
                 page.wait_for_timeout(500)
                 win = page.locator("#sanctum-chat-window")
                 win.wait_for(state="visible", timeout=5000)
+                box_open = bubble.bounding_box()
+                if not box_open:
+                    print(f"FAIL: no bubble box when open ({label})", file=sys.stderr)
+                    return 1
+                if abs(box_open["y"] - box_closed["y"]) > 8:
+                    print(
+                        f"FAIL: bubble moved when panel opened "
+                        f"closed_y={box_closed['y']:.0f} open_y={box_open['y']:.0f} ({label})",
+                        file=sys.stderr,
+                    )
+                    return 1
+                if box_open["y"] + box_open["height"] < size[1] - margin:
+                    print(
+                        f"FAIL: bubble not bottom-anchored when open "
+                        f"y={box_open['y']:.0f} ({label})",
+                        file=sys.stderr,
+                    )
+                    return 1
                 title = page.locator("#sanctum-chat-title")
                 title_text = title.inner_text() or ""
+                chatter = page.locator("#sanctum-chat-chatter")
+                chatter_text = chatter.inner_text() or ""
                 page.screenshot(path=str(OUT / f"ask_q_{label}_open.png"), full_page=False)
+                if "You: admin" not in chatter_text:
+                    print(f"FAIL: chatter label={chatter_text!r} ({label})", file=sys.stderr)
+                    return 1
                 if "Q" not in title_text and "Vernal" not in title_text:
                     print(f"FAIL: title={title_text!r} on {label}", file=sys.stderr)
                     return 1
