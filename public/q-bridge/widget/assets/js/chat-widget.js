@@ -226,15 +226,44 @@
             return (data && data.responses) ? data.responses : [];
         },
 
+        async getUserSession() {
+            return await this.request('user_session', null, 'GET');
+        },
+
         async getHistory(limit) {
-            if (!state.sessionId) {
-                throw new Error('No active session');
-            }
             const data = await this.request('history', {
-                session_id: state.sessionId,
                 limit: String(limit || config.historyLimit || 6)
             }, 'GET');
+            if (data && data.session_id) {
+                state.sessionId = data.session_id;
+                try {
+                    localStorage.setItem('sanctum_q_chat_session_id', state.sessionId);
+                } catch (e) { /* ignore */ }
+            }
             return data || { items: [], latest_response_at: null };
+        },
+
+        async bootstrapUserSession() {
+            if (!config.useSessionAuth) {
+                return;
+            }
+            try {
+                const data = await this.getUserSession();
+                if (data && data.session_id) {
+                    state.sessionId = data.session_id;
+                    if (data.tasks_user_id) {
+                        config.tasksUserId = data.tasks_user_id;
+                    }
+                    const storageKey = 'sanctum_q_chat_session_id';
+                    const sinceKey = 'sanctum_q_since_u_' + (data.tasks_user_id || '0');
+                    try {
+                        localStorage.setItem(storageKey, state.sessionId);
+                        state.lastResponseSince = localStorage.getItem(sinceKey) || null;
+                    } catch (e) { /* ignore */ }
+                }
+            } catch (err) {
+                console.warn('Ask Q: could not resolve user session', err);
+            }
         },
 
         // Update session
@@ -381,14 +410,20 @@
             if (state.isOpen) {
                 this.close();
             } else {
-                this.open();
+                this.open().catch(function (err) {
+                    console.warn('Ask Q open failed', err);
+                });
             }
         },
 
         // Open chat window
-        open() {
+        async open() {
             if (state.isOpen) return;
-            
+
+            if (config.useSessionAuth && !state.sessionId) {
+                await api.bootstrapUserSession();
+            }
+
             state.isOpen = true;
             this.elements.window.classList.add('open');
             this.elements.input.focus();
@@ -399,7 +434,7 @@
             // Clear notification badge
             this.clearNotifications();
 
-            this.loadRecentHistory();
+            await this.loadRecentHistory();
             this.pollForResponses();
         },
 
@@ -504,11 +539,15 @@
                     });
                 }
 
+                if (data && data.tasks_user_id) {
+                    config.tasksUserId = data.tasks_user_id;
+                }
                 if (data && data.latest_response_at) {
                     state.lastResponseSince = data.latest_response_at;
                 }
                 try {
-                    const sinceKey = 'sanctum_q_since_' + state.sessionId;
+                    const uid = (data && data.tasks_user_id) ? String(data.tasks_user_id) : '0';
+                    const sinceKey = 'sanctum_q_since_u_' + uid;
                     if (state.lastResponseSince) {
                         localStorage.setItem(sinceKey, state.lastResponseSince);
                     }
@@ -719,10 +758,10 @@
                         if (response.timestamp) {
                             state.lastResponseSince = response.timestamp;
                             try {
-                                localStorage.setItem(
-                                    'sanctum_q_since_' + state.sessionId,
-                                    state.lastResponseSince
-                                );
+                                const sinceKey = config.tasksUserId
+                                    ? ('sanctum_q_since_u_' + config.tasksUserId)
+                                    : ('sanctum_q_since_' + state.sessionId);
+                                localStorage.setItem(sinceKey, state.lastResponseSince);
                             } catch (e) { /* ignore */ }
                         }
                     });
@@ -766,31 +805,29 @@
             }
 
             if (!state.isInitialized) {
-                const storageKey = 'sanctum_q_chat_session_id';
-                if (config.persistSession) {
+                state.uid = utils.generateUid();
+                ui.init();
+                if (config.title && ui.elements && ui.elements.title) {
+                    ui.elements.title.textContent = config.title;
+                }
+                ui.applyChatterLabel();
+                state.isInitialized = true;
+
+                if (config.persistSession && config.useSessionAuth) {
+                    api.bootstrapUserSession().catch(function () { /* logged in widget */ });
+                } else if (config.persistSession) {
                     try {
+                        const storageKey = 'sanctum_q_chat_session_id';
                         state.sessionId = localStorage.getItem(storageKey) || utils.generateSessionId();
                         localStorage.setItem(storageKey, state.sessionId);
-                        const sinceKey = 'sanctum_q_since_' + state.sessionId;
-                        state.lastResponseSince = localStorage.getItem(sinceKey) || null;
                     } catch (e) {
                         state.sessionId = utils.generateSessionId();
                     }
                 } else {
                     state.sessionId = utils.generateSessionId();
                 }
-                state.uid = utils.generateUid();
-                
-                // Initialize UI
-                ui.init();
-                if (config.title && ui.elements && ui.elements.title) {
-                    ui.elements.title.textContent = config.title;
-                }
-                ui.applyChatterLabel();
-                
-                state.isInitialized = true;
             }
-            
+
             return this;
         },
 

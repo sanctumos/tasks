@@ -11,7 +11,7 @@ $qChatterUsername = trim((string)($_SESSION['username'] ?? ''));
 ?>
 <link rel="stylesheet" href="/q-bridge/widget/assets/css/widget.css?v=4">
 <script src="/q-bridge/widget/assets/js/markdown-lite.js?v=1"></script>
-<script src="/q-bridge/widget/assets/js/chat-widget.js?v=6"></script>
+<script src="/q-bridge/widget/assets/js/chat-widget.js?v=7"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     if (typeof SanctumChat === 'undefined') {
