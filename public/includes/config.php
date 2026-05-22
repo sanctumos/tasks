@@ -326,6 +326,26 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
               )
         ");
     }
+
+    if (tableExists($db, 'api_keys')) {
+        ensureColumnExists($db, 'api_keys', 'key_kind', "TEXT NOT NULL DEFAULT 'standard'");
+        ensureIndexExists(
+            $db,
+            'idx_api_keys_user_q_bridge_active',
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_user_q_bridge_active ON api_keys(user_id) WHERE key_kind = 'q_bridge' AND (revoked_at IS NULL OR revoked_at = '')"
+        );
+    }
+}
+
+/** Master secret for deterministic per-user Q bridge API keys (server-side only). */
+function getQBridgeMasterSecret(): string {
+    $configured = trim((string)envOrDefault('TASKS_Q_BRIDGE_KEY_SECRET', ''));
+    if ($configured !== '') {
+        return $configured;
+    }
+    $dir = dirname(DB_PATH);
+    ensureDirExists($dir);
+    return loadOrGenerateSecretFile($dir . '/q_bridge_key_secret.txt', 32);
 }
 
 /** Ensure at least one organization and attach users without org_id (idempotent). */
@@ -467,6 +487,7 @@ function initializeDatabase() {
     ensureColumnExists($db, 'api_keys', 'revoked_at', 'DATETIME DEFAULT NULL');
     ensureColumnExists($db, 'api_keys', 'api_key_hash', 'TEXT DEFAULT NULL');
     ensureColumnExists($db, 'api_keys', 'key_preview', 'TEXT DEFAULT NULL');
+    ensureColumnExists($db, 'api_keys', 'key_kind', "TEXT NOT NULL DEFAULT 'standard'");
     // Backfill: store only hashes; existing rows get api_key_hash and key_preview from api_key
     $backfill = $db->query("SELECT id, api_key FROM api_keys WHERE (api_key_hash IS NULL OR api_key_hash = '') AND api_key IS NOT NULL AND api_key != ''");
     while ($backfill && ($row = $backfill->fetchArray(SQLITE3_ASSOC))) {
