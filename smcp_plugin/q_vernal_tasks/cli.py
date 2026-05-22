@@ -31,14 +31,21 @@ from tasks.cli import (  # noqa: E402
 )
 
 
+def _strip_api_key_argument(parser: argparse.ArgumentParser) -> None:
+    """Remove --api-key from root and all subcommands (resolved server-side)."""
+    for action in list(parser._actions):
+        if hasattr(action, "option_strings") and "--api-key" in action.option_strings:
+            parser._remove_action(action)
+    for action in parser._actions:
+        name_map = getattr(action, "_name_parser_map", None)
+        if name_map:
+            for sub in name_map.values():
+                _strip_api_key_argument(sub)
+
+
 def build_q_vernal_parser() -> argparse.ArgumentParser:
     parser = build_parser()
-    for action in parser._actions:
-        if not hasattr(action, "option_strings"):
-            continue
-        if "--api-key" in action.option_strings:
-            parser._remove_action(action)
-            break
+    _strip_api_key_argument(parser)
     return parser
 
 
