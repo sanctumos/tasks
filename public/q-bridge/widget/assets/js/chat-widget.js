@@ -113,11 +113,22 @@
             return new Date(timestamp).toLocaleTimeString();
         },
 
-        // Sanitize HTML
+        // Plain-text escape (legacy)
         sanitizeHtml: function(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        },
+
+        /** Render message body: decode entities + safe markdown when available. */
+        formatMessageHtml: function(text) {
+            if (!text) {
+                return '';
+            }
+            if (typeof window.SanctumMarkdownLite !== 'undefined' && window.SanctumMarkdownLite.toHtml) {
+                return window.SanctumMarkdownLite.toHtml(text);
+            }
+            return utils.sanitizeHtml(text);
         },
 
         // Debounce function
@@ -445,7 +456,10 @@
             avatar.textContent = 'Q';
             const messageContent = document.createElement('div');
             messageContent.className = 'sanctum-message-content';
-            messageContent.innerHTML = utils.sanitizeHtml(greeting);
+            const body = document.createElement('div');
+            body.className = 'sanctum-message-body sanctum-markdown';
+            body.innerHTML = utils.formatMessageHtml(greeting);
+            messageContent.appendChild(body);
             const time = document.createElement('div');
             time.className = 'sanctum-message-time';
             time.textContent = utils.formatTime(new Date());
@@ -534,12 +548,15 @@
             
             const messageContent = document.createElement('div');
             messageContent.className = 'sanctum-message-content';
-            messageContent.innerHTML = utils.sanitizeHtml(content);
-            
+            const body = document.createElement('div');
+            body.className = 'sanctum-message-body sanctum-markdown';
+            body.innerHTML = utils.formatMessageHtml(content);
+            messageContent.appendChild(body);
+
             const time = document.createElement('div');
             time.className = 'sanctum-message-time';
             time.textContent = utils.formatTime(options.timestamp || new Date());
-            
+
             messageContent.appendChild(time);
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(messageContent);
