@@ -293,8 +293,9 @@
             }
             // Live URL wins for route-derived ids (fixes stale project_id from another board).
             var fromUrl = this.parsePageContextFromLocation();
+            var mergeField = this.mergePageContextField.bind(this);
             ['surface', 'project_id', 'task_id', 'document_id', 'list_id', 'directory_path', 'tab', 'admin_page'].forEach(function (key) {
-                SanctumChat.API.mergePageContextField(base, fromUrl, key);
+                mergeField(base, fromUrl, key);
             });
             var titleEl = document.querySelector('h1');
             if (titleEl && titleEl.textContent) {
