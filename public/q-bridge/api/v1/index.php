@@ -11,6 +11,7 @@ require_once '../../includes/auth.php';
 require_once '../../includes/utils.php';
 require_once '../../includes/tasks_session.php';
 require_once '../../includes/chatter.php';
+require_once '../../includes/page_context.php';
 require_once '../../config/database.php';
 
 init_database();
@@ -190,6 +191,24 @@ function handle_messages() {
 
         $ctx = q_bridge_prepare_chatter_context($tasksUserId, $sessionMeta);
         $isFirstContact = $ctx['is_first_contact'];
+
+        $viewer = getUserById($tasksUserId, false);
+        $pageCtxRaw = q_bridge_normalize_page_context(
+            is_array($input['page_context'] ?? null) ? $input['page_context'] : null
+        );
+        if ($viewer) {
+            $pageCtx = q_bridge_enrich_page_context($pageCtxRaw, $viewer);
+        } else {
+            $pageCtx = [];
+        }
+        if ($pageCtx === [] || empty($pageCtx['admin_origin'])) {
+            $pageCtx['admin_origin'] = q_bridge_admin_origin();
+            if (empty($pageCtx['surface'])) {
+                $pageCtx['surface'] = 'unknown';
+            }
+        }
+        $messageMeta = $pageCtx !== [] ? ['page_context' => $pageCtx] : [];
+        $sessionMeta['last_page_context'] = $pageCtx;
         
         // Get or create UID for this session
         $ip_address = get_client_ip();
@@ -197,12 +216,16 @@ function handle_messages() {
         $uid = $user_data['uid'];
         $is_new_user = $user_data['is_new'];
         
-        // Store message
+        $updMeta = $pdo->prepare('UPDATE web_chat_sessions SET metadata = ?, last_active = CURRENT_TIMESTAMP WHERE id = ?');
+        $updMeta->execute([json_encode($sessionMeta), $session_id]);
+
+        // Store message (metadata = page context at send time)
         $stmt = $pdo->prepare("
-            INSERT INTO web_chat_messages (session_id, message, timestamp)
-            VALUES (?, ?, ?)
+            INSERT INTO web_chat_messages (session_id, message, timestamp, metadata)
+            VALUES (?, ?, ?, ?)
         ");
-        $stmt->execute([$session_id, $message, $timestamp]);
+        $metaJson = $messageMeta !== [] ? json_encode($messageMeta) : null;
+        $stmt->execute([$session_id, $message, $timestamp, $metaJson]);
         $message_id = $pdo->lastInsertId();
         
         // Log request
@@ -260,7 +283,8 @@ function handle_inbox() {
         
         // Get messages with UID information
         $stmt = $pdo->prepare("
-            SELECT m.id, m.session_id, m.message, m.timestamp, s.uid, s.metadata AS session_metadata
+            SELECT m.id, m.session_id, m.message, m.timestamp, m.metadata AS message_metadata,
+                   s.uid, s.metadata AS session_metadata
             FROM web_chat_messages m
             LEFT JOIN web_chat_sessions s ON m.session_id = s.id
             WHERE {$where_clause}
@@ -288,7 +312,20 @@ function handle_inbox() {
             if (!empty($meta['tasks_display_name'])) {
                 $row['tasks_display_name'] = (string)$meta['tasks_display_name'];
             }
-            unset($row['session_metadata']);
+            $msgMeta = [];
+            if (!empty($row['message_metadata'])) {
+                $decodedMsg = json_decode((string)$row['message_metadata'], true);
+                if (is_array($decodedMsg)) {
+                    $msgMeta = $decodedMsg;
+                }
+            }
+            unset($row['session_metadata'], $row['message_metadata']);
+            $pageCtx = is_array($msgMeta['page_context'] ?? null) ? $msgMeta['page_context'] : [];
+            // Do not reuse session last_page_context — it goes stale when the user changes project boards.
+            if ($pageCtx !== []) {
+                $row['page_context'] = $pageCtx;
+                $row['chat_context_block'] = q_bridge_format_chat_context_block($pageCtx);
+            }
             $row['is_first_contact'] = q_bridge_is_first_contact_for_inbox_row(
                 (int)($row['tasks_user_id'] ?? 0),
                 (int)$row['id']

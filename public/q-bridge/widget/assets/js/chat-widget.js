@@ -24,7 +24,8 @@
         notifications: true,
         sound: true,
         persistSession: false,
-        historyLimit: 6
+        historyLimit: 6,
+        pageContext: null
     };
 
     // Widget state
@@ -203,16 +204,121 @@
             }
         },
 
+        parsePageContextFromLocation() {
+            var path = window.location.pathname || '';
+            var params = new URLSearchParams(window.location.search || '');
+            var out = {};
+            var intParam = function (key) {
+                var v = parseInt(params.get(key), 10);
+                return v > 0 ? v : 0;
+            };
+
+            if (path.indexOf('/admin/view.php') >= 0) {
+                out.surface = intParam('id') ? 'task' : 'tasks';
+                if (intParam('id')) {
+                    out.task_id = intParam('id');
+                }
+            } else if (path.indexOf('/admin/doc.php') >= 0 || path.indexOf('/admin/document.php') >= 0) {
+                out.surface = intParam('id') ? 'document' : 'docs';
+                if (intParam('id')) {
+                    out.document_id = intParam('id');
+                }
+            } else if (path.indexOf('/admin/project.php') >= 0 || path.indexOf('/admin/workspace-project.php') >= 0) {
+                out.surface = intParam('id') ? 'project' : 'projects';
+                if (intParam('id')) {
+                    out.project_id = intParam('id');
+                }
+                if (params.get('tab')) {
+                    out.tab = String(params.get('tab')).slice(0, 32);
+                }
+            } else if (path.indexOf('/admin/docs.php') >= 0) {
+                out.surface = 'docs';
+                if (intParam('project_id')) {
+                    out.project_id = intParam('project_id');
+                }
+                if (params.get('dir')) {
+                    out.directory_path = String(params.get('dir')).slice(0, 256);
+                }
+            } else if (path.indexOf('/admin/doc-create.php') >= 0 || path.indexOf('/admin/doc-update.php') >= 0) {
+                if (path.indexOf('/admin/doc-update.php') >= 0 && intParam('id')) {
+                    out.surface = 'document';
+                    out.document_id = intParam('id');
+                } else {
+                    out.surface = 'doc_create';
+                    if (intParam('project_id')) {
+                        out.project_id = intParam('project_id');
+                    }
+                }
+            } else if (path.indexOf('/admin/create.php') >= 0) {
+                out.surface = 'task_create';
+                if (intParam('project_id')) {
+                    out.project_id = intParam('project_id');
+                }
+                if (intParam('list_id')) {
+                    out.list_id = intParam('list_id');
+                }
+            } else if (path === '/admin/' || path === '/admin' || path.indexOf('/admin/index.php') >= 0) {
+                if (intParam('project_id')) {
+                    out.surface = 'project';
+                    out.project_id = intParam('project_id');
+                } else {
+                    out.surface = 'home';
+                }
+            } else if (path.indexOf('/admin/activity.php') >= 0) {
+                out.surface = 'activity';
+            } else if (path.indexOf('/admin/settings.php') >= 0) {
+                out.surface = 'settings';
+            } else if (path.indexOf('/admin/workspace-projects.php') >= 0) {
+                out.surface = 'projects';
+            } else if (path.indexOf('/admin/') === 0) {
+                var page = path.replace(/^.*\//, '').replace(/\.php$/, '');
+                out.surface = 'admin';
+                out.admin_page = page || 'admin';
+            }
+            return out;
+        },
+
+        mergePageContextField(base, fromUrl, key) {
+            if (fromUrl[key] !== undefined && fromUrl[key] !== null && fromUrl[key] !== '') {
+                base[key] = fromUrl[key];
+            }
+        },
+
+        collectPageContext() {
+            var base = {};
+            if (config.pageContext && typeof config.pageContext === 'object') {
+                base = Object.assign({}, config.pageContext);
+            } else if (typeof window.TASKS_ASK_Q_PAGE === 'object' && window.TASKS_ASK_Q_PAGE) {
+                base = Object.assign({}, window.TASKS_ASK_Q_PAGE);
+            }
+            // Live URL wins for route-derived ids (fixes stale project_id from another board).
+            var fromUrl = this.parsePageContextFromLocation();
+            ['surface', 'project_id', 'task_id', 'document_id', 'list_id', 'directory_path', 'tab', 'admin_page'].forEach(function (key) {
+                SanctumChat.API.mergePageContextField(base, fromUrl, key);
+            });
+            var titleEl = document.querySelector('h1');
+            if (titleEl && titleEl.textContent) {
+                base.page_title = titleEl.textContent.trim().slice(0, 200);
+            }
+            base.url = (window.location.pathname || '') + (window.location.search || '');
+            if (!base.surface && base.url.indexOf('/admin/') === 0) {
+                base.surface = 'admin';
+            }
+            return base;
+        },
+
         async sendMessage(message) {
             if (!state.sessionId) {
                 throw new Error('No active session');
             }
-            return await this.request('messages', {
+            var payload = {
                 session_id: state.sessionId,
                 message: message,
                 timestamp: new Date().toISOString(),
-                uid: state.uid
-            }, 'POST');
+                uid: state.uid,
+                page_context: this.collectPageContext()
+            };
+            return await this.request('messages', payload, 'POST');
         },
 
         async getMessages(since) {
@@ -309,6 +415,7 @@
             
             // Bind events
             this.bindEvents();
+            this.setupVisualViewport();
             
             // Set initial theme
             this.setTheme(config.theme);
@@ -388,6 +495,85 @@
                     this.close();
                 }
             });
+
+            const refocusViewport = () => {
+                setTimeout(() => this.syncVisualViewport(), 50);
+                setTimeout(() => this.syncVisualViewport(), 320);
+            };
+            this.elements.input.addEventListener('focus', refocusViewport);
+            this.elements.input.addEventListener('blur', refocusViewport);
+        },
+
+        /** Mobile on-screen keyboard: shrink panel to visualViewport (not layout 100vh). */
+        setupVisualViewport() {
+            const vv = window.visualViewport;
+            if (!vv) {
+                return;
+            }
+            const onChange = () => this.syncVisualViewport();
+            vv.addEventListener('resize', onChange);
+            vv.addEventListener('scroll', onChange);
+            window.addEventListener('orientationchange', onChange);
+            window.addEventListener('resize', onChange);
+            this._visualViewportTeardown = function () {
+                vv.removeEventListener('resize', onChange);
+                vv.removeEventListener('scroll', onChange);
+                window.removeEventListener('orientationchange', onChange);
+                window.removeEventListener('resize', onChange);
+            };
+            this.syncVisualViewport();
+        },
+
+        syncVisualViewport() {
+            const widget = this.elements.widget;
+            const win = this.elements.window;
+            if (!widget || !win) {
+                return;
+            }
+            const mobileMq = window.matchMedia('(max-width: 768px)');
+            const isMobile = mobileMq.matches;
+            const vv = window.visualViewport;
+            const margin = isMobile ? 15 : 20;
+
+            if (!isMobile || !vv) {
+                widget.classList.remove('sanctum-keyboard-adjust');
+                widget.style.removeProperty('bottom');
+                widget.style.removeProperty('--sanctum-vvh');
+                win.style.removeProperty('height');
+                win.style.removeProperty('max-height');
+                return;
+            }
+
+            const insetBottom = Math.max(
+                0,
+                Math.round(window.innerHeight - vv.offsetTop - vv.height)
+            );
+            const keyboardUp = insetBottom > 40 || vv.height < window.innerHeight * 0.82;
+            const visibleH = Math.round(vv.height);
+
+            widget.style.setProperty('--sanctum-vvh', visibleH + 'px');
+
+            if (state.isOpen || keyboardUp) {
+                widget.style.bottom = (insetBottom + margin) + 'px';
+                widget.classList.toggle('sanctum-keyboard-adjust', keyboardUp);
+                const panelMax = Math.max(220, visibleH - margin);
+                win.style.maxHeight = panelMax + 'px';
+                if (state.isOpen) {
+                    win.style.height = Math.min(500, panelMax) + 'px';
+                    if (keyboardUp && this.elements.input === document.activeElement) {
+                        requestAnimationFrame(() => {
+                            this.elements.messages.scrollTop = this.elements.messages.scrollHeight;
+                        });
+                    }
+                } else {
+                    win.style.removeProperty('height');
+                }
+            } else {
+                widget.classList.remove('sanctum-keyboard-adjust');
+                widget.style.removeProperty('bottom');
+                win.style.removeProperty('height');
+                win.style.removeProperty('max-height');
+            }
         },
 
         // Handle keydown events
@@ -425,7 +611,9 @@
             }
 
             state.isOpen = true;
+            this.elements.widget.classList.add('is-open');
             this.elements.window.classList.add('open');
+            this.syncVisualViewport();
             this.elements.input.focus();
             
             // Emit open event
@@ -443,7 +631,9 @@
             if (!state.isOpen) return;
             
             state.isOpen = false;
+            this.elements.widget.classList.remove('is-open');
             this.elements.window.classList.remove('open');
+            this.syncVisualViewport();
             this.elements.input.blur();
             
             // Emit close event

@@ -165,6 +165,21 @@
     transform: scale(1);
 }
 
+/* Panel open: hide launcher (close via header X); window sits on anchor corner */
+.sanctum-chat-widget.is-open {
+    gap: 0;
+}
+
+.sanctum-chat-widget.is-open .sanctum-chat-bubble {
+    display: none !important;
+    visibility: hidden;
+    pointer-events: none;
+    width: 0;
+    height: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
 /* Chat header */
 .sanctum-chat-header {
     background: var(--primary-color);
@@ -546,10 +561,24 @@
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
+    .sanctum-chat-widget {
+        /* visualViewport JS sets --sanctum-vvh when keyboard is up */
+        transition: bottom 0.2s ease-out;
+    }
+
+    .sanctum-chat-widget.sanctum-keyboard-adjust .sanctum-chat-window.open {
+        transition: height 0.2s ease-out, max-height 0.2s ease-out;
+    }
+
     .sanctum-chat-window {
-        width: calc(100vw - 40px);
-        height: calc(100vh - 120px);
-        max-height: 600px;
+        width: calc(100vw - 40px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+        height: min(500px, calc(var(--sanctum-vvh, 100dvh) - 32px));
+        max-height: calc(var(--sanctum-vvh, 100dvh) - 32px);
+    }
+
+    .sanctum-chat-widget.is-open .sanctum-chat-window {
+        height: min(500px, calc(var(--sanctum-vvh, 100dvh) - 24px));
+        max-height: calc(var(--sanctum-vvh, 100dvh) - 24px);
     }
     
     .sanctum-chat-bubble {

@@ -85,6 +85,8 @@ Use **`@username`** in descriptions and comments. When you type `@`, a **suggest
 
 Markdown (Parsedown, safe mode) applies to task **body**, **comments**, and **documents**. Password policy and other **admin** strings are plain text.
 
+**Diagrams:** Use a fenced code block with language **`mermaid`** (for example `flowchart`, `sequenceDiagram`, `graph TB`). The viewer renders it as a diagram instead of a plain code block. Other languages still show as syntax-highlighted preformatted code.
+
 ---
 
 ## Search and filters

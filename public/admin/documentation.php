@@ -23,7 +23,7 @@ $pd->setMarkupEscaped(true);
 $pd->setBreaksEnabled(true);
 $pd->setUrlsLinked(true);
 
-$htmlBody = $pd->text($raw);
+$htmlBody = st_markdown_enhance_html($pd->text($raw));
 $htmlBody = st_doc_inject_heading_ids($htmlBody);
 
 $pageTitle = 'Help';

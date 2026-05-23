@@ -172,6 +172,37 @@ if (!function_exists('st_avatar_html')) {
     }
 }
 
+if (!function_exists('st_markdown_promote_mermaid_diagrams')) {
+    /**
+     * Turn Parsedown fenced ```mermaid blocks into <div class="mermaid"> for client render.
+     */
+    function st_markdown_promote_mermaid_diagrams(string $html): string {
+        if ($html === '' || stripos($html, 'mermaid') === false) {
+            return $html;
+        }
+        return (string)preg_replace_callback(
+            '#<pre>\s*<code(?:\s+class="[^"]*language-mermaid[^"]*")?>(.*?)</code>\s*</pre>#is',
+            static function (array $m): string {
+                $src = html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                return '<div class="mermaid st-mermaid-diagram" role="figure" aria-label="Diagram">'
+                    . htmlspecialchars($src, ENT_NOQUOTES, 'UTF-8')
+                    . '</div>';
+            },
+            $html
+        );
+    }
+}
+
+if (!function_exists('st_markdown_enhance_html')) {
+    /**
+     * Post-process Parsedown HTML (mermaid diagrams, @mentions).
+     */
+    function st_markdown_enhance_html(string $html): string {
+        $html = st_markdown_promote_mermaid_diagrams($html);
+        return st_linkify_mentions($html);
+    }
+}
+
 if (!function_exists('st_markdown')) {
     /**
      * Render Markdown safely.
@@ -179,14 +210,17 @@ if (!function_exists('st_markdown')) {
      * Uses Parsedown 1.7.4 (vendored under public/includes/lib/Parsedown.php)
      * with safe mode + escaped inline HTML, so embedded HTML is treated as
      * plain text and dangerous URL schemes are stripped. Bare URLs are
-     * auto-linked. Returns trusted HTML (safe to echo directly).
+     * auto-linked. Fenced ```mermaid blocks become diagram divs (see
+     * assets/mermaid-init.js). Returns trusted HTML (safe to echo directly).
      *
      * Used for the task description body and individual comment bodies on
      * the admin task page.
      */
     function st_markdown(?string $raw, bool $inline = false): string {
         $raw = (string)$raw;
-        if ($raw === '') return '';
+        if ($raw === '') {
+            return '';
+        }
         require_once __DIR__ . '/../includes/lib/Parsedown.php';
         static $pd = null;
         if ($pd === null) {
@@ -197,7 +231,24 @@ if (!function_exists('st_markdown')) {
             $pd->setBreaksEnabled(true);
         }
         $html = $inline ? $pd->line($raw) : $pd->text($raw);
-        return st_linkify_mentions($html);
+        return st_markdown_enhance_html($html);
+    }
+}
+
+if (!function_exists('st_mermaid_assets_html')) {
+    /**
+     * Script tags to render .mermaid blocks inside .markdown-body (admin + shared docs).
+     */
+    function st_mermaid_assets_html(): string {
+        static $html = null;
+        if ($html !== null) {
+            return $html;
+        }
+        $v = '1';
+        $html = '<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.3/dist/mermaid.min.js" '
+            . 'crossorigin="anonymous"></script>'
+            . '<script src="/assets/mermaid-init.js?v=' . $v . '"></script>';
+        return $html;
     }
 }
 

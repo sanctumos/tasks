@@ -492,6 +492,27 @@ body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-t
 .markdown-body th, .markdown-body td { border: 1px solid var(--st-border-subtle); padding: 0.35rem 0.55rem; }
 .markdown-body th { background: var(--st-bg-soft); font-weight: 600; }
 
+/* Mermaid diagrams (fenced ```mermaid in documents / task bodies) */
+.markdown-body .st-mermaid-diagram,
+.markdown-body .mermaid {
+    margin: 1rem 0;
+    padding: 0.75rem;
+    background: var(--st-bg-soft);
+    border: 1px solid var(--st-border-subtle);
+    border-radius: var(--st-radius-sm);
+    overflow-x: auto;
+    text-align: center;
+}
+.markdown-body .st-mermaid-diagram svg,
+.markdown-body .mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+.markdown-body pre code.language-mermaid {
+    display: block;
+    white-space: pre;
+}
+
 .comment-body.markdown-body { font-size: 0.92rem; }
 .comment-body.markdown-body p:last-child { margin-bottom: 0; }
 

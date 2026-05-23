@@ -567,6 +567,58 @@ def list_audit_logs(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
     return _wrap(run)
 
 
+def list_documents(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        documents = client.list_documents(
+            project_id=int(args["project-id"]),
+            limit=int(args.get("limit", 100)),
+            directory_path=args.get("directory-path"),
+        )
+        return _success(documents=documents, count=len(documents))
+
+    return _wrap(run)
+
+
+def get_document(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        doc = client.get_document(document_id=int(args["id"]))
+        return _success(document=doc)
+
+    return _wrap(run)
+
+
+def create_document(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        doc = client.create_document(
+            project_id=int(args["project-id"]),
+            title=str(args["title"]),
+            body=args.get("body"),
+            directory_path=str(args.get("directory-path", "")),
+        )
+        return _success(document=doc)
+
+    return _wrap(run)
+
+
+def update_document(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        doc = client.update_document(
+            document_id=int(args["id"]),
+            title=args.get("title"),
+            body=args.get("body"),
+            project_id=args.get("project-id"),
+            directory_path=args.get("directory-path"),
+            status=args.get("status"),
+        )
+        return _success(document=doc)
+
+    return _wrap(run)
+
+
 def command_handlers() -> Dict[str, Callable[[Dict[str, Any], str], Dict[str, Any]]]:
     """Resolve handlers at call time so tests can monkeypatch module functions."""
     return {
@@ -601,6 +653,10 @@ def command_handlers() -> Dict[str, Callable[[Dict[str, Any], str], Dict[str, An
         "create-api-key": create_api_key,
         "revoke-api-key": revoke_api_key,
         "list-audit-logs": list_audit_logs,
+        "list-documents": list_documents,
+        "get-document": get_document,
+        "create-document": create_document,
+        "update-document": update_document,
     }
 
 
@@ -875,6 +931,32 @@ def build_parser() -> argparse.ArgumentParser:
     add_api_key(p)
     p.add_argument("--limit", type=int, default=100)
     p.add_argument("--offset", type=int, default=0)
+
+    p = subparsers.add_parser("list-documents", help="GET /api/list-documents.php")
+    add_api_key(p)
+    p.add_argument("--project-id", type=int, required=True, dest="project_id")
+    p.add_argument("--limit", type=int, default=100)
+    p.add_argument("--directory-path", dest="directory_path")
+
+    p = subparsers.add_parser("get-document", help="GET /api/get-document.php")
+    add_api_key(p)
+    p.add_argument("--id", type=int, required=True)
+
+    p = subparsers.add_parser("create-document", help="POST /api/create-document.php")
+    add_api_key(p)
+    p.add_argument("--project-id", type=int, required=True, dest="project_id")
+    p.add_argument("--title", required=True)
+    p.add_argument("--body")
+    p.add_argument("--directory-path", default="", dest="directory_path")
+
+    p = subparsers.add_parser("update-document", help="POST /api/update-document.php")
+    add_api_key(p)
+    p.add_argument("--id", type=int, required=True)
+    p.add_argument("--title")
+    p.add_argument("--body")
+    p.add_argument("--project-id", type=int, dest="project_id")
+    p.add_argument("--directory-path", dest="directory_path")
+    p.add_argument("--status")
 
     return parser
 

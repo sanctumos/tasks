@@ -81,4 +81,20 @@ function init_database() {
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_rate_limits_window ON rate_limits(window_start)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_sessions_uid ON web_chat_sessions(uid)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_sessions_ip ON web_chat_sessions(ip_address)');
+
+    q_bridge_ensure_message_metadata_column($pdo);
+}
+
+/**
+ * Per-message JSON (page context at send time) for Broca inbox.
+ */
+function q_bridge_ensure_message_metadata_column(PDO $pdo): void {
+    $stmt = $pdo->query('PRAGMA table_info(web_chat_messages)');
+    $cols = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    foreach ($cols as $col) {
+        if (($col['name'] ?? '') === 'metadata') {
+            return;
+        }
+    }
+    $pdo->exec('ALTER TABLE web_chat_messages ADD COLUMN metadata TEXT');
 }
