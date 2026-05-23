@@ -62,16 +62,116 @@ function authScriptAllowedDuringPasswordChange(?string $scriptName): bool {
     return false;
 }
 
+/**
+ * Current request path + query (safe to use as a post-login return target).
+ */
+function auth_current_request_uri(): string {
+    $uri = (string)($_SERVER['REQUEST_URI'] ?? '/admin/');
+    $hash = strpos($uri, '#');
+    if ($hash !== false) {
+        $uri = substr($uri, 0, $hash);
+    }
+    return $uri !== '' ? $uri : '/admin/';
+}
+
+/**
+ * Validate a return path — same-origin relative only (blocks open redirects).
+ */
+function auth_safe_return_path(?string $path): ?string {
+    if ($path === null) {
+        return null;
+    }
+    $path = trim($path);
+    if ($path === '' || strlen($path) > 2048) {
+        return null;
+    }
+    if (preg_match('#^https?://#i', $path) || str_starts_with($path, '//')) {
+        return null;
+    }
+    if (!str_starts_with($path, '/')) {
+        return null;
+    }
+    $pathOnly = (string)(parse_url($path, PHP_URL_PATH) ?: $path);
+    $pathOnly = strtolower($pathOnly);
+    if (str_contains($pathOnly, '/admin/login.php') || str_contains($pathOnly, '/admin/logout.php')) {
+        return null;
+    }
+    $allowedPrefixes = ['/admin/', '/api/', '/q-bridge/', '/shared-document.php', '/index.php'];
+    foreach ($allowedPrefixes as $prefix) {
+        if ($path === $prefix || str_starts_with($path, $prefix)) {
+            return $path;
+        }
+    }
+    if ($path === '/') {
+        return $path;
+    }
+    return null;
+}
+
+function auth_store_intended_url(?string $path): void {
+    $safe = auth_safe_return_path($path);
+    if ($safe !== null) {
+        $_SESSION['intended_url'] = $safe;
+    }
+}
+
+function auth_peek_intended_url(): ?string {
+    $stored = $_SESSION['intended_url'] ?? null;
+    return auth_safe_return_path(is_string($stored) ? $stored : null);
+}
+
+function auth_take_intended_url(): ?string {
+    $url = auth_peek_intended_url();
+    unset($_SESSION['intended_url']);
+    return $url;
+}
+
+/**
+ * Resolve return target from explicit param and/or session stash.
+ */
+function auth_resolve_intended_url(?string $candidate = null): ?string {
+    if ($candidate !== null && $candidate !== '') {
+        $safe = auth_safe_return_path($candidate);
+        if ($safe !== null) {
+            auth_store_intended_url($safe);
+            return $safe;
+        }
+    }
+    return auth_peek_intended_url();
+}
+
+function auth_login_url(?string $returnPath = null): string {
+    $url = '/admin/login.php';
+    $safe = auth_safe_return_path($returnPath);
+    if ($safe !== null) {
+        $url .= '?return=' . rawurlencode($safe);
+    }
+    return $url;
+}
+
+function auth_redirect_to_login(): void {
+    $uri = auth_current_request_uri();
+    auth_store_intended_url($uri);
+    header('Location: ' . auth_login_url($uri));
+    exit();
+}
+
+function auth_redirect_after_login(?string $candidate = null): void {
+    $dest = auth_resolve_intended_url($candidate) ?? '/admin/';
+    unset($_SESSION['intended_url']);
+    header('Location: ' . $dest);
+    exit();
+}
+
 function requireAuth(): void {
     if (!isLoggedIn()) {
-        header('Location: /admin/login.php');
-        exit();
+        auth_redirect_to_login();
     }
 
     if (!empty($_SESSION['must_change_password'])) {
         $script = $_SERVER['SCRIPT_NAME'] ?? '';
         if (!authScriptAllowedDuringPasswordChange($script)) {
-            // Relative URL: works when the app lives under a subpath (avoids /admin/... at host root).
+            auth_store_intended_url(auth_current_request_uri());
             header('Location: settings.php?tab=password');
             exit();
         }

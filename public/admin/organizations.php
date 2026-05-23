@@ -9,7 +9,7 @@ require_once __DIR__ . '/_helpers.php';
 requireAdmin();
 $currentUser = getCurrentUser();
 if (!$currentUser) {
-    header('Location: /admin/login.php');
+    auth_redirect_to_login();
     exit();
 }
 

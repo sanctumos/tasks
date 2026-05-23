@@ -20,6 +20,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] 
         if ($result['success']) {
             $pwd_success = 'Password changed successfully.';
             $_SESSION['must_change_password'] = 0;
+            $intended = auth_take_intended_url();
+            if ($intended !== null) {
+                header('Location: ' . $intended);
+                exit;
+            }
         } else {
             $pwd_error = $result['error'] ?? 'Failed to change password.';
         }
