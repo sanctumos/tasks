@@ -21,7 +21,7 @@ if ($layoutUser) {
 ?>
 <link rel="stylesheet" href="/q-bridge/widget/assets/css/widget.css?v=5">
 <script src="/q-bridge/widget/assets/js/markdown-lite.js?v=1"></script>
-<script src="/q-bridge/widget/assets/js/chat-widget.js?v=11"></script>
+<script src="/q-bridge/widget/assets/js/chat-widget.js?v=12"></script>
 <script>
 window.TASKS_ASK_Q_PAGE = <?= json_encode($askQPageContext, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 document.addEventListener('DOMContentLoaded', function () {
