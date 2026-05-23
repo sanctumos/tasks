@@ -754,6 +754,66 @@ class TasksClient:
         response = self._request('GET', 'list-tags.php', params={'limit': limit})
         return response.get('tags', [])
 
+    # ---------- Documents (directory project markdown) ----------
+    def list_documents(
+        self,
+        project_id: int,
+        *,
+        limit: int = 100,
+        directory_path: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        params: Dict[str, Any] = {'project_id': project_id, 'limit': limit}
+        if directory_path is not None:
+            params['directory_path'] = directory_path
+        response = self._request('GET', 'list-documents.php', params=params)
+        return response.get('documents', [])
+
+    def get_document(self, document_id: int) -> Dict[str, Any]:
+        response = self._request('GET', 'get-document.php', params={'id': document_id})
+        return response.get('document', {})
+
+    def create_document(
+        self,
+        project_id: int,
+        title: str,
+        body: Optional[str] = None,
+        *,
+        directory_path: str = '',
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {
+            'project_id': project_id,
+            'title': title,
+            'directory_path': directory_path,
+        }
+        if body is not None:
+            payload['body'] = body
+        response = self._request('POST', 'create-document.php', data=payload)
+        return response.get('document', response)
+
+    def update_document(
+        self,
+        document_id: int,
+        *,
+        title: Optional[str] = None,
+        body: Optional[str] = None,
+        project_id: Optional[int] = None,
+        directory_path: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {'id': document_id}
+        if title is not None:
+            payload['title'] = title
+        if body is not None:
+            payload['body'] = body
+        if project_id is not None:
+            payload['project_id'] = project_id
+        if directory_path is not None:
+            payload['directory_path'] = directory_path
+        if status is not None:
+            payload['status'] = status
+        response = self._request('POST', 'update-document.php', data=payload)
+        return response.get('document', response)
+
     # ---------- Auditing ----------
     def list_audit_logs(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         response = self._request('GET', 'list-audit-logs.php', params={'limit': limit, 'offset': offset})

@@ -134,21 +134,21 @@ def main() -> int:
                 page.wait_for_timeout(500)
                 win = page.locator("#sanctum-chat-window")
                 win.wait_for(state="visible", timeout=5000)
-                box_open = bubble.bounding_box()
-                if not box_open:
-                    print(f"FAIL: no bubble box when open ({label})", file=sys.stderr)
+                widget = page.locator(".sanctum-chat-widget")
+                if "is-open" not in (widget.get_attribute("class") or ""):
+                    print(f"FAIL: widget missing is-open ({label})", file=sys.stderr)
                     return 1
-                if abs(box_open["y"] - box_closed["y"]) > 8:
-                    print(
-                        f"FAIL: bubble moved when panel opened "
-                        f"closed_y={box_closed['y']:.0f} open_y={box_open['y']:.0f} ({label})",
-                        file=sys.stderr,
-                    )
+                if bubble.is_visible():
+                    print(f"FAIL: bubble still visible when panel open ({label})", file=sys.stderr)
                     return 1
-                if box_open["y"] + box_open["height"] < size[1] - margin:
+                win_box = win.bounding_box()
+                if not win_box:
+                    print(f"FAIL: no window box when open ({label})", file=sys.stderr)
+                    return 1
+                if win_box["y"] + win_box["height"] < size[1] - margin:
                     print(
-                        f"FAIL: bubble not bottom-anchored when open "
-                        f"y={box_open['y']:.0f} ({label})",
+                        f"FAIL: panel not bottom-anchored when open "
+                        f"bottom={win_box['y'] + win_box['height']:.0f} vh={size[1]} ({label})",
                         file=sys.stderr,
                     )
                     return 1
