@@ -19,7 +19,7 @@ requireCsrfToken();
 
 $currentUser = getCurrentUser();
 if (!$currentUser) {
-    header('Location: /admin/login.php');
+    auth_redirect_to_login();
     exit;
 }
 

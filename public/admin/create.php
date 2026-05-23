@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 requireCsrfToken();
 $currentUser = getCurrentUser();
 if (!$currentUser) {
-    header('Location: /admin/login.php');
+    auth_redirect_to_login();
     exit();
 }
 

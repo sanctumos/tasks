@@ -1,10 +1,12 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 
+$returnAfterLogin = auth_resolve_intended_url(
+    isset($_GET['return']) && is_string($_GET['return']) ? $_GET['return'] : null
+);
+
 if (isLoggedIn()) {
-    // Relative: works when the app is mounted under a subpath (not only at domain root).
-    header('Location: index.php');
-    exit();
+    auth_redirect_after_login($returnAfterLogin);
 }
 
 $error = null;
@@ -12,17 +14,22 @@ $lockoutSeconds = 0;
 $mfaRequired = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
+    $returnAfterLogin = auth_resolve_intended_url(
+        isset($_POST['return']) && is_string($_POST['return']) ? $_POST['return'] : null
+    );
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
     $mfaCode = $_POST['mfa_code'] ?? null;
     $result = login($username, $password, $mfaCode);
     if ($result['success']) {
         if (!empty($result['must_change_password'])) {
+            if ($returnAfterLogin !== null) {
+                auth_store_intended_url($returnAfterLogin);
+            }
             header('Location: settings.php?tab=password');
             exit();
         }
-        header('Location: index.php');
-        exit();
+        auth_redirect_after_login($returnAfterLogin);
     }
     $error = $result['error'] ?? 'Login failed';
     $lockoutSeconds = (int)($result['lockout_seconds'] ?? 0);
@@ -49,8 +56,11 @@ require __DIR__ . '/_layout_top.php';
                 <div class="alert alert-warning">Login locked for approximately <?= (int)$lockoutSeconds ?> seconds.</div>
             <?php endif; ?>
 
-            <form method="post" action="/admin/login.php">
+            <form method="post" action="/admin/login.php<?= $returnAfterLogin !== null ? '?return=' . rawurlencode($returnAfterLogin) : '' ?>">
                 <?= csrfInputField() ?>
+                <?php if ($returnAfterLogin !== null): ?>
+                    <input type="hidden" name="return" value="<?= htmlspecialchars($returnAfterLogin, ENT_QUOTES, 'UTF-8') ?>">
+                <?php endif; ?>
                 <div class="mb-3">
                     <label class="form-label">Username</label>
                     <input class="form-control" name="username" autocomplete="username" required autofocus>
