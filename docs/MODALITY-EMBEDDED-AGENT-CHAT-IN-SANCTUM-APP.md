@@ -2,7 +2,7 @@
 
 **Document type:** Omnibus pattern template (not a visual design spec)  
 **Canonical title:** Embedded agent chat — pull bridge, Tasks-user identity, Ask Q modality  
-**Version:** 1.0 · 2026-05-22  
+**Version:** 1.1 · 2026-05-23 (v1.0 · 2026-05-22)  
 **First full implementation:** **Q Vernal** on **Sanctum Tasks** (`tasks.decisionsciencecorp.com`)  
 **Authors:** Mark Hopkins (product), Otto Vernal (engineering), Athena Vernal (persona source)
 
@@ -12,8 +12,9 @@
 |-----|-----|------|
 | Q persona (canonical) | [#295](https://tasks.decisionsciencecorp.com/admin/document.php?id=295) | Who Q is |
 | Architecture / execution plan | [#296](https://tasks.decisionsciencecorp.com/admin/document.php?id=296) | Original phased plan + Mark decisions |
-| UX audit (lettatest) | [#297](https://tasks.decisionsciencecorp.com/admin/document.php?id=297) | Widget quality bar |
-| Upgrade planning hub | [#294](https://tasks.decisionsciencecorp.com/admin/document.php?id=294) | Program context |
+| UX audit (lettatest) | [#297](https://tasks.decisionsciencecorp.com/admin/doc.php?id=297) | Widget quality bar |
+| Upgrade planning hub | [#294](https://tasks.decisionsciencecorp.com/admin/doc.php?id=294) | Program context |
+| Q **job_rules** (Letta block) | [#301](https://tasks.decisionsciencecorp.com/admin/doc.php?id=301) | Operator rules; sync to agent via `tools/lettatest_update_q_job_rules.py` |
 
 **This file in git:** `sanctum-tasks/docs/MODALITY-EMBEDDED-AGENT-CHAT-IN-SANCTUM-APP.md`  
 **Private-doc mirror:** `private-documentation/MODALITY-EMBEDDED-AGENT-CHAT-IN-SANCTUM-APP.md`  
@@ -92,7 +93,12 @@ You are looking at a **software modality template**: a repeatable way to bolt a 
 | SMCP `q_vernal_tasks` | Done | Per-chatter key via `resolve_user_key` + `--api-key` strip |
 | E2E prod bridge | Done | Message → Q reply on prod Tasks DB |
 | Identity = Tasks user | Done | `tasks:{id}`, `session_tasks_{id}`, Letta `tasks_user_{id}` |
-| UX: bubble anchor, markdown, cross-device, keyboard | Done | widget.css v5, chat-widget.js v8 |
+| UX: bubble anchor, markdown, cross-device, keyboard | Done | widget.css v5, chat-widget.js v12 |
+| **UI page context** (Layer B) | Done | Every `/admin/*` send: screen + ids + links; no full doc/task body in context |
+| **job_rules** on Letta | Done | Git `docs/Q-VERNAL-JOB-RULES.md` · Tasks #301 · lettatest block patched |
+| **Document SMCP tools** | Done | `get-document`, `list-documents`, `create-document`, `update-document` on `q_vernal_tasks__*` |
+| **Post-login return URL** | Done | Deep links survive login + mandatory password change (`auth_*` in `includes/auth.php`) |
+| **Mermaid in host markdown** | Done | Admin/docs render diagrams (host app; not required for other packages) |
 | **moya prod** | **Blocked · #414** | Until Mark signs off lettatest demo |
 
 ---
@@ -211,6 +217,68 @@ Broca updates Letta **human** block with structured JSON:
 
 So Q’s memory stays aligned even if chat UI changes.
 
+### 4.5 UI page context — what screen the chatter is on (portable)
+
+**Problem:** Without page context, the agent guesses project/task/doc scope, asks redundant questions, or writes artifacts to the wrong directory project (e.g. global Document Library instead of a product project).
+
+**Solution:** On **every** chat send from the host admin UI, attach a **small, authoritative context block** (Layer B). The agent uses **IDs + titles + admin links** only — **never** embed full document/task body text in context (too large, stale; agent loads via tools when needed).
+
+#### 4.5.1 Three layers (do not conflate)
+
+| Layer | Source | Agent use |
+|-------|--------|-----------|
+| **A — First contact** | Broca once per Tasks user | Greet by username |
+| **B — Chat context** | Widget `page_context` → PHP enrich → Broca `chat_context_block` | Scope for this turn (`project_id`, `task_id`, `document_id`, screen) |
+| **C — User message** | Widget text after `---` | What they want done |
+
+**human block** = who is typing. **Chat context** = where they are in the UI. Both can appear in one turn.
+
+#### 4.5.2 Reference implementation (Tasks)
+
+| Piece | Path |
+|-------|------|
+| Detect + enrich + format block | `public/q-bridge/includes/page_context.php` |
+| Embed-time seed | `public/admin/_ask_q.php` → `window.TASKS_ASK_Q_PAGE` |
+| Live URL merge on send | `chat-widget.js` → `collectPageContext()` (URL **wins** over stale embed) |
+| Store per message | `web_chat_messages.metadata` JSON → `page_context` |
+| Inbox to Broca | `chat_context_block` plain text on inbox row |
+| Broca prepend | `plugins/q_vernal_webchat/message_handler.py` |
+
+**Surfaces detected (examples):** `task` (`view.php?id=`), `document` (`doc.php?id=`), `project` (`project.php?id=` + `tab=`), `docs`, `home`, `activity`, `settings`, generic `admin` (other `/admin/*.php`).
+
+**Enrichment (ACL-safe):** PHP resolves `project_name`, `task_title`, `document_title`, `list_id` from DB; strips ids the viewer cannot access.
+
+**Formatted block (illustrative):**
+
+```text
+[Chat context — Sanctum Tasks UI]
+Note: IDs and titles only — use get-document / get-task tools to load full body when needed.
+Screen: Document
+Document: document_id=298 — Meeting transcript
+Document link: https://tasks…/admin/doc.php?id=298
+Tool: get-document --id 298
+Project: BlackCert: AuthLokr (project_id=7)
+Browser path: /admin/doc.php?id=298
+Prefer these ids over guessing.
+```
+
+#### 4.5.3 Replication checklist (other Sanctum apps)
+
+1. **Host-specific** `page_context.php` (or shared package): map your admin routes → `surface` + entity ids.
+2. Widget sends `page_context` + **current** `url` on every `POST messages`.
+3. Bridge stores context on the message row (not only session — session goes stale when user navigates).
+4. **Do not** reuse `last_page_context` from session for later messages on the inbox path.
+5. Broca plugin prepends `[Chat context — {Product} UI]` before Letta user text; separator `---` before Layer C.
+6. **job_rules** on the agent: mandate project gate for writes, tool names for loading full content, no false “saved/recorded” without tool success.
+7. Unit tests: safe path validation, format block contains ids/links, URL overrides stale `project_id`.
+
+#### 4.5.4 Operator rules (Q reference — full text in #301 / `Q-VERNAL-JOB-RULES.md`)
+
+- **Documents ≠ tasks** — do not ask for todo `list_id` when user asked to save a **document**.
+- **Project gate** — Layer B `project_id` wins; product names in text map to directory projects; never default to a global “library” project just because they said “document”.
+- **Completion honesty** — cite `document_id` / `task_id` from tool output; never claim “recorded” without success.
+- **Links in replies** — markdown-link `/admin/doc.php?id=`, `/admin/view.php?id=`, `/admin/project.php?id=` (Tasks); adapt paths per host.
+
 ---
 
 ## 5. Host application integration (sanctum-tasks reference)
@@ -248,8 +316,9 @@ Set `TASKS_Q_BRIDGE_ENABLED=0` in env to hide Ask Q entirely.
 ```html
 <link rel="stylesheet" href="/q-bridge/widget/assets/css/widget.css?v=5">
 <script src="/q-bridge/widget/assets/js/markdown-lite.js?v=1"></script>
-<script src="/q-bridge/widget/assets/js/chat-widget.js?v=8"></script>
+<script src="/q-bridge/widget/assets/js/chat-widget.js?v=12"></script>
 <script>
+window.TASKS_ASK_Q_PAGE = <?= json_encode($askQPageContext) ?>; // from page_context.php at embed time
 SanctumChat.init({
   apiBase: '/q-bridge/api/v1/',
   useSessionAuth: true,
@@ -258,7 +327,8 @@ SanctumChat.init({
   title: 'Q. Vernal',
   chatterUsername: '<from $_SESSION username>',
   persistSession: true,
-  historyLimit: 6
+  historyLimit: 6,
+  pageContext: window.TASKS_ASK_Q_PAGE || null
 });
 </script>
 ```
@@ -277,6 +347,24 @@ SanctumChat.init({
 
 **Never** place `*.db` under `html/` (LEMP serves `public/` only — DB parent is outside web root).
 
+### 5.5 Deep-link auth — return after login (host app, portable)
+
+**Problem:** User opens a protected admin URL while logged out, signs in, lands on home — loses the link they cared about.
+
+**Solution (Tasks reference):** `public/includes/auth.php`
+
+| Function | Role |
+|----------|------|
+| `auth_current_request_uri()` | Path + query of blocked request |
+| `auth_safe_return_path()` | Same-origin relative only; blocks login/logout loops and external URLs |
+| `auth_redirect_to_login()` | Store intended URL + redirect to `/admin/login.php?return=…` |
+| `auth_redirect_after_login()` | Restore intended URL or `/admin/` |
+| `requireAuth()` | Uses above when session missing |
+
+**Also:** If `must_change_password`, stash intended URL → password tab → after successful change, redirect to stashed URL.
+
+**Replication:** Implement the same pattern in **any** host app’s `requireAuth()` — allowed path prefixes must match that app’s admin and API routes. Not bridge-specific; embed agents benefit when users share deep links to tasks/docs.
+
 ---
 
 ## 6. PHP bridge specification (`public/q-bridge/`)
@@ -294,6 +382,7 @@ public/q-bridge/
   includes/
     auth.php            # Bearer + session auth helpers
     chatter.php         # Tasks-user identity + canonical session
+    page_context.php    # UI scope: detect, enrich, format Layer B block
     tasks_session.php   # require_tasks_logged_in_user_id()
     utils.php           # Sessions, uid, cleanup
     api_response.php
@@ -315,6 +404,7 @@ public/q-bridge/
 **`web_chat_messages`**
 
 - `session_id`, `message`, `processed` (0 until Broca picks up), `broca_message_id` optional
+- `metadata` JSON (optional column, idempotent migrate) — **`page_context`** at send time for Layer B
 
 **`web_chat_responses`**
 
@@ -339,12 +429,13 @@ public/q-bridge/
 1. `require_tasks_logged_in_user_id()`
 2. `q_bridge_ensure_user_session($tasksUserId)`
 3. Merge session metadata with chatter context
-4. Insert `web_chat_messages`, `processed=0`
-5. Inbox enrichment: `tasks_user_id`, `tasks_username`, `is_first_contact`
+4. Normalize + enrich `page_context` from widget POST; store in `metadata`
+5. Insert `web_chat_messages`, `processed=0`
+6. Inbox enrichment: `tasks_user_id`, `tasks_username`, `is_first_contact`, **`chat_context_block`** from `q_bridge_format_chat_context_block()`
 
 **Broca poll path (`inbox`):**
 
-- Returns array of messages with `processed=0`
+- Returns array of messages with `processed=0` and **`chat_context_block`** per row (from message metadata — **not** stale session `last_page_context`)
 - After fetch, marks processed (or Broca acknowledges — match upstream behavior in `index.php`)
 
 ### 6.4 Rate limiting & CORS
@@ -375,8 +466,9 @@ Bridge has lightweight rate limit helpers per endpoint. CORS headers allow widge
 3. **Reject** if `tasks_user_id` missing.
 4. `get_or_create_platform_profile(platform_user_id=f"tasks:{id}", username=Tasks username)`.
 5. Publish `run/current_tasks_user_id.txt` for SMCP subprocess.
-6. Insert into Broca `messages` + `queue` → Letta agent **Q_Vernal**.
-7. On response, `POST outbox` with `{session_id, response}`.
+6. Prepend **`chat_context_block`** + `---` + user text when building Letta user message.
+7. Insert into Broca `messages` + `queue` → Letta agent **Q_Vernal**.
+8. On response, `POST outbox` with `{session_id, response}`.
 
 ### 7.3 lettatest runtime layout
 
@@ -408,13 +500,14 @@ Per plan #296:
 
 1. Create agent **Q_Vernal** on Letta (rehearsal lettatest, prod moya).
 2. Attach persona from doc **#295** (personality, voice, name structure).
-3. Add **job_rules** memory (operator rules: use tools for board actions, never invent API keys).
-4. Attach SMCP tool definitions — production set: **`q_vernal_tasks__*`** tools (~31), not legacy `tasks__*` on wrong endpoint.
+3. Add **job_rules** memory — canonical git: `docs/Q-VERNAL-JOB-RULES.md` · Tasks doc **#301** (operator rules: tools, page context, documents vs tasks, project gate, links).
+4. Attach SMCP tool definitions — production set: **`q_vernal_tasks__*`** tools (~31+), not legacy `tasks__*` on wrong endpoint.
 
 **Install helpers (sanctum-tasks repo):**
 
 - `tools/lettatest-install-q-smcp.sh`
 - `tools/lettatest_attach_q_smcp.py`
+- `tools/lettatest_update_q_job_rules.py` — PATCH Letta `job_rules` block from markdown
 
 ### 8.2 SMCP package `q_vernal_tasks`
 
@@ -433,6 +526,18 @@ Per plan #296:
 ### 8.3 Tool surface policy
 
 Mark decision: ship **broad** SMCP surface initially; tighten via **job_rules** and allowlist later (#408–#409). ACL still enforced by **injected user key** at API layer.
+
+### 8.4 Document tools + transcript workflow
+
+For hosts with a **document** model (Tasks directory docs):
+
+| SMCP / tool | Use |
+|-------------|-----|
+| `list-documents` | Requires `--project-id`; find meeting notes / specs in the right project |
+| `get-document` | Load full markdown body when Layer B only has `document_id` |
+| `create-document` / `update-document` | Persist handoffs; **must** use correct `project_id` |
+
+**job_rules** must require: list/search in the product project before summarizing “what was said on the call”; never fake “saved” without returned id. See §4.5.4 and Q incident doc **#302** (AuthLokr architecture capture).
 
 ---
 
@@ -487,6 +592,13 @@ These rules apply to **any** host app using this bridge — not only Tasks color
 
 Run in venv: `tools/design-smoke/.venv/bin/python ask_q_verify.py`
 
+### 9.6 Page context in the widget (implementation notes)
+
+- **`collectPageContext()`** merges embed seed (`TASKS_ASK_Q_PAGE` / `config.pageContext`) with **live** `window.location` (URL wins for ids — fixes stale project when user navigates without reload).
+- **Never** call a non-existent global (e.g. `SanctumChat.API`); merge helpers live on the internal `api` object (`chat-widget.js` v12+).
+- POST body field: `page_context` on `action=messages`.
+- PHPUnit: `tests/php/Unit/QBridgePageContextTest.php`.
+
 ---
 
 ## 10. Deployment topology
@@ -499,7 +611,7 @@ Run in venv: `tools/design-smoke/.venv/bin/python ask_q_verify.py`
 
 **Network path prod:** Tasks multihost → HTTPS → lettatest (rehearsal) or moya (future). Broca polls **public Tasks URL** for inbox/outbox — ensure poll key and firewall allow outbound from agent host.
 
-**Deploy rule:** Otto pushes `sanctum-tasks` to GitHub; **Ada** runs `/root/sync.sh tasks.decisionsciencecorp.com` on multihost (unless Mark orders immediate sync). Agent host files are **ops rsync** from workspace (`broca` plugin, lettatest scripts).
+**Deploy rule:** Otto pushes `sanctum-tasks` to GitHub; **multihost cron** runs `/root/sync.sh tasks.decisionsciencecorp.com` (and deploy) on schedule — no manual Ada handoff required for routine host-app changes. Agent host files (broca-q plugin, Letta blocks) are **ops rsync** or helper scripts from workspace.
 
 ---
 
@@ -556,16 +668,18 @@ Use this when adding the modality to **invoicing**, **CRM**, **presale**, etc.
 
 1. **Copy** `public/q-bridge/` from sanctum-tasks into host repo `public/q-bridge/` (or symlink pattern if monorepo).
 2. **Add** `HOST_*_BRIDGE_ENABLED` flag + embed partial in admin layout after login.
-3. **Implement** `require_*_logged_in_user_id()` using host session (mirror `tasks_session.php`).
-4. **Add** hidden per-user API keys (`key_kind = q_bridge` or app-specific kind) + HMAC or DB-stored secret.
-5. **Wire** `get*BridgeDefaultApiKeyPlaintextForUser()` into host `functions.php`.
-6. **Create** SQLite `q_bridge_webchat.db` beside host DB; deploy outside web root.
-7. **Set** poll key file/env on multihost; configure Broca plugin `WEB_CHAT_API_URL` to `https://{host}/q-bridge/api/v1/`.
-8. **Fork** or reuse `q_vernal_webchat` plugin → rename (`invoicing_vernal_webchat`) if behavior diverges; else reuse with env `PLATFORM_NAME`.
-9. **Create** Letta agent + persona doc in Tasks Document Library.
-10. **Ship** SMCP package pointing at host `/api/` (copy `smcp_plugin/q_vernal_tasks` pattern).
-11. **Run** Playwright smoke from `tools/design-smoke/` adapted to host login URL.
-12. **Document** persona + plan in Tasks docs; link epic in program project.
+3. **Copy/adapt** `page_context.php` + widget `collectPageContext()` for your admin routes (§4.5).
+4. **Implement** `require_*_logged_in_user_id()` using host session (mirror `tasks_session.php`).
+5. **Add** post-login **return URL** helpers in host `auth.php` (§5.5).
+6. **Add** hidden per-user API keys (`key_kind = q_bridge` or app-specific kind) + HMAC or DB-stored secret.
+7. **Wire** `get*BridgeDefaultApiKeyPlaintextForUser()` into host `functions.php`.
+8. **Create** SQLite `q_bridge_webchat.db` beside host DB; deploy outside web root.
+9. **Set** poll key file/env on multihost; configure Broca plugin `WEB_CHAT_API_URL` to `https://{host}/q-bridge/api/v1/`.
+10. **Fork** or reuse `q_vernal_webchat` plugin → rename (`invoicing_vernal_webchat`) if behavior diverges; else reuse with env `PLATFORM_NAME`; ensure `message_handler` prepends chat context block.
+11. **Create** Letta agent + **persona** + **job_rules** docs (persona = voice; job_rules = tools, context, gates).
+12. **Ship** SMCP package pointing at host `/api/` (copy `smcp_plugin/q_vernal_tasks` pattern; include document tools if host has docs).
+13. **Run** Playwright smoke from `tools/design-smoke/` adapted to host login URL.
+14. **Document** persona + plan + **this modality doc** in Tasks Document Library; link epic in program project.
 
 **Time savers:** Keep **API action names** identical across hosts so one Broca plugin binary can serve multiple agents with different `.env` URLs.
 
@@ -582,25 +696,50 @@ Use this when adding the modality to **invoicing**, **CRM**, **presale**, etc.
 | Wrong Letta tools | “Backend hiccup” on task search | Attach `q_vernal_tasks__*` |
 | `100vh` mobile CSS | Keyboard covers half chat | `visualViewport` sync |
 | Bubble visible under panel | Clutter / mis-tap | `.is-open .sanctum-chat-bubble { display: none }` |
-| Otto ran `sync.sh` without Ada | Process violation | Push git; Ada or cron deploys |
+| Otto ran `sync.sh` without Ada | Process violation | Push git; cron deploys multihost |
 | Confusing lettatest vs moya | Wrong Letta port | 18283 vs 8284 |
+| No page context | Wrong project / “which project?” loops | §4.5 — Layer B every send |
+| Stale `project_id` in context | User on doc, Q edits wrong board | Widget: URL overrides embed seed |
+| `SanctumChat.API` typo in widget | **All sends fail** (JS error) | Use internal `api` object (v12+) |
+| Agent says “recorded” without tool | False completion | job_rules §4b + cite ids |
+| Document saved to library project | Wrong directory project | Project gate + `get-document` before update |
+| Deep link after login lost | User lands on home | §5.5 `auth_redirect_*` |
 
 ---
+
+## 13.1 Target host applications (rollout)
+
+Use this modality as the **standard embedded-agent pattern** for Sanctum LEMP properties that have logged-in admin UI and an API:
+
+| Host (planned / fit) | Notes |
+|----------------------|--------|
+| **Sanctum Tasks** | Reference implementation (this doc) |
+| **Invoicing** | Same multihost pattern; SMCP → invoicing API |
+| **DSC CRM** | Admin + API; map `page_context` to CRM routes |
+| **Presale / other Sanctum apps** | Copy §13 recipe; rename agent persona per product |
+
+Per-host deltas: admin URL shapes, `project_id` / entity model, SMCP package name, Letta agent id — **keep bridge action names and poll contract stable** when possible so one Broca plugin codebase serves multiple agents via `.env`.
 
 ## 15. File inventory (canonical repos)
 
 ### sanctum-tasks (host)
 
-- `public/q-bridge/**`
+- `public/q-bridge/**` (incl. `includes/page_context.php`)
 - `public/admin/_ask_q.php`
+- `public/includes/auth.php` (return-after-login)
 - `public/includes/config.php` (keys, flags)
 - `public/includes/functions.php` (q_bridge keys)
+- `docs/Q-VERNAL-JOB-RULES.md`
 - `smcp_plugin/q_vernal_tasks/**`
 - `tools/backfill_q_bridge_api_keys.php`
 - `tools/e2e_q_bridge_seed_message.php`
 - `tools/design-smoke/ask_q_verify.py`
 - `tools/lettatest-install-q-smcp.sh`
 - `tools/lettatest_attach_q_smcp.py`
+- `tools/lettatest_update_q_job_rules.py`
+- `tools/upload_modality_document.py` (sync this doc → Tasks #299)
+- `tests/php/Unit/QBridgePageContextTest.php`
+- `tests/php/Unit/AuthReturnUrlTest.php`
 - `docs/MODALITY-EMBEDDED-AGENT-CHAT-IN-SANCTUM-APP.md` (this file)
 
 ### broca (agent plugin)
@@ -636,6 +775,8 @@ Use this when adding the modality to **invoicing**, **CRM**, **presale**, etc.
 | **q_bridge key** | Hidden per-user Tasks API key for tools |
 | **Canonical session** | `session_tasks_{userId}` |
 | **Pull model** | Broca fetches work; server does not push to Broca |
+| **Layer B** | Chat context block — screen + ids for the page the user had open |
+| **job_rules** | Letta core block for operator behavior (tools, gates, honesty) |
 
 ---
 
@@ -645,8 +786,16 @@ When you extend this modality:
 
 1. Update **this file** in `sanctum-tasks/docs/`.
 2. Mirror to **`private-documentation/`**.
-3. Re-upload to Tasks Document Library (**project 6**, `sanctum-modality/`).
+3. Re-upload to Tasks Document Library (**project 6**, `sanctum-modality/`) — `python3 tools/upload_modality_document.py`.
 4. Add a one-paragraph “what changed” comment on program epic **#313**.
 5. Bump widget `?v=` cache bust on embed partial.
+6. If **job_rules** behavior changes, update `docs/Q-VERNAL-JOB-RULES.md` and run `lettatest_update_q_job_rules.py`.
 
-**End of omnibus template v1.0.**
+### Changelog
+
+| Version | Date | Summary |
+|---------|------|---------|
+| **1.1** | 2026-05-23 | §4.5 UI page context (portable); §5.5 post-login return URL; §8.4 document tools; job_rules #301; widget v12; pitfalls + replication §13.1; deploy note (cron sync) |
+| **1.0** | 2026-05-22 | Initial omnibus after Q Vernal rehearsal leg |
+
+**End of omnibus template v1.1.**
