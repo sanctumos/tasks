@@ -106,6 +106,81 @@ Meta-tools call a small **adapter interface** per harness:
 
 Where harness cannot programmatically attach (Cursor may require UI), meta-tool returns **actionable instructions** — still one vocabulary.
 
+### 2.5 SMCP-native attach/detach (build it in the server — **yes, this makes sense**)
+
+**Mark’s question (2026-05-23):** For harnesses without a first-class attach API (Cursor, Claude Code), should **SMCP itself** implement attach/detach so **any plugin developer** can rely on one call path — and one **governor** meta-tool for help + attach + detach?
+
+**Answer: Yes — as server-side policy inside `sanctumos/smcp`, not as pretending to remote-control the IDE.**
+
+#### Two planes (do not conflate)
+
+| Plane | Who owns it | What it means |
+|-------|-------------|---------------|
+| **A — SMCP catalog** | Each plugin (`tasks`, `invoicing`, …) | All commands the plugin *can* expose (`--describe` full list). |
+| **B — SMCP session attach set** | **SMCP core** | Which tools are *active for this MCP connection* right now. |
+
+Harness-native attach (Letta `tool_ids`, Cursor UI toggles) is **plane C — optional sync** when the host exposes an API. Planes A+B work **without** plane C.
+
+#### What SMCP can do today (implementation hook)
+
+In `sanctumos/smcp`, `register_plugin_tools()` already builds `all_tools` and serves them from `@server.list_tools()`. That handler can be changed to:
+
+1. **Register everything internally** (full catalog for governor + plugin dev).
+2. **`tools/list` to the harness** returns only **attached** tools (plus the governor — always on).
+3. **`tools/call` on a detached tool** returns a structured error: *not attached — run `sanctum__tools` attach or ask tool-help*.
+
+For **stdio** MCP (Cursor, Claude Code, Letta), attach state is **per process / per connection** (env default profile, or mutated in-session via governor tool). No Cursor API required — the model simply **stops seeing** detached tools on the next `tools/list` **if** the client refreshes; even if the client cached an old list, **call** enforcement still blocks misuse.
+
+#### Governor tool (single main entry — name TBD)
+
+One **always-attached** meta-tool (small schema), e.g. **`sanctum__tools`**:
+
+| `action` | Behavior |
+|----------|----------|
+| `help` | Intent in → recommended tools + args + attach suggestions |
+| `list-available` | Full catalog (plugin × command) |
+| `list-attached` | Current session attach set |
+| `attach` | Add tool(s) by name (`tasks__create-document`, …) |
+| `detach` | Remove tool(s) from active set |
+| `attach-profile` | Apply preset (`chatter`, `admin`, `full`) |
+
+Plugin developers **do not** implement attach logic per plugin — they only ship product verbs. They *may* call the attach registry **internally** (Python API in `smcp` lib) for bootstrap (“on server start, attach chatter profile for tasks”).
+
+#### Plugin developer API (internal)
+
+```python
+# sanctumos/smcp — illustrative
+from smcp.governor import attach, detach, list_attached, is_attached
+
+attach("tasks__get-document")
+detach("tasks__create-user")
+```
+
+CLI plugins stay unchanged; governor + registry live in **SMCP core**, loaded before product plugins in `MCP_PLUGINS_DIR`.
+
+#### Harness adapters (plane C — when available)
+
+| Harness | SMCP-native (A+B) | Optional adapter (C) |
+|---------|-------------------|-------------------------|
+| **Letta** | Filtered `tools/list` + call gate | Mirror attach set → `PATCH agent/tools/attach` when `LETTA_AGENT_ID` + API key in env |
+| **Cursor** | Same — **primary** control surface | Optional: emit snippet for `permissions.json` / point user to Settings toggle |
+| **Claude Code** | Same | Optional: emit `permissions.allow` lines or Tool Search hints |
+
+**Competitive story:** Other MCP servers expose a flat list; **Sanctum SMCP** exposes a **governed** list with in-band attach/detach/help **even when the IDE has no attach API**. Letta gets **double** benefit (SMCP session + agent API). Cursor/Claude get SMCP session governance without waiting for Anthropic/Cursor to add APIs.
+
+#### Limits (honest)
+
+- SMCP cannot click Cursor’s Settings UI; if the client never re-calls `tools/list`, the model may still *believe* old tools exist until call fails — governor error text must be clear.
+- Meta-tool count: **one** governor (not five separate meta tools) keeps schema overhead minimal.
+- Security: attach/detach is **capability expansion** — default profiles should be least-privilege (`chatter`); admin tools require explicit `attach-profile admin` or Mark policy.
+
+#### Revised Phase 2b
+
+1. Attach registry + filtered `list_tools` / gated `call_tool` in **`sanctumos/smcp`**.
+2. **`sanctum__tools`** governor (help + attach + detach + profiles).
+3. Letta adapter (optional sync).
+4. Document convention: **every Sanctum SMCP deployment** ships governor + product plugins.
+
 ---
 
 ## 3. Harness research — attach / detach / subset (2026-05)
@@ -178,9 +253,11 @@ Sources: [Claude Code MCP](https://code.claude.com/docs/en/mcp), [Permissions](h
 
 ### Phase 2b — SMCP core convention
 
-1. Implement meta-tools in **`sanctumos/smcp`** (not duplicated per plugin).
-2. **Harness adapters** (Letta client first; Cursor/Claude “instruction mode”).
-3. Docs + modality doc § update.
+1. **Attach registry** + filtered `tools/list` + gated `tools/call` in **`sanctumos/smcp`**.
+2. Single governor tool **`sanctum__tools`** (help, attach, detach, profiles) — not five separate meta tools.
+3. **`smcp.governor` Python API** for plugin authors (optional internal attach on boot).
+4. **Harness adapters** (Letta sync optional; Cursor/Claude = SMCP-native only for v1).
+5. Docs + modality doc § update.
 
 ### Phase 2c — Other product servers
 
