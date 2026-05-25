@@ -45,7 +45,19 @@ task = client.update_task(task_id=task["id"], status="doing", assigned_to_user_i
 task = client.update_task(task_id=task["id"], status="done")
 ```
 
-## 3) Use the SMCP plugin
+## 3) Otto / Cursor — local SMCP stdio (recommended for agent work)
+
+Install once (clones **sanctumos/smcp** to `~/projects/smcp`, runtime under `~/.otto-local/smcp-runtime`):
+
+```bash
+bash tools/install-otto-smcp-runtime.sh
+```
+
+Wire Cursor: see **`docs/otto-smcp-cursor.md`**. Launcher: `~/.otto-local/smcp-runtime/run-otto-smcp-stdio.sh` (loads `~/.ssh/tasks-dsc-ottovernal.pass`).
+
+Tools appear as **`tasks__*`** (e.g. `tasks__create-task`, `tasks__get-document`). API key can live in env — Otto does not pass `--api-key` on every call.
+
+## 4) Use the SMCP plugin (CLI / custom MCP)
 
 ```bash
 python smcp_plugin/tasks/cli.py create-task \
@@ -64,7 +76,7 @@ python smcp_plugin/tasks/cli.py list-tasks \
   --limit 20
 ```
 
-## 4) Automation patterns
+## 5) Automation patterns
 
 ## Pattern A: Agent triage queue
 

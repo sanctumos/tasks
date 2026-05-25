@@ -662,7 +662,7 @@ Run separately on multihost for `Q_BRIDGE_DB=…/q_bridge_webchat.db` (broca DB 
 
 ---
 
-## 13. Replication recipe — new Sanctum app in 12 steps
+## 13. Replication recipe — new Sanctum app in 14 steps
 
 Use this when adding the modality to **invoicing**, **CRM**, **presale**, etc.
 

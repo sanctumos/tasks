@@ -29,7 +29,10 @@ except ImportError:  # pragma: no cover
     from client import TasksClient
     from exceptions import APIError, AuthenticationError, NotFoundError, ValidationError
 
-BASE_URL = os.environ.get("TASKS_API_BASE_URL", "https://tasks.example.com").rstrip("/")
+BASE_URL = os.environ.get(
+    "TASKS_API_BASE_URL",
+    os.environ.get("TASKS_DSC_BASE_URL", "https://tasks.example.com"),
+).rstrip("/")
 try:
     from smcp_plugin.tasks import __version__ as PLUGIN_VERSION
 except ImportError:  # pragma: no cover
@@ -85,6 +88,17 @@ def _canonical_option_name(action: argparse.Action) -> str:
     return action.dest.replace("_", "-")
 
 
+def resolve_api_key(explicit: Optional[str]) -> str:
+    """CLI flag, else env (Otto SMCP stdio wrapper sets TASKS_SMCP_API_KEY)."""
+    if explicit and str(explicit).strip():
+        return str(explicit).strip()
+    for var in ("TASKS_SMCP_API_KEY", "TASKS_DSC_OTTOVERNAL_API_KEY", "TASKS_API_KEY"):
+        val = os.environ.get(var, "").strip()
+        if val:
+            return val
+    return ""
+
+
 def _describe_action(action: argparse.Action) -> Optional[Dict[str, Any]]:
     if action.dest == "help" or action.help == argparse.SUPPRESS:
         return None
@@ -93,11 +107,18 @@ def _describe_action(action: argparse.Action) -> Optional[Dict[str, Any]]:
         choices_text = ", ".join(str(c) for c in action.choices)
         description = f"{description} Choices: {choices_text}".strip()
     default_value = None if action.default is argparse.SUPPRESS else action.default
+    required = bool(getattr(action, "required", False))
+    if action.dest == "api_key" and resolve_api_key(None):
+        required = False
+        description = (
+            (description + " ").strip()
+            + "Optional when TASKS_SMCP_API_KEY (or TASKS_DSC_OTTOVERNAL_API_KEY) is set in the server environment."
+        ).strip()
     return {
         "name": _canonical_option_name(action),
         "type": _arg_type_name(action),
         "description": description,
-        "required": bool(getattr(action, "required", False)),
+        "required": required,
         "default": default_value,
     }
 
@@ -698,7 +719,13 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", help="Command")
 
     def add_api_key(sp: argparse.ArgumentParser) -> None:
-        sp.add_argument("--api-key", "--api_key", dest="api_key", required=True, help="X-API-Key value")
+        sp.add_argument(
+            "--api-key",
+            "--api_key",
+            dest="api_key",
+            required=False,
+            help="X-API-Key (optional if TASKS_SMCP_API_KEY is set in environment)",
+        )
 
     def priority_arg(sp: argparse.ArgumentParser) -> None:
         sp.add_argument("--priority", choices=["low", "normal", "high", "urgent"], help="Priority")
@@ -989,9 +1016,13 @@ def main() -> None:
         parser.print_help()
         sys.exit(1)
 
-    api_key = getattr(args, "api_key", None)
+    api_key = resolve_api_key(getattr(args, "api_key", None))
     if not api_key:
-        err = _error_response("API key is required (--api-key).", "validation_error", include_traceback=False)
+        err = _error_response(
+            "API key is required (--api-key or TASKS_SMCP_API_KEY / TASKS_DSC_OTTOVERNAL_API_KEY env).",
+            "validation_error",
+            include_traceback=False,
+        )
         print(json.dumps(err, indent=2), file=sys.stderr)
         print(json.dumps(err, indent=2))
         sys.exit(1)
