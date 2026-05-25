@@ -738,6 +738,7 @@ Per-host deltas: admin URL shapes, `project_id` / entity model, SMCP package nam
 - `tools/lettatest_attach_q_smcp.py`
 - `tools/lettatest_update_q_job_rules.py`
 - `tools/upload_modality_document.py` (sync this doc → Tasks #299)
+- `tools/install-otto-smcp-runtime.sh` · `tools/run-otto-smcp-stdio.sh` · `docs/otto-smcp-cursor.md` (Otto Cursor SMCP stdio)
 - `tests/php/Unit/QBridgePageContextTest.php`
 - `tests/php/Unit/AuthReturnUrlTest.php`
 - `docs/MODALITY-EMBEDDED-AGENT-CHAT-IN-SANCTUM-APP.md` (this file)
