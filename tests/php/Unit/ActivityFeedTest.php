@@ -164,6 +164,74 @@ final class ActivityFeedTest extends TestCase
         $this->assertContains('task.create', $actions);
     }
 
+    public function testAccessibleProjectsFeedReturnsActorsBesidesViewer(): void
+    {
+        $suffix = bin2hex(random_bytes(4));
+        $alice = createUser("act_aaa_{$suffix}", 'AdminPass123456', 'admin', false);
+        $bob = createUser("act_bbb_{$suffix}", 'AdminPass123456', 'admin', false);
+        $this->assertTrue($alice['success'] && $bob['success']);
+        $aliceRow = getUserById((int)$alice['id'], false);
+        $bobRow = getUserById((int)$bob['id'], false);
+        $this->assertNotNull($aliceRow);
+        $this->assertNotNull($bobRow);
+
+        $proj = createDirectoryProject((int)$alice['id'], "Cross {$suffix}", null, false, true);
+        $this->assertTrue($proj['success']);
+        $pid = (int)$proj['id'];
+        applySanctumSchemaMigrations(getDbConnection());
+        $db = getDbConnection();
+        $lid = getFirstTodoListIdForProject($db, $pid);
+        $this->assertNotNull($lid);
+
+        $aliceTask = createTask("Alice work {$suffix}", 'todo', (int)$alice['id'], null, '', [
+            'priority' => 'normal', 'project_id' => $pid, 'list_id' => (int)$lid,
+        ]);
+        $bobTask = createTask("Bob work {$suffix}", 'todo', (int)$bob['id'], null, '', [
+            'priority' => 'normal', 'project_id' => $pid, 'list_id' => (int)$lid,
+        ]);
+        $this->assertTrue($aliceTask['success'] && $bobTask['success']);
+
+        $feed = listAccessibleProjectsActivityForViewer($aliceRow, 50, null);
+        $this->assertIsArray($feed);
+        $actorIds = array_unique(array_map('intval', array_column($feed, 'actor_user_id')));
+        $this->assertContains((int)$alice['id'], $actorIds, 'Alice should see her own row');
+        $this->assertContains((int)$bob['id'], $actorIds, 'Alice should also see Bob in shared project');
+    }
+
+    public function testAccessibleProjectsFeedHonoursBeforeIdPagination(): void
+    {
+        $suffix = bin2hex(random_bytes(4));
+        $user = createUser("act_pg2_{$suffix}", 'AdminPass123456', 'admin', false);
+        $this->assertTrue($user['success']);
+        $row = getUserById((int)$user['id'], false);
+        $this->assertNotNull($row);
+        $uid = (int)$user['id'];
+
+        $proj = createDirectoryProject($uid, "PgCross {$suffix}", null, false, true);
+        $this->assertTrue($proj['success']);
+        $pid = (int)$proj['id'];
+        applySanctumSchemaMigrations(getDbConnection());
+        $db = getDbConnection();
+        $lid = getFirstTodoListIdForProject($db, $pid);
+        $this->assertNotNull($lid);
+
+        for ($i = 0; $i < 4; $i++) {
+            $t = createTask("CrossBulk {$suffix}-{$i}", 'todo', $uid, null, '', [
+                'priority' => 'normal', 'project_id' => $pid, 'list_id' => (int)$lid,
+            ]);
+            $this->assertTrue($t['success']);
+        }
+
+        $page1 = listAccessibleProjectsActivityForViewer($row, 2, null);
+        $this->assertCount(2, $page1);
+        $oldest = (int)$page1[array_key_last($page1)]['id'];
+        $page2 = listAccessibleProjectsActivityForViewer($row, 2, $oldest);
+        $this->assertNotEmpty($page2);
+        foreach ($page2 as $r) {
+            $this->assertLessThan($oldest, (int)($r['id'] ?? 0));
+        }
+    }
+
     public function testSelfUserActivityFeedIsAllowedForMember(): void
     {
         $suffix = bin2hex(random_bytes(4));

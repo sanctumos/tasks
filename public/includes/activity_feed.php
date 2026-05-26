@@ -111,6 +111,57 @@ function listUserActivityFeedForViewer(array $viewerRow, int $targetActorId, int
     return activityFeedExecuteAndDecode($sql, $bind);
 }
 
+/**
+ * All activity across every directory project the viewer can access — every actor,
+ * not just the viewer's own. Restricted/client users see no rows here (they should
+ * use the per-user feed instead, scoped to themselves).
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function listAccessibleProjectsActivityForViewer(array $viewerRow, int $limit, ?int $beforeId = null): array {
+    $pids = getAccessibleDirectoryProjectIdsForUser($viewerRow);
+    if ($pids === []) {
+        return [];
+    }
+    $limit = max(1, min(200, $limit));
+    $placeholders = [];
+    $bind = [':lim' => [$limit, SQLITE3_INTEGER]];
+    foreach ($pids as $i => $pid) {
+        $k = ':p' . $i;
+        $placeholders[] = $k;
+        $bind[$k] = [(int)$pid, SQLITE3_INTEGER];
+    }
+    $inList = implode(', ', $placeholders);
+    $where = directoryProjectActivityWhereClauseInProjects($inList);
+
+    $beforeSql = '';
+    if ($beforeId !== null && $beforeId > 0) {
+        $beforeSql = ' AND a.id < :before ';
+        $bind[':before'] = [(int)$beforeId, SQLITE3_INTEGER];
+    }
+
+    $sql = "
+        SELECT
+            a.id,
+            a.actor_user_id,
+            a.action,
+            a.entity_type,
+            a.entity_id,
+            a.ip_address,
+            a.metadata_json,
+            a.created_at,
+            u.username AS actor_username
+        FROM audit_logs a
+        LEFT JOIN users u ON u.id = a.actor_user_id
+        WHERE ({$where})
+        {$beforeSql}
+        ORDER BY a.id DESC
+        LIMIT :lim
+    ";
+
+    return activityFeedExecuteAndDecode($sql, $bind);
+}
+
 function directoryProjectActivityWhereClause(string $paramName): string {
     // $paramName e.g. :pid — same bound value repeated (SQLite).
     return implode(' OR ', [
