@@ -265,16 +265,100 @@ Sources: [Claude Code MCP](https://code.claude.com/docs/en/mcp), [Permissions](h
 
 ---
 
-## 5. Open questions for Mark
+## 5. Cursor verification checklist (Phase 2b)
+
+Run this **once** after attach registry + `sanctum__tools` governor ship in `sanctumos/smcp`. Goal: confirm **plane B** (SMCP session attach set) works in Cursor without relying on Letta or Settings UI clicks.
+
+**Prereqs**
+
+- [ ] `sanctumos/smcp` built with filtered `tools/list`, gated `tools/call`, governor tool.
+- [ ] Otto stdio wrapper updated: `tools/run-otto-smcp-stdio.sh` (or env `SMCP_ATTACH_PROFILE=chatter` on boot).
+- [ ] Cursor **Settings → Tools & MCP** — sanctum-tasks server enabled; **restart MCP** / reload window after server change.
+- [ ] Fresh agent chat (avoid stale tool cache from an old server process).
+
+**How to observe tool surface**
+
+| Method | What it tells you |
+|--------|-------------------|
+| **Settings → Tools & MCP** → expand server | Human-visible tool list (may lag server) |
+| Ask agent: *“Call `sanctum__tools` with `action=list-attached`”* | Ground truth from SMCP session |
+| Agent attempts a detached product tool | **Call gate** (must fail with attach hint) |
+
+Record results in a comment on task **#472** (date + Cursor version).
+
+### A — Startup profile (static attach)
+
+| Step | Action | Pass |
+|------|--------|------|
+| A1 | Set `SMCP_ATTACH_PROFILE=chatter` (or server default). Start MCP. | |
+| A2 | `list-attached` (or count tools in Settings) | Only **chatter** verbs + **`sanctum__tools`** (~12–15 product tools, not 35). |
+| A3 | `list-available` | Full catalog still listed (35+ product tools). |
+
+**Fail if:** all 35 `tasks__*` appear on connect with chatter profile set.
+
+### B — Call gate (detached tool)
+
+| Step | Action | Pass |
+|------|--------|------|
+| B1 | Without attaching admin tools, agent calls e.g. `tasks__create-user` | Structured error: not attached + hint (`sanctum__tools` / `attach-profile admin`). |
+| B2 | Same call after `attach` or `attach-profile admin` | Succeeds or normal API error (not “not attached”). |
+
+**Fail if:** detached admin tool runs with no attach step.
+
+### C — Dynamic attach mid-session (the open question)
+
+| Step | Action | Pass |
+|------|--------|------|
+| C1 | Start on `chatter`; confirm `tasks__list-audit-logs` **not** attached. | |
+| C2 | Agent: `sanctum__tools` → `action=attach`, tool=`tasks__list-audit-logs` (or `attach-profile admin`). | Governor returns success + updated attach set. |
+| C3 | **Same chat**, next turn: agent calls `tasks__list-audit-logs` | **Call succeeds** (required). |
+| C4 | Optional: Settings tool list or agent self-report | Tool **visible** to model on next turn (nice-to-have; not required if C3 passes). |
+
+**Interpretation**
+
+- **C3 pass, C4 fail** → Cursor does not refresh `tools/list` every turn; **SMCP governance still OK** (gate + governor + explicit `list-attached`).
+- **C3 fail** → attach registry or Cursor MCP client bug — block Phase 2b sign-off.
+
+### D — Dynamic detach mid-session
+
+| Step | Action | Pass |
+|------|--------|------|
+| D1 | `detach` an attached tool (e.g. `tasks__create-user`). | Governor confirms removed. |
+| D2 | Call detached tool again | Call gate error returns. |
+
+### E — Profile swap
+
+| Step | Action | Pass |
+|------|--------|------|
+| E1 | `attach-profile admin` from chatter baseline | Attach set grows; admin verbs callable. |
+| E2 | `attach-profile chatter` | Admin-only tools gated again. |
+
+### F — Token / UX sanity (informal)
+
+- [ ] New chat with chatter profile feels lighter than pre-governance (subjective).
+- [ ] Governor `help` with intent *“create a document in project 7”* returns `tasks__create-document` + `project_id`, not `create-task`.
+
+### Sign-off
+
+| Result | Action |
+|--------|--------|
+| **A + B pass** | Ship Otto Cursor default `chatter`; document in `otto-smcp-cursor.md`. |
+| **C3 pass** | Document “dynamic attach works in Cursor” in §3.2. |
+| **C3 fail** | Default to **profile-at-boot only** for Cursor; mid-session attach = governor + **restart MCP** note in error text. |
+| **Any B fail** | Do not ship gated profiles to prod Otto MCP until fixed. |
+
+---
+
+## 6. Open questions for Mark
 
 1. **New directory project name** — “Sanctum SMCP Platform” OK for all SMCP work?
 2. **Meta-tool prefix** — `sanctum__*` vs `smcp__*`?
-3. **Cursor** — Accept “attach returns UI instructions” for v1, or invest in config-file writer (`permissions.json` / project MCP)?
+3. **Cursor** — Use **§5 checklist** after Phase 2b; if C3 fails, v1 = profile-at-boot + call gate only (no mid-session catalog refresh promise).
 4. **Q default profile** — confirm chatter tool list (§1.3 buckets).
 
 ---
 
-## 6. References
+## 7. References
 
 - `sanctum-tasks/docs/MODALITY-EMBEDDED-AGENT-CHAT-IN-SANCTUM-APP.md` (v1.1)
 - `sanctum-tasks/docs/otto-smcp-cursor.md`
