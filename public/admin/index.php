@@ -67,19 +67,7 @@ $flashError = $_SESSION['admin_flash_error'] ?? null;
 $flashSuccess = $_SESSION['admin_flash_success'] ?? null;
 unset($_SESSION['admin_flash_error'], $_SESSION['admin_flash_success']);
 
-// Staff with directory-wide access see every actor on the home feed; restricted
-// users / clients fall back to their own activity so they don't see things they
-// can't open from the surrounding board.
-$homeViewerCanSeeAll = userHasUnrestrictedOrgDirectoryAccess($currentUser)
-    && normalizePersonKind($currentUser['person_kind'] ?? 'team_member') !== 'client';
-if ($homeViewerCanSeeAll) {
-    $homeActivityFeed = listAccessibleProjectsActivityForViewer($currentUser, 10, null);
-} else {
-    $homeActivityFeed = listUserActivityFeedForViewer($currentUser, (int)$currentUser['id'], 10, null);
-    if ($homeActivityFeed === null) {
-        $homeActivityFeed = [];
-    }
-}
+$homeActivityFeed = listAccessibleProjectsActivityForViewer($currentUser, 10, null);
 
 $pageTitle = 'Home';
 $adminBreadcrumbs = [['label' => 'Home']];
