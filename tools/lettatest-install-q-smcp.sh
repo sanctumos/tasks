@@ -27,6 +27,15 @@ cp -a "\$TASKS_ROOT/smcp_plugin/q_vernal_tasks" "\$SMCP_ROOT/plugins/"
 cp -a "\$TASKS_ROOT/smcp_plugin/tasks" "\$SMCP_ROOT/plugins/"
 chmod +x "\$SMCP_ROOT/plugins/q_vernal_tasks/cli.py" "\$SMCP_ROOT/plugins/tasks/cli.py"
 
+# Q must use q_vernal_tasks__* only (per-chatter API key injection). Bare tasks__* and
+# demo plugins confuse the model and bypass key resolution.
+for p in tasks demo_math demo_text; do
+  if [ -d "\$SMCP_ROOT/plugins/\$p" ]; then
+    rm -rf "\$SMCP_ROOT/plugins/\${p}.disabled"
+    mv "\$SMCP_ROOT/plugins/\$p" "\$SMCP_ROOT/plugins/\${p}.disabled"
+  fi
+done
+
 if [ ! -d "\$SMCP_ROOT/.venv" ]; then
   python3 -m venv "\$SMCP_ROOT/.venv"
   "\$SMCP_ROOT/.venv/bin/pip" install -q -r "\$SMCP_ROOT/requirements.txt"
