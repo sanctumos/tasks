@@ -4,6 +4,8 @@
 
 This is **SMCP** ([sanctumos/smcp](https://github.com/sanctumos/smcp)), not a separate MCP product. Tools surface as `tasks__create-task`, `tasks__list-documents`, etc.
 
+**Phase 2b (tool governance):** After attach registry ships, run the **Cursor verification checklist** in [`SMCP-TOOL-GOVERNANCE-PHASE.md` §5](SMCP-TOOL-GOVERNANCE-PHASE.md) (Tasks doc [#310](https://tasks.decisionsciencecorp.com/admin/doc.php?id=310)) before changing Otto’s default profile from `full` → `chatter`.
+
 ## Layout (what lives where)
 
 | Path | Role |
