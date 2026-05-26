@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Global activity timeline showed only the viewer’s own actions** — `/admin/activity.php` and the home `Recent activity` block were calling the per-user feed and silently scoping every row to the logged-in user, so a page advertised as “What happened across projects you can access” rendered every event as the current admin. Staff with directory-wide access now default to a true cross-actor feed (every actor’s events across projects they can open); the user dropdown gains an **All users** option and the per-actor narrowing still works. Restricted users / clients keep self-only behavior. New helper `listAccessibleProjectsActivityForViewer()` in `public/includes/activity_feed.php`; pagination links also carry the active scope. Tests: `tests/php/Unit/ActivityFeedTest.php` covers cross-actor visibility in a shared project and `before_id` pagination on the new helper.
+
 ### Added
 
 - **Directory activity timeline (Basecamp-style)** — audit-backed feeds scoped by **`project_id`** or by **`user_id`** (actor), with pagination via **`before_id`**. PHP: `public/includes/activity_feed.php` (`listDirectoryProjectActivity`, `listUserActivityFeedForViewer`, enrichment for summaries/links). API: **`GET /api/list-activity.php`**. Admin: **Activity** nav, **`/admin/activity.php`**, **Activity** tab on **`/admin/project.php`**, and a **Recent activity** block on the home dashboard; styles in **`public/assets/admin.css`**. Task deletes record **`project_id`** / title in audit metadata so they remain visible after the row is gone. Index: **`audit_logs(created_at)`** (bootstrap / `config.php`). Tests: **`tests/php/Unit/ActivityFeedTest.php`**, pytest **`test_list_activity_*`** in **`tests/integration/test_php_api_admin_integration.py`**.
