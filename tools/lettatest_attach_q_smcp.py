@@ -8,6 +8,7 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 LETTA_BASE = os.getenv("LETTA_BASE", "http://127.0.0.1:18283").rstrip("/")
 AGENT_ID = os.getenv("Q_VERNAL_AGENT_ID", "agent-4afbed9b-a6c0-403f-8499-4fb75b83c095")
@@ -48,7 +49,14 @@ def req(method: str, path: str, body: dict | None = None) -> dict:
 
 def main() -> None:
     if not os.getenv("LETTA_API_KEY"):
-        print("LETTA_API_KEY required", file=sys.stderr)
+        env_path = Path("/root/.letta/.env")
+        if env_path.is_file():
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                if line.startswith("export LETTA_SERVER_PASSWORD="):
+                    os.environ["LETTA_API_KEY"] = line.split("=", 1)[1].strip().strip("\"'")
+                    break
+    if not os.getenv("LETTA_API_KEY"):
+        print("LETTA_API_KEY or LETTA_SERVER_PASSWORD required", file=sys.stderr)
         sys.exit(2)
 
     existing = req("GET", "/v1/mcp-servers/")

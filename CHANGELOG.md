@@ -4,6 +4,10 @@
 
 ### Fixed
 
+- **Ask Q could not save documents (lettatest)** — SMCP plugin on lettatest was a pre–document-tools snapshot; Q had no `q_vernal_tasks__create-document` (etc.) and fell back to `tasks__add-attachment` / `tasks__create-task` with invalid `api-key`. Deploy: `tools/lettatest-install-q-smcp.sh`; reconcile: `tools/lettatest_reconcile_q_tools.py` (detach stray tools, recreate MCP server, attach all `q_vernal_tasks__*`); disable bare `tasks` / `demo_*` plugins so only key-injected tools are visible. Smoke: document **#317** on project 4.
+
+### Fixed
+
 - **Global activity timeline showed only the viewer’s own actions** — `/admin/activity.php` and the home `Recent activity` block were calling the per-user feed and silently scoping every row to the logged-in user. Replaced with `listAccessibleProjectsActivityForViewer()` (every actor, every event in directory projects the viewer can access). **`/admin/activity.php` is global-only** — no user picker; legacy `?user_id=` URLs redirect to the global feed. Per-user activity remains on **`GET /api/list-activity.php?user_id=`** for integrations. Tests: `tests/php/Unit/ActivityFeedTest.php`.
 
 ### Added
