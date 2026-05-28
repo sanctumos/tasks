@@ -640,6 +640,167 @@ def update_document(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
     return _wrap(run)
 
 
+def delete_document(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        data = client.delete_document(document_id=int(args["id"]))
+        return _ok_from_api(data)
+
+    return _wrap(run)
+
+
+def list_document_comments(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        comments = client.list_document_comments(
+            document_id=int(args["document-id"]),
+            limit=int(args.get("limit", 100)),
+            offset=int(args.get("offset", 0)),
+        )
+        return _success(comments=comments, count=len(comments))
+
+    return _wrap(run)
+
+
+def create_document_comment(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        comment = client.create_document_comment(
+            document_id=int(args["document-id"]),
+            comment=str(args["comment"]),
+        )
+        return _success(comment=comment)
+
+    return _wrap(run)
+
+
+def list_todo_lists(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        lists = client.list_todo_lists(project_id=int(args["project-id"]))
+        return _success(todo_lists=lists, count=len(lists))
+
+    return _wrap(run)
+
+
+def create_todo_list(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        data = client.create_todo_list(
+            project_id=int(args["project-id"]),
+            name=str(args["name"]),
+        )
+        return _ok_from_api(data)
+
+    return _wrap(run)
+
+
+def upload_attachment(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        data = client.upload_attachment(
+            task_id=int(args["task-id"]),
+            file_path=str(args["file"]),
+            mime_type=args.get("mime-type"),
+        )
+        return _ok_from_api(data)
+
+    return _wrap(run)
+
+
+def search_users(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        users = client.search_users(q=str(args["q"]), limit=int(args.get("limit", 8)))
+        return _success(users=users, count=len(users))
+
+    return _wrap(run)
+
+
+def get_directory_project(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        project = client.get_directory_project(project_id=int(args["id"]))
+        return _success(project=project)
+
+    return _wrap(run)
+
+
+def update_directory_project(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        kw: Dict[str, Any] = {"project_id": int(args["id"])}
+        for cli_key, sdk_key in (
+            ("name", "name"),
+            ("description", "description"),
+            ("status", "status"),
+            ("client-visible", "client_visible"),
+            ("all-access", "all_access"),
+        ):
+            if cli_key in args:
+                kw[sdk_key] = args[cli_key]
+        project = client.update_directory_project(**kw)
+        return _success(project=project)
+
+    return _wrap(run)
+
+
+def list_project_members(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        members = client.list_project_members(project_id=int(args["project-id"]))
+        return _success(members=members, count=len(members))
+
+    return _wrap(run)
+
+
+def add_project_member(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        members = client.add_project_member(
+            project_id=int(args["project-id"]),
+            user_id=int(args["user-id"]),
+            role=str(args.get("role", "member")),
+        )
+        return _success(members=members, count=len(members))
+
+    return _wrap(run)
+
+
+def remove_project_member(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        members = client.remove_project_member(
+            project_id=int(args["project-id"]),
+            user_id=int(args["user-id"]),
+        )
+        return _success(members=members, count=len(members))
+
+    return _wrap(run)
+
+
+def list_project_pins(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        pins = client.list_project_pins(limit=int(args.get("limit", 200)))
+        return _success(pins=pins, count=len(pins))
+
+    return _wrap(run)
+
+
+def set_project_pin(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        pins = client.set_project_pin(
+            project_id=int(args["project-id"]),
+            pinned=bool(args.get("pinned", True)),
+            sort_order=int(args.get("sort-order", 0)),
+        )
+        return _success(pins=pins, count=len(pins))
+
+    return _wrap(run)
+
+
 def command_handlers() -> Dict[str, Callable[[Dict[str, Any], str], Dict[str, Any]]]:
     """Resolve handlers at call time so tests can monkeypatch module functions."""
     return {
@@ -678,6 +839,20 @@ def command_handlers() -> Dict[str, Callable[[Dict[str, Any], str], Dict[str, An
         "get-document": get_document,
         "create-document": create_document,
         "update-document": update_document,
+        "delete-document": delete_document,
+        "list-document-comments": list_document_comments,
+        "create-document-comment": create_document_comment,
+        "list-todo-lists": list_todo_lists,
+        "create-todo-list": create_todo_list,
+        "upload-attachment": upload_attachment,
+        "search-users": search_users,
+        "get-directory-project": get_directory_project,
+        "update-directory-project": update_directory_project,
+        "list-project-members": list_project_members,
+        "add-project-member": add_project_member,
+        "remove-project-member": remove_project_member,
+        "list-project-pins": list_project_pins,
+        "set-project-pin": set_project_pin,
     }
 
 
@@ -984,6 +1159,80 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--project-id", type=int, dest="project_id")
     p.add_argument("--directory-path", dest="directory_path")
     p.add_argument("--status")
+
+    p = subparsers.add_parser("delete-document", help="POST /api/delete-document.php")
+    add_api_key(p)
+    p.add_argument("--id", type=int, required=True)
+
+    p = subparsers.add_parser("list-document-comments", help="GET /api/list-document-comments.php")
+    add_api_key(p)
+    p.add_argument("--document-id", type=int, required=True, dest="document_id")
+    p.add_argument("--limit", type=int, default=100)
+    p.add_argument("--offset", type=int, default=0)
+
+    p = subparsers.add_parser("create-document-comment", help="POST /api/create-document-comment.php")
+    add_api_key(p)
+    p.add_argument("--document-id", type=int, required=True, dest="document_id")
+    p.add_argument("--comment", required=True)
+
+    p = subparsers.add_parser("list-todo-lists", help="GET /api/list-todo-lists.php")
+    add_api_key(p)
+    p.add_argument("--project-id", type=int, required=True, dest="project_id")
+
+    p = subparsers.add_parser("create-todo-list", help="POST /api/create-todo-list.php")
+    add_api_key(p)
+    p.add_argument("--project-id", type=int, required=True, dest="project_id")
+    p.add_argument("--name", required=True)
+
+    p = subparsers.add_parser("upload-attachment", help="POST /api/upload-attachment.php (multipart)")
+    add_api_key(p)
+    p.add_argument("--task-id", type=int, required=True, dest="task_id")
+    p.add_argument("--file", required=True, help="Local image path (png/jpeg/gif/webp)")
+    p.add_argument("--mime-type", dest="mime_type")
+
+    p = subparsers.add_parser("search-users", help="GET /api/search-users.php")
+    add_api_key(p)
+    p.add_argument("--q", required=True)
+    p.add_argument("--limit", type=int, default=8)
+
+    p = subparsers.add_parser("get-directory-project", help="GET /api/get-directory-project.php")
+    add_api_key(p)
+    p.add_argument("--id", type=int, required=True)
+
+    p = subparsers.add_parser("update-directory-project", help="POST /api/update-directory-project.php")
+    add_api_key(p)
+    p.add_argument("--id", type=int, required=True)
+    p.add_argument("--name")
+    p.add_argument("--description")
+    p.add_argument("--status")
+    p.add_argument("--client-visible", action="store_true", dest="client_visible")
+    p.add_argument("--all-access", action="store_true", dest="all_access")
+
+    p = subparsers.add_parser("list-project-members", help="GET /api/list-project-members.php")
+    add_api_key(p)
+    p.add_argument("--project-id", type=int, required=True, dest="project_id")
+
+    p = subparsers.add_parser("add-project-member", help="POST /api/add-project-member.php")
+    add_api_key(p)
+    p.add_argument("--project-id", type=int, required=True, dest="project_id")
+    p.add_argument("--user-id", type=int, required=True, dest="user_id")
+    p.add_argument("--role", default="member")
+
+    p = subparsers.add_parser("remove-project-member", help="POST /api/remove-project-member.php")
+    add_api_key(p)
+    p.add_argument("--project-id", type=int, required=True, dest="project_id")
+    p.add_argument("--user-id", type=int, required=True, dest="user_id")
+
+    p = subparsers.add_parser("list-project-pins", help="GET /api/list-project-pins.php")
+    add_api_key(p)
+    p.add_argument("--limit", type=int, default=200)
+
+    p = subparsers.add_parser("set-project-pin", help="POST /api/set-project-pin.php")
+    add_api_key(p)
+    p.add_argument("--project-id", type=int, required=True, dest="project_id")
+    p.add_argument("--pinned", action="store_true", default=True)
+    p.add_argument("--unpin", action="store_false", dest="pinned")
+    p.add_argument("--sort-order", type=int, default=0, dest="sort_order")
 
     return parser
 

@@ -26,6 +26,10 @@ rm -rf "\$SMCP_ROOT/plugins/q_vernal_tasks" "\$SMCP_ROOT/plugins/tasks"
 cp -a "\$TASKS_ROOT/smcp_plugin/q_vernal_tasks" "\$SMCP_ROOT/plugins/"
 cp -a "\$TASKS_ROOT/smcp_plugin/tasks" "\$SMCP_ROOT/plugins/"
 chmod +x "\$SMCP_ROOT/plugins/q_vernal_tasks/cli.py" "\$SMCP_ROOT/plugins/tasks/cli.py"
+# Legacy deploys copied the plugin to \$TASKS_ROOT/tasks/ — shadows smcp_plugin/tasks on import.
+if [ -d "\$TASKS_ROOT/tasks" ] && [ -f "\$TASKS_ROOT/tasks/cli.py" ]; then
+  rm -rf "\$TASKS_ROOT/tasks"
+fi
 
 # Q must use q_vernal_tasks__* only (per-chatter API key injection). Bare tasks__* and
 # demo plugins confuse the model and bypass key resolution.
@@ -48,7 +52,7 @@ if [ -z "\$POLL" ]; then
 fi
 cat > "\$SMCP_ROOT/env.smcp" <<ENV
 MCP_PLUGINS_DIR=\$SMCP_ROOT/plugins
-PYTHONPATH=\$TASKS_ROOT:\$TASKS_ROOT/smcp_plugin
+PYTHONPATH=\$TASKS_ROOT/smcp_plugin:\$TASKS_ROOT
 TASKS_API_BASE_URL=https://tasks.decisionsciencecorp.com
 TASKS_Q_BRIDGE_API_URL=https://tasks.decisionsciencecorp.com/q-bridge/
 TASKS_Q_BRIDGE_POLL_API_KEY=\${POLL}
@@ -64,7 +68,7 @@ cd "\$SMCP_HOME"
 VENV_PY="\$SMCP_HOME/.venv/bin/python"
 [ -x "\$VENV_PY" ] || VENV_PY=python3
 [ -f "\$SMCP_HOME/env.smcp" ] && set -a && . "\$SMCP_HOME/env.smcp" && set +a
-export PYTHONPATH="\${SMCP_HOME}/../sanctum-tasks:\${SMCP_HOME}/../sanctum-tasks/smcp_plugin:\${PYTHONPATH:-}"
+export PYTHONPATH="\${SMCP_HOME}/../sanctum-tasks/smcp_plugin:\${SMCP_HOME}/../sanctum-tasks:\${PYTHONPATH:-}"
 exec "\$VENV_PY" smcp_stdio.py
 SCRIPT
 chmod +x "\$SMCP_ROOT/run-smcp-stdio-for-letta.sh"

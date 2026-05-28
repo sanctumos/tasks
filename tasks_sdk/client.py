@@ -814,6 +814,36 @@ class TasksClient:
         response = self._request('POST', 'update-document.php', data=payload)
         return response.get('document', response)
 
+    def delete_document(self, document_id: int) -> Dict[str, Any]:
+        response = self._request('POST', 'delete-document.php', data={'id': document_id})
+        return response
+
+    def list_document_comments(
+        self,
+        document_id: int,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        response = self._request(
+            'GET',
+            'list-document-comments.php',
+            params={'document_id': document_id, 'limit': limit, 'offset': offset},
+        )
+        return response.get('comments', [])
+
+    def create_document_comment(self, document_id: int, comment: str) -> Dict[str, Any]:
+        response = self._request(
+            'POST',
+            'create-document-comment.php',
+            data={'document_id': document_id, 'comment': comment},
+        )
+        return response.get('comment', response)
+
+    def search_users(self, q: str, *, limit: int = 8) -> List[Dict[str, Any]]:
+        response = self._request('GET', 'search-users.php', params={'q': q, 'limit': limit})
+        return response.get('users', [])
+
     # ---------- Auditing ----------
     def list_audit_logs(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         response = self._request('GET', 'list-audit-logs.php', params={'limit': limit, 'offset': offset})
