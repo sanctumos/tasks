@@ -99,7 +99,8 @@ You are looking at a **software modality template**: a repeatable way to bolt a 
 | **Document SMCP tools** | Done | `get-document`, `list-documents`, `create-document`, `update-document` on `q_vernal_tasks__*` |
 | **Post-login return URL** | Done | Deep links survive login + mandatory password change (`auth_*` in `includes/auth.php`) |
 | **Mermaid in host markdown** | Done | Admin/docs render diagrams (host app; not required for other packages) |
-| **moya prod** | **Blocked · #414** | Until Mark signs off lettatest demo |
+| **moya prod** | **Live (2026-05-28)** | See `tools/q_moya_migration/README.md` |
+| **SMCP tool governance (Phase 2)** | **In progress** | Board: **Sanctum SMCP Platform** (project 13) · spec doc **#310** |
 
 ---
 
@@ -483,14 +484,16 @@ Bridge has lightweight rate limit helpers per endpoint. CORS headers allow widge
 
 **Ops lesson:** If broca-q dies, widget still “works” but Q never answers — always check process before blaming PHP.
 
-### 7.4 moya target layout (not deployed without #414)
+### 7.4 moya prod layout (2026-05-28)
 
-Per plan #296:
+| Path | Note |
+|------|------|
+| `~/sanctum/agents/q/broca/` | Broca + `q_vernal_webchat` plugin, `sanctum.db` |
+| `~/sanctum/agents/q/.env` | `AGENT_ID`, `AGENT_ENDPOINT=http://127.0.0.1:8284`, server bearer |
+| `~/sanctum/agents/q/smcp/` | SMCP stdio for Letta (`q-vernal-smcp`) |
+| screen **`broca-q`** | `tools/moya-start-q-broca.sh` |
 
-- `~/sanctum/agents/q/broca/`
-- screen `broca-q`
-- Otto HTTP bridge port **8874** (reserved)
-- Letta **8284** on moya
+Migration runbook: `tools/q_moya_migration/README.md` (Monday migration guide pattern).
 
 ---
 
@@ -606,8 +609,8 @@ Run in venv: `tools/design-smoke/.venv/bin/python ask_q_verify.py`
 | Stage | Host | What runs |
 |-------|------|-----------|
 | **Tasks UI + PHP** | multihost `64.95.10.156` | `sanctum-tasks` git sync → `sites/tasks.decisionsciencecorp.com.env` |
-| **Rehearsal agent** | lettatest `64.95.12.16` | broca-q, Letta 18283, SMCP |
-| **Prod agent (future)** | moya via `sanctum.zero1.network:7837` | broca-q, Letta 8284 — **blocked #414** |
+| **Rehearsal agent** | lettatest `64.95.12.16` | Legacy rehearsal; **broca-q stopped** after moya cutover |
+| **Prod agent** | **moya** (`sanctum.zero1.network:7837`) | **`agent-64e52a67-537a-4def-8402-d4bdccc47395`**, Letta **8284**, screen **`broca-q`** |
 
 **Network path prod:** Tasks multihost → HTTPS → lettatest (rehearsal) or moya (future). Broca polls **public Tasks URL** for inbox/outbox — ensure poll key and firewall allow outbound from agent host.
 
