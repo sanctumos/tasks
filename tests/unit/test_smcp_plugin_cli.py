@@ -537,6 +537,57 @@ def test_main_dispatches_all_non_create_commands(
     assert called["api_key"] == "k"
 
 
+def test_list_todo_lists_success(monkeypatch: pytest.MonkeyPatch):
+    fake_client = Mock()
+    fake_client.list_todo_lists.return_value = [{"id": 1, "name": "General"}]
+    monkeypatch.setattr(cli, "get_client", lambda api_key: fake_client)
+    result = cli.list_todo_lists({"project-id": 4}, "k")
+    assert result["status"] == "success"
+    assert result["count"] == 1
+    fake_client.list_todo_lists.assert_called_once_with(project_id=4)
+
+
+def test_create_document_comment_success(monkeypatch: pytest.MonkeyPatch):
+    fake_client = Mock()
+    fake_client.create_document_comment.return_value = {"id": 9, "comment": "hi"}
+    monkeypatch.setattr(cli, "get_client", lambda api_key: fake_client)
+    result = cli.create_document_comment({"document-id": 273, "comment": "hi"}, "k")
+    assert result["status"] == "success"
+    fake_client.create_document_comment.assert_called_once_with(document_id=273, comment="hi")
+
+
+def test_list_document_comments_success(monkeypatch: pytest.MonkeyPatch):
+    fake_client = Mock()
+    fake_client.list_document_comments.return_value = [{"id": 1}]
+    monkeypatch.setattr(cli, "get_client", lambda api_key: fake_client)
+    result = cli.list_document_comments({"document-id": 273}, "k")
+    assert result["status"] == "success"
+    assert result["count"] == 1
+
+
+def test_search_users_success(monkeypatch: pytest.MonkeyPatch):
+    fake_client = Mock()
+    fake_client.search_users.return_value = [{"id": 1, "username": "rizzn"}]
+    monkeypatch.setattr(cli, "get_client", lambda api_key: fake_client)
+    result = cli.search_users({"q": "rizzn"}, "k")
+    assert result["status"] == "success"
+    assert result["users"][0]["username"] == "rizzn"
+
+
+def test_describe_includes_new_commands():
+    parser = cli.build_parser()
+    desc = cli.get_plugin_description(parser)
+    names = {c["name"] for c in desc["commands"]}
+    for cmd in (
+        "list-todo-lists",
+        "create-document-comment",
+        "list-document-comments",
+        "upload-attachment",
+        "search-users",
+    ):
+        assert cmd in names, f"missing {cmd}"
+
+
 def test_main_unknown_command_path_returns_argument_error(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture,

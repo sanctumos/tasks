@@ -65,8 +65,23 @@ def main() -> None:
     for s in servers:
         if s.get("server_name") == SERVER_NAME:
             server_id = s.get("id")
-            print("reuse mcp server", server_id)
             break
+
+    def _q_tool_count(sid: str) -> int:
+        tools = req("GET", f"/v1/mcp-servers/{sid}/tools")
+        tool_list = tools if isinstance(tools, list) else tools.get("tools", tools.get("data", []))
+        return sum(1 for t in tool_list if (t.get("name") or "").startswith("q_vernal_tasks__"))
+
+    # Stale Letta catalogs keep old tool lists after plugin upgrades — recreate when under expected.
+    if server_id and _q_tool_count(server_id) < 45:
+        print("recreate mcp server (stale catalog)", server_id)
+        try:
+            req("DELETE", f"/v1/mcp-servers/{server_id}")
+        except urllib.error.HTTPError as e:
+            print("delete skipped", e.code, file=sys.stderr)
+        server_id = None
+    elif server_id:
+        print("reuse mcp server", server_id)
 
     if not server_id:
         created = req(

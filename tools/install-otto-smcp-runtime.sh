@@ -61,7 +61,7 @@ chmod 700 "$RUNTIME/run-otto-smcp-stdio.sh"
 if [ -f "$PASS_FILE" ]; then
   set -a && . "$PASS_FILE" && set +a
   export MCP_PLUGINS_DIR="$RUNTIME/plugins"
-  export PYTHONPATH="$TASKS_ROOT:$TASKS_ROOT/smcp_plugin"
+  export PYTHONPATH="$TASKS_ROOT/smcp_plugin:$TASKS_ROOT"
   export TASKS_API_BASE_URL="${TASKS_DSC_BASE_URL%/}"
   export TASKS_SMCP_API_KEY="${TASKS_DSC_OTTOVERNAL_API_KEY}"
   if "$RUNTIME/.venv/bin/python" "$TASKS_ROOT/smcp_plugin/tasks/cli.py" --describe | head -c 200 >/dev/null; then

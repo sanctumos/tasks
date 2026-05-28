@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- **SMCP plugin v0.4.0 — full Tasks workflow routes** — `smcp_plugin/tasks/cli.py` now exposes **49** commands (was 35): **`list-todo-lists`**, **`create-todo-list`**, **`list-document-comments`**, **`create-document-comment`**, **`delete-document`**, **`upload-attachment`**, **`search-users`**, **`get-directory-project`**, **`update-directory-project`**, **`list-project-members`**, **`add-project-member`**, **`remove-project-member`**, **`list-project-pins`**, **`set-project-pin`**. SDK: `delete_document`, `list_document_comments`, `create_document_comment`, `search_users`. Fixes Otto/Cursor falling back to raw `curl` for ProSpike-style board + document work. Redeploy Q: `tools/lettatest-install-q-smcp.sh` + `tools/lettatest_attach_q_smcp.py`.
+
 ### Fixed
 
 - **Ask Q could not save documents (lettatest)** — SMCP plugin on lettatest was a pre–document-tools snapshot; Q had no `q_vernal_tasks__create-document` (etc.) and fell back to `tasks__add-attachment` / `tasks__create-task` with invalid `api-key`. Deploy: `tools/lettatest-install-q-smcp.sh`; reconcile: `tools/lettatest_reconcile_q_tools.py` (detach stray tools, recreate MCP server, attach all `q_vernal_tasks__*`); disable bare `tasks` / `demo_*` plugins so only key-injected tools are visible. Smoke: document **#317** on project 4.

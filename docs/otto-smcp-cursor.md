@@ -48,7 +48,7 @@ Adjust the path if your home directory differs. **Reload Cursor** after saving.
 set -a && . ~/.ssh/tasks-dsc-ottovernal.pass && set +a
 export TASKS_SMCP_API_KEY="$TASKS_DSC_OTTOVERNAL_API_KEY"
 export TASKS_API_BASE_URL="${TASKS_DSC_BASE_URL%/}"
-export PYTHONPATH=~/projects/sanctum-tasks:~/projects/sanctum-tasks/smcp_plugin
+export PYTHONPATH=~/projects/sanctum-tasks/smcp_plugin:~/projects/sanctum-tasks
 ~/projects/sanctum-tasks/smcp_plugin/tasks/cli.py health
 
 # Stdio server (blocks — normal; Cursor attaches as client)
