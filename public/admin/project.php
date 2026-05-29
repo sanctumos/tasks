@@ -84,6 +84,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManage) {
             $message = $result['error'] ?? 'Could not remove';
             $messageType = 'danger';
         }
+    } elseif ($action === 'archive') {
+        $result = updateDirectoryProject((int)$currentUser['id'], $id, ['status' => 'archived']);
+        if ($result['success']) {
+            $message = 'Project archived. It is hidden from the default project list but still open here.';
+            $project = getDirectoryProjectById($id);
+        } else {
+            $message = $result['error'] ?? 'Could not archive project';
+            $messageType = 'danger';
+        }
+    } elseif ($action === 'unarchive') {
+        $result = updateDirectoryProject((int)$currentUser['id'], $id, ['status' => 'active']);
+        if ($result['success']) {
+            $message = 'Project restored to active.';
+            $project = getDirectoryProjectById($id);
+        } else {
+            $message = $result['error'] ?? 'Could not restore project';
+            $messageType = 'danger';
+        }
     } elseif ($action === 'create_list') {
         $name = trim((string)($_POST['list_name'] ?? ''));
         $result = createTodoList((int)$currentUser['id'], $id, $name);
@@ -251,6 +269,19 @@ require __DIR__ . '/_layout_top.php';
     </div>
     <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
         <?= st_doc_help('projects', 'Projects tabs lists docs and members') ?>
+        <?php if ($canManage && ($project['status'] ?? '') === 'active'): ?>
+            <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=<?= htmlspecialchars($tab) ?>" class="d-inline" onsubmit="return confirm('Archive this project? It will leave the default project list but stay readable.');">
+                <?= csrfInputField() ?>
+                <input type="hidden" name="action" value="archive">
+                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-archive me-1"></i>Archive</button>
+            </form>
+        <?php elseif ($canManage && ($project['status'] ?? '') === 'archived'): ?>
+            <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=<?= htmlspecialchars($tab) ?>" class="d-inline">
+                <?= csrfInputField() ?>
+                <input type="hidden" name="action" value="unarchive">
+                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise me-1"></i>Restore active</button>
+            </form>
+        <?php endif; ?>
         <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#newTaskModal" <?= $canManage ? '' : 'disabled' ?>>
             <i class="bi bi-plus-lg"></i> New task
         </button>

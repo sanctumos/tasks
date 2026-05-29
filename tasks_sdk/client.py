@@ -660,8 +660,11 @@ class TasksClient:
         response = self._request('GET', 'list-organizations.php')
         return response.get('organizations', [])
 
-    def list_directory_projects(self, limit: int = 200) -> List[Dict[str, Any]]:
-        response = self._request('GET', 'list-directory-projects.php', params={'limit': limit})
+    def list_directory_projects(self, limit: int = 200, *, include_archived: bool = False) -> List[Dict[str, Any]]:
+        params: Dict[str, Any] = {'limit': limit}
+        if include_archived:
+            params['include_archived'] = '1'
+        response = self._request('GET', 'list-directory-projects.php', params=params)
         return response.get('projects', [])
 
     def create_directory_project(

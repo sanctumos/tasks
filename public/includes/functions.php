@@ -2334,7 +2334,7 @@ function userHasUnrestrictedOrgDirectoryAccess(array $userRow): bool {
 
 /** Project IDs the user may open (respects memberships, all_access, client visibility). */
 function getAccessibleDirectoryProjectIdsForUser(array $userRow): array {
-    $rows = listDirectoryProjectsForUser($userRow, 500);
+    $rows = listDirectoryProjectsForUser($userRow, 500, ['include_archived' => true]);
     $ids = [];
     foreach ($rows as $r) {
         $ids[] = (int)$r['id'];
@@ -2419,9 +2419,12 @@ function resolveTaskDirectoryProjectId(array $userRow, $projectIdRaw, bool $allo
 
 /**
  * Project entities (directory) visible to the given user within their org.
+ *
+ * @param array{include_archived?:bool} $options When include_archived is false (default), only active projects are listed.
  */
-function listDirectoryProjectsForUser(array $userRow, int $limit = 200): array {
+function listDirectoryProjectsForUser(array $userRow, int $limit = 200, array $options = []): array {
     $limit = max(1, min(500, $limit));
+    $includeArchived = !empty($options['include_archived']);
     $uid = (int)$userRow['id'];
     $orgIds = listOrganizationIdsForUserAccess($userRow);
     $pk = normalizePersonKind($userRow['person_kind'] ?? 'team_member');
@@ -2432,6 +2435,8 @@ function listDirectoryProjectsForUser(array $userRow, int $limit = 200): array {
     $db = getDbConnection();
     $cvClause = $clientOnly ? ' AND client_visible = 1' : '';
     $cvClauseP = $clientOnly ? ' AND p.client_visible = 1' : '';
+    $statusClause = $includeArchived ? "status != 'trashed'" : "status = 'active'";
+    $statusClauseP = $includeArchived ? "p.status != 'trashed'" : "p.status = 'active'";
     $canSeeAll = userHasUnrestrictedOrgDirectoryAccess($userRow);
     $inClause = [];
     $bind = [':uid' => [$uid, SQLITE3_INTEGER], ':lim' => [$limit, SQLITE3_INTEGER]];
@@ -2445,7 +2450,7 @@ function listDirectoryProjectsForUser(array $userRow, int $limit = 200): array {
         $sql = "
             SELECT id, org_id, name, description, status, client_visible, all_access, created_at, updated_at
             FROM projects
-            WHERE org_id IN ($inSql) AND status != 'trashed'{$cvClause}
+            WHERE org_id IN ($inSql) AND {$statusClause}{$cvClause}
             ORDER BY name COLLATE NOCASE ASC
             LIMIT :lim
         ";
@@ -2455,7 +2460,7 @@ function listDirectoryProjectsForUser(array $userRow, int $limit = 200): array {
             FROM projects p
             LEFT JOIN project_members pm ON pm.project_id = p.id AND pm.user_id = :uid
             WHERE p.org_id IN ($inSql)
-              AND p.status != 'trashed'{$cvClauseP}
+              AND {$statusClauseP}{$cvClauseP}
               AND (p.all_access = 1 OR pm.user_id IS NOT NULL)
             ORDER BY p.name COLLATE NOCASE ASC
             LIMIT :lim

@@ -369,6 +369,8 @@ Visibility rules apply (admin/manager vs member scope).
 
 Projects visible per directory rules (`all_access`, `project_members`, role, client visibility).
 
+**Query:** `limit` (default 200), `include_archived` (`1` to include archived; default omits archived and lists **active** only). Trashed projects are never returned.
+
 #### `POST /api/create-directory-project.php`
 
 JSON: `name`, optional `description`, `client_visible`, `all_access`.
@@ -379,7 +381,7 @@ Query: `id`.
 
 #### `POST /api/update-directory-project.php`
 
-JSON: `id`, plus fields to update.
+JSON: `id`, plus fields to update: `name`, `description`, `status` (`active` \| `archived` \| `trashed`), `client_visible`, `all_access`.
 
 #### `GET /api/list-project-members.php`
 

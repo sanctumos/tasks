@@ -388,7 +388,10 @@ def list_organizations(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
 def list_directory_projects(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
     def run() -> Dict[str, Any]:
         client = get_client(api_key)
-        projects = client.list_directory_projects(limit=int(args.get("limit", 200)))
+        projects = client.list_directory_projects(
+            limit=int(args.get("limit", 200)),
+            include_archived=bool(args.get("include-archived", False)),
+        )
         return _success(projects=projects, count=len(projects))
 
     return _wrap(run)
@@ -1031,6 +1034,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = subparsers.add_parser("list-directory-projects", help="GET /api/list-directory-projects.php (project entities)")
     add_api_key(p)
     p.add_argument("--limit", type=int, default=200)
+    p.add_argument("--include-archived", action="store_true", dest="include-archived", help="Include archived projects (default: active only)")
 
     p = subparsers.add_parser("create-directory-project", help="POST /api/create-directory-project.php")
     add_api_key(p)
