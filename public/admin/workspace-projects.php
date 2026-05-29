@@ -41,7 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$projects = listDirectoryProjectsForUser($currentUser, 300);
+$showArchived = isset($_GET['show_archived']) && (string)$_GET['show_archived'] === '1';
+$projects = listDirectoryProjectsForUser($currentUser, 300, ['include_archived' => $showArchived]);
 
 $orgLabel = '';
 $oid = getEffectiveDirectoryOrgId($currentUser);
@@ -62,11 +63,16 @@ require __DIR__ . '/_layout_top.php';
         <h1>Projects</h1>
         <div class="subtitle">
             <?php if ($orgLabel !== ''): ?><span class="text-body"><?= htmlspecialchars($orgLabel) ?></span> · <?php endif; ?>
-            <?= count($projects) ?> <?= $orgLabel !== '' ? 'you can access' : 'in your directory' ?>
+            <?= count($projects) ?> <?= $showArchived ? 'including archived' : 'active' ?> <?= $orgLabel !== '' ? 'you can access' : 'in your directory' ?>
         </div>
     </div>
     <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
         <?= st_doc_help('projects', 'Directory projects and creating projects') ?>
+        <?php if ($showArchived): ?>
+            <a class="btn btn-outline-secondary btn-sm" href="/admin/workspace-projects.php">Hide archived</a>
+        <?php else: ?>
+            <a class="btn btn-outline-secondary btn-sm" href="/admin/workspace-projects.php?show_archived=1">Show archived</a>
+        <?php endif; ?>
         <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#newProjectModal"><i class="bi bi-plus-lg me-1"></i>New project</button>
     </div>
 </div>

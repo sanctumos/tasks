@@ -26,7 +26,7 @@ Use **Board** / **List** to switch layout. **New task** still picks a **project*
 
 ## Projects and workspace
 
-**Projects** in the nav (`/admin/workspace-projects.php`) lists directory projects and lets you **create** a project. Each project has a **status** (e.g. active, archived), optional description, and flags such as **client-visible** or **all-access** when your org uses them.
+**Projects** in the nav (`/admin/workspace-projects.php`) lists directory projects and lets you **create** a project. Each project has a **status** (`active`, `archived`, or `trashed`). **Archived** projects stay readable (tasks, docs, history) but drop off the default project list — use **Show archived** on the Projects page or **Archive** on a project header. **Trashed** is soft-delete (admin/settings). Optional flags: **client-visible**, **all-access**.
 
 Opening a project (`/admin/project.php?id=…`) gives you tabs:
 

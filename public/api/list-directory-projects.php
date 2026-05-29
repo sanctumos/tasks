@@ -8,7 +8,8 @@ if (!$full) {
 }
 
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 200;
-$projects = listDirectoryProjectsForUser($full, $limit);
+$includeArchived = isset($_GET['include_archived']) && (string)$_GET['include_archived'] === '1';
+$projects = listDirectoryProjectsForUser($full, $limit, ['include_archived' => $includeArchived]);
 
 apiSuccess([
     'projects' => $projects,
