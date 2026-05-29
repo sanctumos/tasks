@@ -27,6 +27,9 @@ if (!$project || !userCanAccessDirectoryProject($currentUser, $project)) {
 function st_tab_link(string $tab, string $active, string $label, string $icon, ?int $count = null): string {
     $cls = $active === $tab ? 'active' : '';
     $q = ['id' => (int)($_GET['id'] ?? 0), 'tab' => $tab];
+    if (st_mine_filter_active()) {
+        $q['mine'] = '1';
+    }
     $dir = normalizeDocumentDirectoryPath((string)($_GET['dir'] ?? ''));
     if ($dir !== '') {
         $q['dir'] = $dir;
@@ -151,24 +154,35 @@ foreach (listUsers(false) as $u) {
     }
 }
 
-// Tasks belonging to this project (by project_id) — for the Tasks tab
-$projectTasksResult = listTasks([
+$mineFilter = st_mine_filter_active();
+$mineUserId = (int)$currentUser['id'];
+$projectTaskFilters = [
     'project_id' => $id,
     'sort_by' => 'rank',
     'sort_dir' => 'ASC',
     'limit' => 250,
     'offset' => 0,
-], true);
+];
+if ($mineFilter) {
+    $projectTaskFilters['assigned_to_user_id'] = $mineUserId;
+}
+
+// Tasks belonging to this project (by project_id) — for the Tasks tab
+$projectTasksResult = listTasks($projectTaskFilters, true);
 $projectTasks = $projectTasksResult['tasks'];
 
 // Also catch tasks linked by legacy text-name (project name match)
-$legacyTasksResult = listTasks([
+$legacyTaskFilters = [
     'project' => $project['name'],
     'sort_by' => 'rank',
     'sort_dir' => 'ASC',
     'limit' => 250,
     'offset' => 0,
-], true);
+];
+if ($mineFilter) {
+    $legacyTaskFilters['assigned_to_user_id'] = $mineUserId;
+}
+$legacyTasksResult = listTasks($legacyTaskFilters, true);
 foreach ($legacyTasksResult['tasks'] as $lt) {
     if ((int)($lt['project_id'] ?? 0) !== $id) {
         $projectTasks[] = $lt;
@@ -282,6 +296,9 @@ require __DIR__ . '/_layout_top.php';
                 <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise me-1"></i>Restore active</button>
             </form>
         <?php endif; ?>
+        <?php if (in_array($tab, ['lists', 'tasks'], true)): ?>
+            <?= st_assigned_to_me_button('/admin/project.php', ['id' => $id, 'tab' => $tab], $mineFilter) ?>
+        <?php endif; ?>
         <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#newTaskModal" <?= $canManage ? '' : 'disabled' ?>>
             <i class="bi bi-plus-lg"></i> New task
         </button>
@@ -310,8 +327,11 @@ require __DIR__ . '/_layout_top.php';
     <?php if ($totalTasks === 0): ?>
         <div class="surface surface-pad text-center">
             <div class="mb-3" style="font-size: 2rem; color: var(--st-text-muted);"><i class="bi bi-inbox"></i></div>
-            <h2 class="h5 mb-1">No tasks here yet</h2>
-            <p class="text-muted small mb-3">Create the first task in this project to start tracking work.</p>
+            <h2 class="h5 mb-1"><?= $mineFilter ? 'Nothing assigned to you here' : 'No tasks here yet' ?></h2>
+            <p class="text-muted small mb-3"><?= $mineFilter ? 'Try showing all tasks, or pick up work from the lists.' : 'Create the first task in this project to start tracking work.' ?></p>
+            <?php if ($mineFilter): ?>
+                <?= st_assigned_to_me_button('/admin/project.php', ['id' => $id, 'tab' => 'tasks'], true) ?>
+            <?php endif; ?>
             <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newTaskModal" <?= $canManage ? '' : 'disabled' ?>>
                 <i class="bi bi-plus-lg me-1"></i>New task
             </button>
@@ -361,7 +381,13 @@ require __DIR__ . '/_layout_top.php';
 
 <?php elseif ($tab === 'lists'): ?>
 
-    <?php $listsRedirect = '/admin/project.php?id=' . (int)$id . '&tab=lists'; ?>
+    <?php
+    $listsRedirectQuery = ['id' => $id, 'tab' => 'lists'];
+    if ($mineFilter) {
+        $listsRedirectQuery['mine'] = '1';
+    }
+    $listsRedirect = '/admin/project.php?' . http_build_query($listsRedirectQuery);
+    ?>
     <div class="todolist-toolbar">
         <div class="section-title">
             <i class="bi bi-card-checklist"></i>
@@ -379,6 +405,13 @@ require __DIR__ . '/_layout_top.php';
             </form>
         <?php endif; ?>
     </div>
+
+    <?php if ($mineFilter && $totalTasks === 0 && (!empty($lists) || !empty($tasksUnfiled))): ?>
+        <div class="alert alert-secondary d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <span><i class="bi bi-person-check me-1"></i>No tasks in this project are assigned to you.</span>
+            <?= st_assigned_to_me_button('/admin/project.php', ['id' => $id, 'tab' => 'lists'], true) ?>
+        </div>
+    <?php endif; ?>
 
     <?php if (empty($lists) && empty($tasksUnfiled)): ?>
         <div class="surface surface-pad text-center">

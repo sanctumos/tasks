@@ -7,7 +7,11 @@ requireAuth();
 $currentUser = getCurrentUser();
 
 $status = $_GET['status'] ?? '';
+$mineFilter = st_mine_filter_active();
 $assignedToUserId = $_GET['assigned_to_user_id'] ?? '';
+if ($mineFilter) {
+    $assignedToUserId = (string)$currentUser['id'];
+}
 $priority = $_GET['priority'] ?? '';
 $project = $_GET['project'] ?? '';
 $projectIdFilter = isset($_GET['project_id']) ? (int)$_GET['project_id'] : 0;
@@ -194,6 +198,9 @@ function st_render_task_assignee_html(array $t): string {
     </div>
 
 <form class="filter-bar" method="get" action="/admin/" role="search">
+    <?php if ($mineFilter): ?>
+        <input type="hidden" name="mine" value="1">
+    <?php endif; ?>
     <div class="filter-bar__search">
         <div class="input-group">
             <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
@@ -233,6 +240,7 @@ function st_render_task_assignee_html(array $t): string {
         </datalist>
     </div>
     <div class="filter-bar__actions d-flex align-items-center flex-wrap gap-2">
+        <?= st_assigned_to_me_button('/admin/', st_request_query(['mine', 'assigned_to_user_id']), $mineFilter) ?>
         <button class="btn btn-primary" type="submit"><i class="bi bi-funnel-fill me-1"></i>Filter</button>
         <a class="btn btn-outline-secondary" href="/admin/"><i class="bi bi-x-lg"></i></a>
         <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#advFilters" aria-expanded="false"><i class="bi bi-sliders"></i> More</button>

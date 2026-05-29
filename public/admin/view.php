@@ -152,6 +152,11 @@ require __DIR__ . '/_layout_top.php';
 
     <div class="page-header__actions task-header__actions d-flex flex-wrap align-items-center gap-2">
         <?= st_doc_help('task-detail', 'Task page overview') ?>
+        <?php if ($pid > 0): ?>
+            <?= st_assigned_to_me_button('/admin/project.php', ['id' => $pid, 'tab' => 'lists'], false) ?>
+        <?php else: ?>
+            <?= st_assigned_to_me_button('/admin/', [], false) ?>
+        <?php endif; ?>
         <form method="post" action="/admin/watch.php" class="m-0">
             <?= csrfInputField() ?>
             <input type="hidden" name="task_id" value="<?= (int)$task['id'] ?>">
