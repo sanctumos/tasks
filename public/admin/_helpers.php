@@ -411,4 +411,42 @@ if (!function_exists('st_admin_breadcrumbs')) {
     }
 }
 
+if (!function_exists('st_request_query')) {
+    /** @param list<string> $omit */
+    function st_request_query(array $omit = []): array {
+        $q = $_GET;
+        foreach ($omit as $key) {
+            unset($q[$key]);
+        }
+        return $q;
+    }
+}
+
+if (!function_exists('st_mine_filter_active')) {
+    function st_mine_filter_active(): bool {
+        return isset($_GET['mine']) && (string)$_GET['mine'] === '1';
+    }
+}
+
+if (!function_exists('st_assigned_to_me_button')) {
+    /**
+     * Toggle link: reloads the page filtered to tasks assigned to the logged-in user.
+     *
+     * @param array<string, scalar|null> $baseQuery
+     */
+    function st_assigned_to_me_button(string $path, array $baseQuery, bool $active): string {
+        $q = $baseQuery;
+        if ($active) {
+            unset($q['mine']);
+        } else {
+            $q['mine'] = '1';
+        }
+        $href = $path . '?' . http_build_query($q);
+        $cls = $active ? 'btn-primary' : 'btn-outline-primary';
+        return '<a class="btn btn-sm ' . $cls . '" href="' . htmlspecialchars($href) . '"'
+            . ($active ? ' aria-current="true"' : '')
+            . '><i class="bi bi-person-check me-1"></i>Assigned to me</a>';
+    }
+}
+
 require_once __DIR__ . '/../includes/doc_guide.php';
