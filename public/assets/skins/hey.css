@@ -40,7 +40,8 @@ html[data-skin-comp="hey"] .todo-row__title {
 }
 
 html[data-skin-comp="hey"] .page-header__title h1 {
-    font-size: clamp(1.75rem, 4vw, 2.35rem);
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.05;
 }
 
 html[data-skin-comp="hey"] .section-title {
@@ -51,26 +52,25 @@ html[data-skin-comp="hey"] .section-title {
     text-transform: uppercase;
 }
 
-/* Surfaces — clean thick border, subtle shadow */
+/* Surfaces — clean thick border (panels keep a box; columns do not) */
 html[data-skin-comp="hey"] .surface,
-html[data-skin-comp="hey"] .swimlane,
 html[data-skin-comp="hey"] .metadata-rail,
 html[data-skin-comp="hey"] .filter-bar,
 html[data-skin-comp="hey"] .todo-list {
     border: 2px solid #000 !important;
-    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.18) !important;
+    box-shadow: none !important;
     border-radius: var(--st-radius-sm) !important;
     background: #fff !important;
 }
 
-/* Stamp cards — perforated postage-stamp edge (page-color bites into black border) */
+/* Stamp cards — flat, perforated postage-stamp edge (page-color bites into black border) */
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
     position: relative;
     border: 2px solid #000 !important;
-    border-radius: 2px !important;
-    box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.18) !important;
+    border-radius: 3px !important;
+    box-shadow: none !important;
     background: #fff !important;
 }
 
@@ -92,38 +92,57 @@ html[data-skin-comp="hey"] .surface-pad::before {
 html[data-skin-comp="hey"] .task-card:hover,
 html[data-skin-comp="hey"] .st-home-project-card:hover {
     border-color: var(--st-accent) !important;
-    box-shadow: 3px 4px 0 rgba(0, 71, 255, 0.28) !important;
 }
 
+/* Board columns — no box; just a thick black header rule (matches mockup 190) */
 html[data-skin-comp="hey"] .swimlane {
-    padding: 1rem;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 0.5rem;
 }
 
 html[data-skin-comp="hey"] .swimlane__header {
-    border-bottom: 2px solid #000;
-    padding-bottom: 0.65rem;
-    margin-bottom: 0.85rem;
+    border-bottom: 3px solid #000;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    justify-content: flex-start;
+    gap: 0.6rem;
 }
 
 html[data-skin-comp="hey"] .swimlane__header .status-pill {
-    font-size: 0.85rem;
-    padding: 0.15rem 0;
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 1.35rem;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    color: #000 !important;
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0;
+}
+
+html[data-skin-comp="hey"] .swimlane__header .status-pill::before {
+    display: none;
 }
 
 html[data-skin-comp="hey"] .swimlane__count {
     font-weight: 700;
-    color: #000;
     background: #000;
     color: #fff;
     border-radius: 999px;
-    min-width: 1.5rem;
-    text-align: center;
-    padding: 0.1rem 0.45rem;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.82rem;
 }
 
 html[data-skin-comp="hey"] .admin-nav {
-    background: #000 !important;
-    border-bottom: 4px solid var(--st-accent);
+    background: #fff !important;
+    border-bottom: 2px solid #000;
     box-shadow: none;
 }
 
@@ -131,6 +150,28 @@ html[data-skin-comp="hey"] .admin-nav .navbar-brand {
     font-family: "Fraunces", Georgia, serif;
     font-weight: 800;
     letter-spacing: -0.02em;
+    color: #000 !important;
+}
+
+html[data-skin-comp="hey"] .admin-nav .navbar-text,
+html[data-skin-comp="hey"] .admin-nav .navbar-text i {
+    color: #000 !important;
+}
+
+html[data-skin-comp="hey"] .admin-nav .btn-outline-light {
+    color: #000 !important;
+    border-color: #000 !important;
+    font-weight: 600;
+}
+
+html[data-skin-comp="hey"] .admin-nav .btn-outline-light:hover {
+    background: var(--st-accent) !important;
+    border-color: var(--st-accent) !important;
+    color: #fff !important;
+}
+
+html[data-skin-comp="hey"] .admin-nav .navbar-toggler {
+    border-color: #000;
 }
 
 html[data-skin-comp="hey"] .btn-primary {
@@ -252,6 +293,18 @@ html[data-skin-comp="hey"] .task-table thead th {
 
 html[data-skin-comp="hey"] .task-table tbody td {
     border-bottom: 1px solid #000;
+}
+
+html[data-skin-comp="hey"] .task-table .task-title-cell a {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.02rem;
+}
+
+html[data-skin-comp="hey"] .admin-nav .form-select {
+    background-color: #fff !important;
+    color: #000 !important;
+    border: 2px solid #000 !important;
 }
 
 html[data-skin-comp="hey"] .meta-chip {
