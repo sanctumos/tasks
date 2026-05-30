@@ -37,7 +37,7 @@ window.__ST_SKIN_LAB__ = {
     slugs: <?= json_encode($stSkinSlugs, JSON_UNESCAPED_UNICODE) ?>,
     defaultSlug: <?= json_encode($stSkinSlug, JSON_UNESCAPED_UNICODE) ?>,
     saveUrl: '/admin/save-skin.php',
-    csrfToken: <?= json_encode(csrfToken(), JSON_UNESCAPED_UNICODE) ?>
+    csrfToken: <?= json_encode(getCsrfToken(), JSON_UNESCAPED_UNICODE) ?>
 };
 </script>
 <?php endif; ?>
