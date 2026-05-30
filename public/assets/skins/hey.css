@@ -2,7 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=IBM+Plex+Sans:wght@400;600;700&display=swap');
 
 html[data-skin-comp="hey"] {
-    --st-bg-app: #ffffff;
+    --st-bg-app: #e9edf3;
     --st-bg-surface: #ffffff;
     --st-bg-soft: #ffffff;
     --st-bg-elevated: #ffffff;
@@ -26,7 +26,7 @@ html[data-skin-comp="hey"] {
 
 html[data-skin-comp="hey"] body {
     font-family: "IBM Plex Sans", system-ui, sans-serif;
-    background: #fff !important;
+    background: var(--st-bg-app) !important;
 }
 
 html[data-skin-comp="hey"] h1,
@@ -69,21 +69,16 @@ html[data-skin-comp="hey"] .todo-list {
     background: #fff !important;
 }
 
-/* Stamp cards — true postage-stamp scalloped edge.
-   A black "ink" layer fills the border-box; a white layer fills the padding-box;
-   the mask keeps a grid of circles (the perforations) + the whole inner area,
-   cutting scalloped half-circles out of every edge. */
+/* Stamp cards — authentic postage-stamp perforation (Joshua Comeau / Temani Afif method).
+   A single ::before holds a 2px black rim over a white face; one perforation mask punches
+   a grid of holes along every edge using background-repeat:round (so they fit each edge
+   evenly), with the interior painted back in by a centered gradient. The holes reveal the
+   grey page, leaving a thin black edge bitten by round perforations. */
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
-    --st-r: 6px;     /* perforation notch radius */
-    --st-p: 13px;    /* spacing between notches */
-    --st-ink: #000;  /* stamp outline colour */
-    --stamp-mask:
-        radial-gradient(var(--st-r) at 50% 0,    #0000 96%, #000) 0 0    / var(--st-p) 100% repeat-x,
-        radial-gradient(var(--st-r) at 50% 100%, #0000 96%, #000) 0 100% / var(--st-p) 100% repeat-x,
-        radial-gradient(var(--st-r) at 0 50%,    #0000 96%, #000) 0 0    / 100% var(--st-p) repeat-y,
-        radial-gradient(var(--st-r) at 100% 50%, #0000 96%, #000) 100% 0 / 100% var(--st-p) repeat-y;
+    --st-r: 7px;     /* perforation radius */
+    --st-ink: #000;  /* stamp edge colour */
     position: relative;
     border: 0 !important;
     border-radius: 0 !important;
@@ -91,7 +86,6 @@ html[data-skin-comp="hey"] .surface-pad {
     background: transparent !important;
 }
 
-/* black scalloped silhouette (the outline) */
 html[data-skin-comp="hey"] .task-card::before,
 html[data-skin-comp="hey"] .st-home-project-card::before,
 html[data-skin-comp="hey"] .surface-pad::before {
@@ -99,29 +93,25 @@ html[data-skin-comp="hey"] .surface-pad::before {
     position: absolute;
     inset: 0;
     z-index: 0;
-    background: var(--st-ink);
-    -webkit-mask: var(--stamp-mask);
-    -webkit-mask-composite: source-in;
-    mask: var(--stamp-mask);
-    mask-composite: intersect;
+    background:
+        linear-gradient(#fff 0 0) no-repeat center /
+            calc(100% - 4px) calc(100% - 4px),
+        var(--st-ink);
+    -webkit-mask:
+        radial-gradient(#0000 calc(var(--st-r) - 0.5px), #000 var(--st-r))
+            calc(-1 * var(--st-r)) calc(-1 * var(--st-r)) /
+            calc(2 * var(--st-r)) calc(2 * var(--st-r)) round,
+        linear-gradient(#000 0 0) no-repeat center /
+            calc(100% - 2 * var(--st-r)) calc(100% - 2 * var(--st-r));
+    mask:
+        radial-gradient(#0000 calc(var(--st-r) - 0.5px), #000 var(--st-r))
+            calc(-1 * var(--st-r)) calc(-1 * var(--st-r)) /
+            calc(2 * var(--st-r)) calc(2 * var(--st-r)) round,
+        linear-gradient(#000 0 0) no-repeat center /
+            calc(100% - 2 * var(--st-r)) calc(100% - 2 * var(--st-r));
 }
 
-/* white scalloped face, inset so the black behind reads as a thin perforated rim */
-html[data-skin-comp="hey"] .task-card::after,
-html[data-skin-comp="hey"] .st-home-project-card::after,
-html[data-skin-comp="hey"] .surface-pad::after {
-    content: "";
-    position: absolute;
-    inset: 2px;
-    z-index: 0;
-    background: #fff;
-    -webkit-mask: var(--stamp-mask);
-    -webkit-mask-composite: source-in;
-    mask: var(--stamp-mask);
-    mask-composite: intersect;
-}
-
-/* lift real content above both stamp layers */
+/* lift real content above the stamp layer */
 html[data-skin-comp="hey"] .task-card > *,
 html[data-skin-comp="hey"] .st-home-project-card > *,
 html[data-skin-comp="hey"] .surface-pad > * {
