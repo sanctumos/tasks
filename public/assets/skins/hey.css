@@ -76,35 +76,62 @@ html[data-skin-comp="hey"] .todo-list {
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
-    --st-r: 6px;   /* perforation notch radius */
-    --st-p: 13px;  /* spacing between notches */
+    --st-r: 6px;     /* perforation notch radius */
+    --st-p: 13px;    /* spacing between notches */
+    --st-ink: #000;  /* stamp outline colour */
+    --stamp-mask:
+        radial-gradient(var(--st-r) at 50% 0,    #0000 96%, #000) 0 0    / var(--st-p) 100% repeat-x,
+        radial-gradient(var(--st-r) at 50% 100%, #0000 96%, #000) 0 100% / var(--st-p) 100% repeat-x,
+        radial-gradient(var(--st-r) at 0 50%,    #0000 96%, #000) 0 0    / 100% var(--st-p) repeat-y,
+        radial-gradient(var(--st-r) at 100% 50%, #0000 96%, #000) 100% 0 / 100% var(--st-p) repeat-y;
     position: relative;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    background: #fff !important;
-    -webkit-mask:
-        radial-gradient(var(--st-r) at 50% 0,    #0000 96%, #000) 0 0    / var(--st-p) 100% repeat-x,
-        radial-gradient(var(--st-r) at 50% 100%, #0000 96%, #000) 0 100% / var(--st-p) 100% repeat-x,
-        radial-gradient(var(--st-r) at 0 50%,    #0000 96%, #000) 0 0    / 100% var(--st-p) repeat-y,
-        radial-gradient(var(--st-r) at 100% 50%, #0000 96%, #000) 100% 0 / 100% var(--st-p) repeat-y;
+    background: transparent !important;
+}
+
+/* black scalloped silhouette (the outline) */
+html[data-skin-comp="hey"] .task-card::before,
+html[data-skin-comp="hey"] .st-home-project-card::before,
+html[data-skin-comp="hey"] .surface-pad::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: var(--st-ink);
+    -webkit-mask: var(--stamp-mask);
     -webkit-mask-composite: source-in;
-    mask:
-        radial-gradient(var(--st-r) at 50% 0,    #0000 96%, #000) 0 0    / var(--st-p) 100% repeat-x,
-        radial-gradient(var(--st-r) at 50% 100%, #0000 96%, #000) 0 100% / var(--st-p) 100% repeat-x,
-        radial-gradient(var(--st-r) at 0 50%,    #0000 96%, #000) 0 0    / 100% var(--st-p) repeat-y,
-        radial-gradient(var(--st-r) at 100% 50%, #0000 96%, #000) 100% 0 / 100% var(--st-p) repeat-y;
+    mask: var(--stamp-mask);
     mask-composite: intersect;
-    filter:
-        drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000)
-        drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000);
+}
+
+/* white scalloped face, inset so the black behind reads as a thin perforated rim */
+html[data-skin-comp="hey"] .task-card::after,
+html[data-skin-comp="hey"] .st-home-project-card::after,
+html[data-skin-comp="hey"] .surface-pad::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    z-index: 0;
+    background: #fff;
+    -webkit-mask: var(--stamp-mask);
+    -webkit-mask-composite: source-in;
+    mask: var(--stamp-mask);
+    mask-composite: intersect;
+}
+
+/* lift real content above both stamp layers */
+html[data-skin-comp="hey"] .task-card > *,
+html[data-skin-comp="hey"] .st-home-project-card > *,
+html[data-skin-comp="hey"] .surface-pad > * {
+    position: relative;
+    z-index: 1;
 }
 
 html[data-skin-comp="hey"] .task-card:hover,
 html[data-skin-comp="hey"] .st-home-project-card:hover {
-    filter:
-        drop-shadow(1px 0 0 var(--st-accent)) drop-shadow(-1px 0 0 var(--st-accent))
-        drop-shadow(0 1px 0 var(--st-accent)) drop-shadow(0 -1px 0 var(--st-accent));
+    --st-ink: var(--st-accent);
 }
 
 /* Board columns — no box; just a thick black header rule (matches mockup 190) */
