@@ -78,7 +78,7 @@ html[data-skin-comp="hey"] .todo-list {
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
-    --r: 5px;        /* perforation radius / band width */
+    --r: 6px;        /* perforation radius / band width */
     --st-ink: #000;  /* stamp edge colour */
     border: 0 !important;
     border-radius: 0 !important;
@@ -88,11 +88,11 @@ html[data-skin-comp="hey"] .surface-pad {
         linear-gradient(#fff 0 0) content-box,
         var(--st-ink) !important;
     -webkit-mask:
-        radial-gradient(50% 50%, #0000 66%, #000 67%) round
+        radial-gradient(50% 50%, #0000 70%, #000 72%) round
             var(--r) var(--r) / calc(2 * var(--r)) calc(2 * var(--r)),
         conic-gradient(#000 0 0) content-box;
     mask:
-        radial-gradient(50% 50%, #0000 66%, #000 67%) round
+        radial-gradient(50% 50%, #0000 70%, #000 72%) round
             var(--r) var(--r) / calc(2 * var(--r)) calc(2 * var(--r)),
         conic-gradient(#000 0 0) content-box;
 }
