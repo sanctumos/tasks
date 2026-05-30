@@ -78,7 +78,7 @@ html[data-skin-comp="hey"] .todo-list {
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
-    --r: 7px;        /* perforation radius / band width */
+    --r: 5px;        /* perforation radius / band width */
     --st-ink: #000;  /* stamp edge colour */
     border: 0 !important;
     border-radius: 0 !important;
