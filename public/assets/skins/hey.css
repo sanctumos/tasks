@@ -69,63 +69,32 @@ html[data-skin-comp="hey"] .todo-list {
     background: #fff !important;
 }
 
-/* Stamp cards — authentic postage-stamp perforation (Joshua Comeau / Temani Afif method).
-   A single ::before holds a 2px black rim over a white face; one perforation mask punches
-   a grid of holes along every edge using background-repeat:round (so they fit each edge
-   evenly), with the interior painted back in by a centered gradient. The holes reveal the
-   grey page, leaving a thin black edge bitten by round perforations. */
+/* Stamp cards — css-shape.com / Temani Afif single-element stamp.
+   `padding: var(--r)` reserves the perforation band; the radial gradient punches a grid of
+   holes that fit each edge with `round`; the conic-gradient(content-box) layer keeps the
+   inner content solid so holes only appear along the edges. Background is white over the
+   content and black in the perforation band, so the edge reads as a black perforated stamp
+   line and the holes reveal the grey page. */
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
-    --st-hr: 6px;    /* perforation hole radius (how deep the bites are) */
-    --st-pp: 15px;   /* spacing between holes (> 2*hr leaves solid bumps between) */
+    --r: 7px;        /* perforation radius / band width */
     --st-ink: #000;  /* stamp edge colour */
-    --stamp-mask:
-        radial-gradient(circle var(--st-hr), #0000 calc(var(--st-hr) - 0.5px), #000 var(--st-hr))
-            calc(-1 * var(--st-pp) / 2) calc(-1 * var(--st-pp) / 2) /
-            var(--st-pp) var(--st-pp) round,
-        linear-gradient(#000 0 0) no-repeat center /
-            calc(100% - 2 * var(--st-pp)) calc(100% - 2 * var(--st-pp));
-    position: relative;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    background: transparent !important;
-    padding: 1.15rem 1.25rem !important;
-}
-
-/* black notched silhouette = the continuous stamp outline */
-html[data-skin-comp="hey"] .task-card::before,
-html[data-skin-comp="hey"] .st-home-project-card::before,
-html[data-skin-comp="hey"] .surface-pad::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    background: var(--st-ink);
-    -webkit-mask: var(--stamp-mask);
-    mask: var(--stamp-mask);
-}
-
-/* white notched face, inset 2px so the outline reads as a thin wavy line tracing each notch */
-html[data-skin-comp="hey"] .task-card::after,
-html[data-skin-comp="hey"] .st-home-project-card::after,
-html[data-skin-comp="hey"] .surface-pad::after {
-    content: "";
-    position: absolute;
-    inset: 2px;
-    z-index: 0;
-    background: #fff;
-    -webkit-mask: var(--stamp-mask);
-    mask: var(--stamp-mask);
-}
-
-/* lift real content above the stamp layers */
-html[data-skin-comp="hey"] .task-card > *,
-html[data-skin-comp="hey"] .st-home-project-card > *,
-html[data-skin-comp="hey"] .surface-pad > * {
-    position: relative;
-    z-index: 1;
+    padding: calc(var(--r) + 0.7rem) calc(var(--r) + 0.85rem) !important;
+    background:
+        linear-gradient(#fff 0 0) content-box,
+        var(--st-ink) !important;
+    -webkit-mask:
+        radial-gradient(50% 50%, #0000 66%, #000 67%) round
+            var(--r) var(--r) / calc(2 * var(--r)) calc(2 * var(--r)),
+        conic-gradient(#000 0 0) content-box;
+    mask:
+        radial-gradient(50% 50%, #0000 66%, #000 67%) round
+            var(--r) var(--r) / calc(2 * var(--r)) calc(2 * var(--r)),
+        conic-gradient(#000 0 0) content-box;
 }
 
 html[data-skin-comp="hey"] .task-card:hover,
