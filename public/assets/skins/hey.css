@@ -91,6 +91,7 @@ html[data-skin-comp="hey"] .surface-pad {
     border-radius: 0 !important;
     box-shadow: none !important;
     background: transparent !important;
+    padding: 1.15rem 1.25rem !important;
 }
 
 /* black notched silhouette = the continuous stamp outline */
