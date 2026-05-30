@@ -175,6 +175,14 @@ html[data-skin-comp="ledger"] .admin-nav .navbar-text {
     color: var(--st-text-primary) !important;
 }
 
+html[data-skin-comp="ledger"] .admin-nav .form-select {
+    background-color: var(--st-bg-surface) !important;
+    color: var(--st-text-primary) !important;
+    border: 1px solid var(--st-border-strong) !important;
+    border-radius: 0 !important;
+    font-family: "Crimson Pro", Georgia, serif;
+}
+
 html[data-skin-comp="ledger"] .admin-nav .btn-outline-light {
     border-color: transparent !important;
     border-radius: 0;
