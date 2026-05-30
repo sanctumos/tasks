@@ -1,13 +1,13 @@
-/* Ledger & Ink — cream paper, serif editorial, ruled lines */
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap');
+/* Ledger & Ink — cream paper, serif editorial, ruled checklist */
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,600;0,700;1,600&family=Source+Sans+3:wght@400;600&display=swap');
 
 html[data-skin-comp="ledger"] {
     --st-bg-app: #faf6ef;
-    --st-bg-surface: #faf6ef;
+    --st-bg-surface: #fffdf8;
     --st-bg-soft: #f5f0e6;
     --st-bg-elevated: #fffdf8;
-    --st-border-subtle: rgba(20, 20, 20, 0.12);
-    --st-border-strong: rgba(20, 20, 20, 0.22);
+    --st-border-subtle: rgba(26, 24, 20, 0.14);
+    --st-border-strong: rgba(26, 24, 20, 0.28);
     --st-text-primary: #1a1814;
     --st-text-secondary: #3d3830;
     --st-text-muted: #6b6458;
@@ -16,26 +16,61 @@ html[data-skin-comp="ledger"] {
     --st-accent-hover: #000000;
     --st-shadow-sm: none;
     --st-shadow-md: none;
-    --st-radius: 2px;
-    --st-radius-sm: 2px;
+    --st-radius: 0;
+    --st-radius-sm: 0;
+    --st-status-todo-soft: transparent;
+    --st-status-doing-soft: transparent;
+    --st-status-done-soft: transparent;
+    --st-status-blocked-soft: transparent;
 }
 
 html[data-skin-comp="ledger"] body {
     font-family: "Source Sans 3", system-ui, sans-serif;
-    background: var(--st-bg-app) !important;
+    background-color: var(--st-bg-app) !important;
+    background-image:
+        radial-gradient(circle at 1px 1px, rgba(26, 24, 20, 0.03) 1px, transparent 0);
+    background-size: 24px 24px;
 }
 
 html[data-skin-comp="ledger"] h1,
 html[data-skin-comp="ledger"] .page-header__title h1,
-html[data-skin-comp="ledger"] .section-title {
+html[data-skin-comp="ledger"] .task-title,
+html[data-skin-comp="ledger"] .section-title,
+html[data-skin-comp="ledger"] .todo-list__title strong,
+html[data-skin-comp="ledger"] .swimlane__header .status-pill {
     font-family: "Crimson Pro", Georgia, serif;
     font-weight: 700;
+}
+
+html[data-skin-comp="ledger"] .page-header__title h1 {
+    font-size: clamp(1.85rem, 4vw, 2.5rem);
+    letter-spacing: -0.01em;
+}
+
+html[data-skin-comp="ledger"] .page-header__title .subtitle {
+    font-family: "Crimson Pro", Georgia, serif;
+    font-style: italic;
+    color: var(--st-text-secondary);
+    font-size: 1rem;
+}
+
+html[data-skin-comp="ledger"] .section-title {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--st-text-muted);
 }
 
 html[data-skin-comp="ledger"] .task-card,
 html[data-skin-comp="ledger"] .surface,
 html[data-skin-comp="ledger"] .todo-row,
-html[data-skin-comp="ledger"] .swimlane__body .task-card {
+html[data-skin-comp="ledger"] .swimlane__body .task-card,
+html[data-skin-comp="ledger"] .filter-bar,
+html[data-skin-comp="ledger"] .metadata-rail,
+html[data-skin-comp="ledger"] .comment-body-col,
+html[data-skin-comp="ledger"] .todo-list,
+html[data-skin-comp="ledger"] .admin-breadcrumb {
     border: none !important;
     border-bottom: 1px solid var(--st-border-strong) !important;
     border-radius: 0 !important;
@@ -43,18 +78,212 @@ html[data-skin-comp="ledger"] .swimlane__body .task-card {
     background: transparent !important;
 }
 
-html[data-skin-comp="ledger"] .admin-nav {
-    background: #fffdf8 !important;
-    color: var(--st-text-primary);
-    border-bottom: 1px solid var(--st-border-strong);
+html[data-skin-comp="ledger"] .surface-pad {
+    background: var(--st-bg-elevated) !important;
+    border: 1px solid var(--st-border-subtle) !important;
+    border-bottom: 1px solid var(--st-border-strong) !important;
 }
-html[data-skin-comp="ledger"] .admin-nav .navbar-brand,
-html[data-skin-comp="ledger"] .admin-nav .btn-outline-light {
-    color: var(--st-text-primary) !important;
-    border-color: var(--st-border-strong) !important;
+
+html[data-skin-comp="ledger"] .board {
+    gap: 0;
+    border-top: 1px solid var(--st-border-strong);
+    border-bottom: 1px solid var(--st-border-strong);
 }
 
 html[data-skin-comp="ledger"] .swimlane {
-    border-right: 1px solid var(--st-border-subtle);
+    background: transparent !important;
+    border: none !important;
+    border-right: 1px solid var(--st-border-strong) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 1rem 1.15rem;
+}
+
+html[data-skin-comp="ledger"] .swimlane:last-child {
+    border-right: none !important;
+}
+
+html[data-skin-comp="ledger"] .swimlane__header {
+    border-bottom: 1px solid var(--st-border-strong);
+    padding-bottom: 0.65rem;
+    margin-bottom: 0.75rem;
+}
+
+html[data-skin-comp="ledger"] .swimlane__header .status-pill {
+    font-size: 1.05rem;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    padding: 0;
+    border: 0;
+    background: transparent !important;
+    color: var(--st-text-primary) !important;
+}
+
+html[data-skin-comp="ledger"] .swimlane__header .status-pill::before {
+    display: none;
+}
+
+html[data-skin-comp="ledger"] .swimlane__count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--st-text-muted);
+}
+
+html[data-skin-comp="ledger"] .task-card {
+    padding: 0.65rem 0.25rem 0.75rem !important;
+    margin: 0 !important;
+}
+
+html[data-skin-comp="ledger"] .task-card__title {
+    font-family: "Source Sans 3", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+html[data-skin-comp="ledger"] .task-card__meta,
+html[data-skin-comp="ledger"] .todo-row__meta,
+html[data-skin-comp="ledger"] .task-table tbody td,
+html[data-skin-comp="ledger"] .metadata-rail__value {
+    font-variant-numeric: tabular-nums;
+}
+
+html[data-skin-comp="ledger"] .admin-nav {
+    background: var(--st-bg-elevated) !important;
+    color: var(--st-text-primary);
+    border-bottom: 1px solid var(--st-border-strong);
     box-shadow: none;
+}
+
+html[data-skin-comp="ledger"] .admin-nav .navbar-brand,
+html[data-skin-comp="ledger"] .admin-nav .btn-outline-light,
+html[data-skin-comp="ledger"] .admin-nav .navbar-text {
+    color: var(--st-text-primary) !important;
+}
+
+html[data-skin-comp="ledger"] .admin-nav .btn-outline-light {
+    border-color: var(--st-border-strong) !important;
+    border-radius: 0;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+}
+
+html[data-skin-comp="ledger"] .admin-nav .btn-outline-light:hover {
+    background: var(--st-accent-soft) !important;
+    color: var(--st-text-primary) !important;
+}
+
+html[data-skin-comp="ledger"] .tabbar {
+    border-bottom: 1px solid var(--st-border-strong);
+    gap: 1.25rem;
+}
+
+html[data-skin-comp="ledger"] .tabbar a {
+    font-family: "Crimson Pro", Georgia, serif;
+    font-size: 1rem;
+    font-weight: 600;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 0.65rem;
+}
+
+html[data-skin-comp="ledger"] .tabbar a.active {
+    color: var(--st-text-primary);
+    border-bottom-color: var(--st-text-primary);
+}
+
+html[data-skin-comp="ledger"] .status-pill {
+    border-radius: 0;
+    border: 0;
+    background: transparent !important;
+    padding: 0;
+    font-family: "Source Sans 3", system-ui, sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+html[data-skin-comp="ledger"] .status-pill::before {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 0;
+    border: 1px solid currentColor;
+    background: transparent !important;
+}
+
+html[data-skin-comp="ledger"] .priority-chip {
+    border-radius: 0;
+    border: 0;
+    border-bottom: 1px solid var(--st-border-subtle);
+    background: transparent;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+html[data-skin-comp="ledger"] .todo-row + .todo-row {
+    border-top: 1px solid var(--st-border-subtle);
+}
+
+html[data-skin-comp="ledger"] .todo-checkbox {
+    border-radius: 2px;
+}
+
+html[data-skin-comp="ledger"] .todo-list {
+    border: 1px solid var(--st-border-subtle) !important;
+    padding: 0.85rem 1rem;
+}
+
+html[data-skin-comp="ledger"] .todo-list__header {
+    border-bottom: 1px solid var(--st-border-strong);
+}
+
+html[data-skin-comp="ledger"] .task-table thead th {
+    font-family: "Crimson Pro", Georgia, serif;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    background: transparent;
+    border-bottom: 2px solid var(--st-border-strong);
+}
+
+html[data-skin-comp="ledger"] .task-table tbody td {
+    border-bottom: 1px solid var(--st-border-subtle);
+    background: transparent;
+}
+
+html[data-skin-comp="ledger"] .task-table tbody tr:hover td {
+    background: var(--st-accent-soft);
+}
+
+html[data-skin-comp="ledger"] .btn-primary {
+    background: var(--st-text-primary);
+    border-color: var(--st-text-primary);
+    border-radius: 0;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+html[data-skin-comp="ledger"] .btn-primary:hover {
+    background: #000;
+    border-color: #000;
+}
+
+html[data-skin-comp="ledger"] .comment-body-col {
+    border-left: 2px solid var(--st-border-strong) !important;
+    border-bottom: none !important;
+    padding-left: 1rem;
+}
+
+html[data-skin-comp="ledger"] .metadata-rail__row {
+    border-bottom: 1px solid var(--st-border-subtle);
+}
+
+html[data-skin-comp="ledger"] .st-home-project-card {
+    border: 1px solid var(--st-border-subtle) !important;
+    background: var(--st-bg-elevated) !important;
+    box-shadow: none !important;
+}
+
+html[data-skin-comp="ledger"] .st-home-project-card:hover {
+    border-color: var(--st-border-strong) !important;
 }
