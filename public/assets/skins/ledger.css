@@ -1,5 +1,5 @@
 /* Ledger & Ink — cream paper, serif editorial, ruled checklist */
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,600;0,700;1,600&family=Source+Sans+3:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap');
 
 html[data-skin-comp="ledger"] {
     --st-bg-app: #faf6ef;
@@ -25,7 +25,8 @@ html[data-skin-comp="ledger"] {
 }
 
 html[data-skin-comp="ledger"] body {
-    font-family: "Source Sans 3", system-ui, sans-serif;
+    font-family: "Crimson Pro", Georgia, "Times New Roman", serif;
+    font-size: 1.05rem;
     background-color: var(--st-bg-app) !important;
     background-image:
         radial-gradient(circle at 1px 1px, rgba(26, 24, 20, 0.03) 1px, transparent 0);
@@ -137,9 +138,21 @@ html[data-skin-comp="ledger"] .task-card {
 }
 
 html[data-skin-comp="ledger"] .task-card__title {
-    font-family: "Source Sans 3", system-ui, sans-serif;
+    font-family: "Crimson Pro", Georgia, serif;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 1.08rem;
+}
+
+html[data-skin-comp="ledger"] .btn,
+html[data-skin-comp="ledger"] .form-control,
+html[data-skin-comp="ledger"] .form-select,
+html[data-skin-comp="ledger"] .badge,
+html[data-skin-comp="ledger"] .meta-chip,
+html[data-skin-comp="ledger"] .todo-row__title,
+html[data-skin-comp="ledger"] .comment-body,
+html[data-skin-comp="ledger"] .metadata-rail__value,
+html[data-skin-comp="ledger"] .metadata-rail__label {
+    font-family: "Crimson Pro", Georgia, serif;
 }
 
 html[data-skin-comp="ledger"] .task-card__meta,
@@ -200,10 +213,10 @@ html[data-skin-comp="ledger"] .status-pill {
     border: 0;
     background: transparent !important;
     padding: 0;
-    font-family: "Source Sans 3", system-ui, sans-serif;
-    font-size: 0.75rem;
+    font-family: "Crimson Pro", Georgia, serif;
+    font-size: 0.8rem;
     font-weight: 600;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
 }
 
