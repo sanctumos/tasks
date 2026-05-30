@@ -39,6 +39,12 @@ html[data-skin-comp="hey"] .todo-row__title {
     letter-spacing: -0.02em;
 }
 
+html[data-skin-comp="hey"] .task-card__title {
+    font-size: 1.12rem;
+    line-height: 1.18;
+    margin-bottom: 0.5rem;
+}
+
 html[data-skin-comp="hey"] .page-header__title h1 {
     font-size: clamp(2rem, 5vw, 3rem);
     line-height: 1.05;
@@ -83,10 +89,10 @@ html[data-skin-comp="hey"] .surface-pad::before {
     pointer-events: none;
     z-index: 2;
     background:
-        radial-gradient(circle 5px at 50% 0,    #fff 95%, #0000) 0 0    / 17px 10px repeat-x,
-        radial-gradient(circle 5px at 50% 100%, #fff 95%, #0000) 0 100% / 17px 10px repeat-x,
-        radial-gradient(circle 5px at 0 50%,    #fff 95%, #0000) 0 0    / 10px 17px repeat-y,
-        radial-gradient(circle 5px at 100% 50%, #fff 95%, #0000) 100% 0 / 10px 17px repeat-y;
+        radial-gradient(circle 6px at 50% 0,    #fff 96%, #0000) 0 0    / 14px 9px repeat-x,
+        radial-gradient(circle 6px at 50% 100%, #fff 96%, #0000) 0 100% / 14px 9px repeat-x,
+        radial-gradient(circle 6px at 0 50%,    #fff 96%, #0000) 0 0    / 9px 14px repeat-y,
+        radial-gradient(circle 6px at 100% 50%, #fff 96%, #0000) 100% 0 / 9px 14px repeat-y;
 }
 
 html[data-skin-comp="hey"] .task-card:hover,
