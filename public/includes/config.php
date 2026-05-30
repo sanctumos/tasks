@@ -147,6 +147,7 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
         ensureColumnExists($db, 'users', 'org_id', 'INTEGER DEFAULT NULL');
         ensureColumnExists($db, 'users', 'person_kind', "TEXT NOT NULL DEFAULT 'team_member'");
         ensureColumnExists($db, 'users', 'limited_project_access', 'INTEGER NOT NULL DEFAULT 0');
+        ensureColumnExists($db, 'users', 'skin_slug', 'TEXT DEFAULT NULL');
     }
     $db->exec("
         CREATE TABLE IF NOT EXISTS projects (

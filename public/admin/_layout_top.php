@@ -1,20 +1,46 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/skin-lab-env.php';
 require_once __DIR__ . '/_helpers.php';
 $pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
+$stSkinSlug = skinLabEffectiveSlug(isLoggedIn() ? getCurrentUser() : null);
+$stShowSkinCompBar = skinLabShouldShowCompBar();
+$stSkinSlugs = skinLabAvailableSlugs();
 ?>
 <!doctype html>
-<html lang="en">
+<html lang="en" data-skin-comp="<?= htmlspecialchars($stSkinSlug) ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= htmlspecialchars($pageTitle) ?> · Sanctum Tasks</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/assets/admin.css?v=13" rel="stylesheet">
+    <link href="/assets/admin.css?v=14" rel="stylesheet">
+    <link href="/assets/skins/<?= htmlspecialchars($stSkinSlug) ?>.css?v=1" rel="stylesheet">
+    <?php if ($stShowSkinCompBar): ?>
+    <script src="/js/st-skin-comp-switcher.js?v=1"></script>
+    <?php endif; ?>
 </head>
-<body class="bg-light">
+<body class="bg-light<?= $stShowSkinCompBar ? ' st-skin-lab-active' : '' ?>">
+<?php if ($stShowSkinCompBar): ?>
+<div class="st-skin-comp-bar" id="st-skin-comp-bar" role="region" aria-label="Skin comp switcher (dev)">
+    <span class="st-skin-comp-bar__label">SKIN</span>
+    <?php foreach ($stSkinSlugs as $slug): ?>
+        <button type="button" class="st-skin-comp-bar__btn" data-skin-set="<?= htmlspecialchars($slug) ?>" aria-pressed="false"><?= htmlspecialchars($slug) ?></button>
+    <?php endforeach; ?>
+    <span class="st-skin-comp-bar__spacer"></span>
+    <span class="st-skin-comp-bar__note">UI-Dev · dev.tasks</span>
+</div>
+<script>
+window.__ST_SKIN_LAB__ = {
+    slugs: <?= json_encode($stSkinSlugs, JSON_UNESCAPED_UNICODE) ?>,
+    defaultSlug: <?= json_encode($stSkinSlug, JSON_UNESCAPED_UNICODE) ?>,
+    saveUrl: '/admin/save-skin.php',
+    csrfToken: <?= json_encode(csrfToken(), JSON_UNESCAPED_UNICODE) ?>
+};
+</script>
+<?php endif; ?>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark admin-nav">
     <div class="container-fluid px-3 px-lg-4">
         <a class="navbar-brand fw-semibold d-inline-flex align-items-center gap-2" href="/admin/">
