@@ -69,37 +69,20 @@ html[data-skin-comp="hey"] .todo-list {
     background: #fff !important;
 }
 
-/* Stamp cards — css-shape.com / Temani Afif single-element stamp.
-   `padding: var(--r)` reserves the perforation band; the radial gradient punches a grid of
-   holes that fit each edge with `round`; the conic-gradient(content-box) layer keeps the
-   inner content solid so holes only appear along the edges. Background is white over the
-   content and black in the perforation band, so the edge reads as a black perforated stamp
-   line and the holes reveal the grey page. */
+/* Stamp cards — thin continuous wavy stamp edge.
+   A tileable SVG wavy frame is applied via border-image so the stroke stays thin and the
+   wave amplitude stays constant while the bumps tile along each edge (border-width reserves
+   the wave band; corners use short flat leads so they meet as clean stamp corners). The
+   card body is white; the wavy black line reads against the light grey page. */
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
-    --r: 6px;        /* perforation radius / band width */
-    --st-ink: #000;  /* stamp edge colour */
-    border: 0 !important;
+    background: #fff !important;
+    border: 15px solid transparent !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    padding: calc(var(--r) + 0.7rem) calc(var(--r) + 0.85rem) !important;
-    background:
-        linear-gradient(#fff 0 0) content-box,
-        var(--st-ink) !important;
-    -webkit-mask:
-        radial-gradient(50% 50%, #0000 70%, #000 72%) round
-            var(--r) var(--r) / calc(2 * var(--r)) calc(2 * var(--r)),
-        conic-gradient(#000 0 0) content-box;
-    mask:
-        radial-gradient(50% 50%, #0000 70%, #000 72%) round
-            var(--r) var(--r) / calc(2 * var(--r)) calc(2 * var(--r)),
-        conic-gradient(#000 0 0) content-box;
-}
-
-html[data-skin-comp="hey"] .task-card:hover,
-html[data-skin-comp="hey"] .st-home-project-card:hover {
-    --st-ink: var(--st-accent);
+    border-image: url("/assets/skins/hey-stamp.svg") 30 round !important;
+    padding: 0.55rem 0.7rem !important;
 }
 
 /* Board columns — no box; just a thick black header rule (matches mockup 190) */
