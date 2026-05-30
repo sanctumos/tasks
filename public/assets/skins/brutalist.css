@@ -1,0 +1,64 @@
+/* Brutalist Signal — concrete gray, zero radius, oversized hierarchy */
+html[data-skin-comp="brutalist"] {
+    --st-bg-app: #e8e8e6;
+    --st-bg-surface: #ececea;
+    --st-bg-soft: #e0e0de;
+    --st-border-subtle: #000000;
+    --st-border-strong: #000000;
+    --st-text-primary: #000000;
+    --st-text-secondary: #111111;
+    --st-text-muted: #333333;
+    --st-accent: #000000;
+    --st-accent-soft: #d8d8d6;
+    --st-accent-hover: #000000;
+    --st-shadow-sm: none;
+    --st-shadow-md: none;
+    --st-radius: 0;
+    --st-radius-sm: 0;
+}
+
+html[data-skin-comp="brutalist"] body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    text-transform: none;
+}
+
+html[data-skin-comp="brutalist"] h1,
+html[data-skin-comp="brutalist"] .page-header__title h1 {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
+}
+
+html[data-skin-comp="brutalist"] .task-card__title {
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: 0.95rem;
+}
+
+html[data-skin-comp="brutalist"] .task-card,
+html[data-skin-comp="brutalist"] .surface,
+html[data-skin-comp="brutalist"] .btn,
+html[data-skin-comp="brutalist"] .form-control,
+html[data-skin-comp="brutalist"] .form-select {
+    border-radius: 0 !important;
+}
+
+html[data-skin-comp="brutalist"] .task-card,
+html[data-skin-comp="brutalist"] .surface {
+    border: 2px solid #000 !important;
+    box-shadow: none !important;
+}
+
+html[data-skin-comp="brutalist"] .admin-nav {
+    background: #000 !important;
+    border-radius: 0;
+}
+
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill {
+    border-radius: 0;
+    font-weight: 800;
+    text-transform: uppercase;
+}

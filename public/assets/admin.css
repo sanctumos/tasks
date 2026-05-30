@@ -75,6 +75,46 @@ body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-t
 .admin-nav .navbar-text { font-size: 0.85rem; }
 .admin-shell { max-width: 1400px; }
 
+/* ---- UI Skin Lab comp bar (dev host) ---- */
+:root { --comp-h: 0px; }
+.st-skin-lab-active .admin-nav { top: var(--comp-h); }
+.st-skin-lab-active .admin-nav { position: sticky; z-index: 1030; }
+.st-skin-comp-bar {
+    position: sticky;
+    top: 0;
+    z-index: 1040;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.6rem;
+    padding: 0.35rem 0.75rem;
+    background: #111;
+    color: #fff;
+    font-size: 0.72rem;
+    border-bottom: 2px solid #0047ff;
+}
+.st-skin-comp-bar__label {
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+.st-skin-comp-bar__btn {
+    border: 1px solid rgba(255,255,255,0.35);
+    background: transparent;
+    color: #fff;
+    border-radius: 999px;
+    padding: 0.15rem 0.65rem;
+    font-size: inherit;
+    cursor: pointer;
+}
+.st-skin-comp-bar__btn.is-active {
+    background: #0047ff;
+    border-color: #0047ff;
+}
+.st-skin-comp-bar__spacer { flex: 1; }
+.st-skin-comp-bar__note { opacity: 0.65; font-size: 0.68rem; }
+
 /* ---------- Breadcrumbs ---------- */
 .admin-breadcrumb-nav { margin-top: -0.25rem; }
 .admin-breadcrumb {

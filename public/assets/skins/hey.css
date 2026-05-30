@@ -1,0 +1,55 @@
+/* HEY Bold — high contrast, thick borders, electric blue accent */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=IBM+Plex+Sans:wght@400;600&display=swap');
+
+html[data-skin-comp="hey"] {
+    --st-bg-app: #ffffff;
+    --st-bg-surface: #ffffff;
+    --st-bg-soft: #ffffff;
+    --st-border-subtle: #000000;
+    --st-border-strong: #000000;
+    --st-text-primary: #000000;
+    --st-text-secondary: #111111;
+    --st-text-muted: #444444;
+    --st-accent: #0047ff;
+    --st-accent-soft: #e8f0ff;
+    --st-accent-hover: #0036cc;
+    --st-shadow-sm: none;
+    --st-shadow-md: none;
+    --st-radius: 14px;
+    --st-radius-sm: 10px;
+}
+
+html[data-skin-comp="hey"] body {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+}
+
+html[data-skin-comp="hey"] h1,
+html[data-skin-comp="hey"] .page-header__title h1,
+html[data-skin-comp="hey"] .task-card__title,
+html[data-skin-comp="hey"] .todo-row__title {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+html[data-skin-comp="hey"] .task-card,
+html[data-skin-comp="hey"] .surface,
+html[data-skin-comp="hey"] .swimlane {
+    border: 2px solid #000 !important;
+    box-shadow: none !important;
+}
+
+html[data-skin-comp="hey"] .admin-nav {
+    background: #000 !important;
+    border-bottom: 3px solid var(--st-accent);
+}
+
+html[data-skin-comp="hey"] .btn-primary {
+    background: var(--st-accent);
+    border-color: var(--st-accent);
+    font-weight: 600;
+}
+
+html[data-skin-comp="hey"] .swimlane__header {
+    border-bottom: 2px solid #000;
+}

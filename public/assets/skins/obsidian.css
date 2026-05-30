@@ -1,0 +1,70 @@
+/* Obsidian Focus — OLED dark, warm cream type, gold accent */
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@600;700&family=Source+Sans+3:wght@400;600&display=swap');
+
+html[data-skin-comp="obsidian"] {
+    --st-bg-app: #12141a;
+    --st-bg-surface: #1c1f26;
+    --st-bg-soft: #161820;
+    --st-bg-elevated: #23262f;
+    --st-border-subtle: rgba(242, 235, 227, 0.12);
+    --st-border-strong: rgba(242, 235, 227, 0.22);
+    --st-text-primary: #f2ebe3;
+    --st-text-secondary: #cfc5b8;
+    --st-text-muted: #9a9288;
+    --st-accent: #e8a838;
+    --st-accent-soft: rgba(232, 168, 56, 0.15);
+    --st-accent-hover: #f0b84a;
+    --st-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --st-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --st-radius: 12px;
+    --st-radius-sm: 8px;
+}
+
+html[data-skin-comp="obsidian"] body {
+    font-family: "Source Sans 3", system-ui, sans-serif;
+    background: var(--st-bg-app) !important;
+    color: var(--st-text-primary);
+}
+
+html[data-skin-comp="obsidian"] h1,
+html[data-skin-comp="obsidian"] .page-header__title h1,
+html[data-skin-comp="obsidian"] .task-card__title {
+    font-family: "Crimson Pro", Georgia, serif;
+    color: var(--st-text-primary);
+}
+
+html[data-skin-comp="obsidian"] .surface,
+html[data-skin-comp="obsidian"] .task-card,
+html[data-skin-comp="obsidian"] .swimlane {
+    background: var(--st-bg-surface) !important;
+    border-color: var(--st-border-subtle) !important;
+    color: var(--st-text-primary);
+}
+
+html[data-skin-comp="obsidian"] .task-card--interactive:hover {
+    box-shadow: 0 0 0 1px var(--st-accent), var(--st-shadow-md);
+}
+
+html[data-skin-comp="obsidian"] .admin-nav {
+    background: #0c0d11 !important;
+    border-bottom: 1px solid var(--st-border-subtle);
+}
+
+html[data-skin-comp="obsidian"] .text-muted,
+html[data-skin-comp="obsidian"] .subtitle {
+    color: var(--st-text-muted) !important;
+}
+
+html[data-skin-comp="obsidian"] .btn-primary {
+    background: var(--st-accent);
+    border-color: var(--st-accent);
+    color: #12141a;
+    font-weight: 600;
+}
+
+html[data-skin-comp="obsidian"] .form-control,
+html[data-skin-comp="obsidian"] .form-select {
+    background: var(--st-bg-soft);
+    border-color: var(--st-border-subtle);
+    color: var(--st-text-primary);
+}
