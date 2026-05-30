@@ -77,7 +77,9 @@ html[data-skin-comp="hey"] .todo-list {
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
-    --st-r: 7px;     /* perforation radius */
+    --st-hr: 6px;    /* perforation hole radius (how deep the bites are) */
+    --st-pp: 15px;   /* spacing between holes (> 2*hr leaves solid bumps between) */
+    --st-edge: 2px;  /* black stamp-edge thickness */
     --st-ink: #000;  /* stamp edge colour */
     position: relative;
     border: 0 !important;
@@ -95,20 +97,20 @@ html[data-skin-comp="hey"] .surface-pad::before {
     z-index: 0;
     background:
         linear-gradient(#fff 0 0) no-repeat center /
-            calc(100% - 4px) calc(100% - 4px),
+            calc(100% - 2 * var(--st-edge)) calc(100% - 2 * var(--st-edge)),
         var(--st-ink);
     -webkit-mask:
-        radial-gradient(#0000 calc(var(--st-r) - 0.5px), #000 var(--st-r))
-            calc(-1 * var(--st-r)) calc(-1 * var(--st-r)) /
-            calc(2 * var(--st-r)) calc(2 * var(--st-r)) round,
+        radial-gradient(circle var(--st-hr), #0000 calc(var(--st-hr) - 0.5px), #000 var(--st-hr))
+            calc(-1 * var(--st-pp) / 2) calc(-1 * var(--st-pp) / 2) /
+            var(--st-pp) var(--st-pp) round,
         linear-gradient(#000 0 0) no-repeat center /
-            calc(100% - 2 * var(--st-r)) calc(100% - 2 * var(--st-r));
+            calc(100% - 2 * var(--st-pp)) calc(100% - 2 * var(--st-pp));
     mask:
-        radial-gradient(#0000 calc(var(--st-r) - 0.5px), #000 var(--st-r))
-            calc(-1 * var(--st-r)) calc(-1 * var(--st-r)) /
-            calc(2 * var(--st-r)) calc(2 * var(--st-r)) round,
+        radial-gradient(circle var(--st-hr), #0000 calc(var(--st-hr) - 0.5px), #000 var(--st-hr))
+            calc(-1 * var(--st-pp) / 2) calc(-1 * var(--st-pp) / 2) /
+            var(--st-pp) var(--st-pp) round,
         linear-gradient(#000 0 0) no-repeat center /
-            calc(100% - 2 * var(--st-r)) calc(100% - 2 * var(--st-r));
+            calc(100% - 2 * var(--st-pp)) calc(100% - 2 * var(--st-pp));
 }
 
 /* lift real content above the stamp layer */
