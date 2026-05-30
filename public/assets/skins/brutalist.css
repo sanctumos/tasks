@@ -37,10 +37,11 @@ html[data-skin-comp="brutalist"] .task-title {
 }
 
 html[data-skin-comp="brutalist"] .page-header__title .subtitle {
-    text-transform: uppercase;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
     font-size: 0.78rem;
-    letter-spacing: 0.12em;
-    font-weight: 700;
+    letter-spacing: 0;
+    font-weight: 500;
+    line-height: 1.5;
     color: var(--st-text-muted);
 }
 
@@ -159,11 +160,13 @@ html[data-skin-comp="brutalist"] .admin-nav .navbar-brand {
 
 html[data-skin-comp="brutalist"] .admin-nav .btn-outline-light {
     border-radius: 0;
-    border-width: 2px;
+    border-width: 1px;
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 0.72rem;
-    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
 }
 
 html[data-skin-comp="brutalist"] .tabbar {

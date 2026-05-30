@@ -51,23 +51,51 @@ html[data-skin-comp="hey"] .section-title {
     text-transform: uppercase;
 }
 
-/* Stamp frame — thick border + offset shadow */
-html[data-skin-comp="hey"] .task-card,
+/* Surfaces — clean thick border, subtle shadow */
 html[data-skin-comp="hey"] .surface,
 html[data-skin-comp="hey"] .swimlane,
 html[data-skin-comp="hey"] .metadata-rail,
 html[data-skin-comp="hey"] .filter-bar,
 html[data-skin-comp="hey"] .todo-list {
     border: 2px solid #000 !important;
-    box-shadow: 5px 5px 0 #000 !important;
+    box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.18) !important;
     border-radius: var(--st-radius-sm) !important;
     background: #fff !important;
 }
 
-html[data-skin-comp="hey"] .task-card:hover,
+/* Stamp card — perforated postage-stamp edge (white bites into black border) */
+html[data-skin-comp="hey"] .task-card {
+    position: relative;
+    border: 2px solid #000 !important;
+    border-radius: 2px !important;
+    box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.16) !important;
+    background: #fff !important;
+}
+
+html[data-skin-comp="hey"] .task-card::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    pointer-events: none;
+    background:
+        radial-gradient(circle 4px at 50% 0,    #fff 94%, #0000) 0 0    / 14px 8px repeat-x,
+        radial-gradient(circle 4px at 50% 100%, #fff 94%, #0000) 0 100% / 14px 8px repeat-x,
+        radial-gradient(circle 4px at 0 50%,    #fff 94%, #0000) 0 0    / 8px 14px repeat-y,
+        radial-gradient(circle 4px at 100% 50%, #fff 94%, #0000) 100% 0 / 8px 14px repeat-y;
+}
+
+html[data-skin-comp="hey"] .task-card:hover {
+    border-color: var(--st-accent) !important;
+    box-shadow: 2px 3px 0 rgba(0, 71, 255, 0.28) !important;
+}
+
+html[data-skin-comp="hey"] .st-home-project-card::before {
+    display: none;
+}
+
 html[data-skin-comp="hey"] .st-home-project-card:hover {
     border-color: var(--st-accent) !important;
-    box-shadow: 5px 5px 0 var(--st-accent) !important;
+    box-shadow: 3px 3px 0 rgba(0, 71, 255, 0.22) !important;
 }
 
 html[data-skin-comp="hey"] .swimlane {
@@ -193,13 +221,9 @@ html[data-skin-comp="hey"] .todo-row + .todo-row {
     border-top: 1px solid #000;
 }
 
-html[data-skin-comp="hey"] .todo-list {
-    box-shadow: 5px 5px 0 #000 !important;
-}
-
 html[data-skin-comp="hey"] .comment-body-col {
     border: 2px solid #000;
-    box-shadow: 3px 3px 0 #000;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.16);
     border-radius: var(--st-radius-sm);
 }
 
