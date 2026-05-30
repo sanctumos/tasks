@@ -20,10 +20,10 @@ $stSkinSlugs = skinLabAvailableSlugs();
     <?php if ($stShowSkinCompBar): ?>
         <?php /* Comp bar toggles data-skin-comp client-side — load every skin sheet so switches paint. */ ?>
         <?php foreach ($stSkinSlugs as $slug): ?>
-    <link href="/assets/skins/<?= htmlspecialchars($slug) ?>.css?v=3" rel="stylesheet">
+    <link href="/assets/skins/<?= htmlspecialchars($slug) ?>.css?v=4" rel="stylesheet">
         <?php endforeach; ?>
     <?php else: ?>
-    <link href="/assets/skins/<?= htmlspecialchars($stSkinSlug) ?>.css?v=3" rel="stylesheet">
+    <link href="/assets/skins/<?= htmlspecialchars($stSkinSlug) ?>.css?v=4" rel="stylesheet">
     <?php endif; ?>
     <?php if ($stShowSkinCompBar): ?>
     <script src="/js/st-skin-comp-switcher.js?v=1"></script>
