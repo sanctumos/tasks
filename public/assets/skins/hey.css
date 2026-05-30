@@ -69,35 +69,38 @@ html[data-skin-comp="hey"] .todo-list {
     background: #fff !important;
 }
 
-/* Stamp cards — flat, perforated postage-stamp edge (page-color bites into black border) */
+/* Stamp cards — true postage-stamp scalloped edge.
+   A black "ink" layer fills the border-box; a white layer fills the padding-box;
+   the mask keeps a grid of circles (the perforations) + the whole inner area,
+   cutting scalloped half-circles out of every edge. */
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
+    --st-stamp: 8px; /* scallop radius / frame thickness */
     position: relative;
-    border: 2px solid #000 !important;
-    border-radius: 3px !important;
+    border: var(--st-stamp) solid transparent !important;
+    border-radius: 0 !important;
     box-shadow: none !important;
-    background: #fff !important;
-}
-
-html[data-skin-comp="hey"] .task-card::before,
-html[data-skin-comp="hey"] .st-home-project-card::before,
-html[data-skin-comp="hey"] .surface-pad::before {
-    content: "";
-    position: absolute;
-    inset: -3px;
-    pointer-events: none;
-    z-index: 2;
     background:
-        radial-gradient(circle 6px at 50% 0,    #fff 96%, #0000) 0 0    / 14px 9px repeat-x,
-        radial-gradient(circle 6px at 50% 100%, #fff 96%, #0000) 0 100% / 14px 9px repeat-x,
-        radial-gradient(circle 6px at 0 50%,    #fff 96%, #0000) 0 0    / 9px 14px repeat-y,
-        radial-gradient(circle 6px at 100% 50%, #fff 96%, #0000) 100% 0 / 9px 14px repeat-y;
+        linear-gradient(#fff 0 0) padding-box,
+        #000 border-box !important;
+    -webkit-mask:
+        radial-gradient(farthest-side, #000 97%, #0000) 0 0 /
+            calc(2 * var(--st-stamp)) calc(2 * var(--st-stamp)) round,
+        linear-gradient(#000 0 0) padding-box;
+            -webkit-mask-composite: source-over;
+    mask:
+        radial-gradient(farthest-side, #000 97%, #0000) 0 0 /
+            calc(2 * var(--st-stamp)) calc(2 * var(--st-stamp)) round,
+        linear-gradient(#000 0 0) padding-box;
+    mask-composite: add;
 }
 
 html[data-skin-comp="hey"] .task-card:hover,
 html[data-skin-comp="hey"] .st-home-project-card:hover {
-    border-color: var(--st-accent) !important;
+    background:
+        linear-gradient(#fff 0 0) padding-box,
+        var(--st-accent) border-box !important;
 }
 
 /* Board columns — no box; just a thick black header rule (matches mockup 190) */
