@@ -62,20 +62,26 @@ html[data-skin-comp="ledger"] .section-title {
     color: var(--st-text-muted);
 }
 
-html[data-skin-comp="ledger"] .task-card,
-html[data-skin-comp="ledger"] .surface,
 html[data-skin-comp="ledger"] .todo-row,
-html[data-skin-comp="ledger"] .swimlane__body .task-card,
-html[data-skin-comp="ledger"] .filter-bar,
-html[data-skin-comp="ledger"] .metadata-rail,
-html[data-skin-comp="ledger"] .comment-body-col,
-html[data-skin-comp="ledger"] .todo-list,
 html[data-skin-comp="ledger"] .admin-breadcrumb {
     border: none !important;
     border-bottom: 1px solid var(--st-border-strong) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     background: transparent !important;
+}
+
+/* Cards/panels — cream paper tiles WITH spacing (margins between tiles) */
+html[data-skin-comp="ledger"] .task-card,
+html[data-skin-comp="ledger"] .surface,
+html[data-skin-comp="ledger"] .filter-bar,
+html[data-skin-comp="ledger"] .metadata-rail,
+html[data-skin-comp="ledger"] .comment-body-col,
+html[data-skin-comp="ledger"] .todo-list {
+    border: 1px solid var(--st-border-subtle) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: var(--st-bg-elevated) !important;
 }
 
 html[data-skin-comp="ledger"] .surface-pad {
@@ -85,22 +91,19 @@ html[data-skin-comp="ledger"] .surface-pad {
 }
 
 html[data-skin-comp="ledger"] .board {
-    gap: 0;
-    border-top: 1px solid var(--st-border-strong);
-    border-bottom: 1px solid var(--st-border-strong);
+    gap: 1.25rem;
 }
 
 html[data-skin-comp="ledger"] .swimlane {
-    background: transparent !important;
-    border: none !important;
-    border-right: 1px solid var(--st-border-strong) !important;
+    background: var(--st-bg-soft) !important;
+    border: 1px solid var(--st-border-subtle) !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     padding: 1rem 1.15rem;
 }
 
-html[data-skin-comp="ledger"] .swimlane:last-child {
-    border-right: none !important;
+html[data-skin-comp="ledger"] .swimlane__body {
+    gap: 0.85rem;
 }
 
 html[data-skin-comp="ledger"] .swimlane__header {
@@ -130,8 +133,7 @@ html[data-skin-comp="ledger"] .swimlane__count {
 }
 
 html[data-skin-comp="ledger"] .task-card {
-    padding: 0.65rem 0.25rem 0.75rem !important;
-    margin: 0 !important;
+    padding: 0.7rem 0.85rem !important;
 }
 
 html[data-skin-comp="ledger"] .task-card__title {

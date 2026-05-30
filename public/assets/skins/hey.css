@@ -63,39 +63,36 @@ html[data-skin-comp="hey"] .todo-list {
     background: #fff !important;
 }
 
-/* Stamp card — perforated postage-stamp edge (white bites into black border) */
-html[data-skin-comp="hey"] .task-card {
+/* Stamp cards — perforated postage-stamp edge (page-color bites into black border) */
+html[data-skin-comp="hey"] .task-card,
+html[data-skin-comp="hey"] .st-home-project-card,
+html[data-skin-comp="hey"] .surface-pad {
     position: relative;
     border: 2px solid #000 !important;
     border-radius: 2px !important;
-    box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.16) !important;
+    box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.18) !important;
     background: #fff !important;
 }
 
-html[data-skin-comp="hey"] .task-card::before {
+html[data-skin-comp="hey"] .task-card::before,
+html[data-skin-comp="hey"] .st-home-project-card::before,
+html[data-skin-comp="hey"] .surface-pad::before {
     content: "";
     position: absolute;
-    inset: -2px;
+    inset: -3px;
     pointer-events: none;
+    z-index: 2;
     background:
-        radial-gradient(circle 4px at 50% 0,    #fff 94%, #0000) 0 0    / 14px 8px repeat-x,
-        radial-gradient(circle 4px at 50% 100%, #fff 94%, #0000) 0 100% / 14px 8px repeat-x,
-        radial-gradient(circle 4px at 0 50%,    #fff 94%, #0000) 0 0    / 8px 14px repeat-y,
-        radial-gradient(circle 4px at 100% 50%, #fff 94%, #0000) 100% 0 / 8px 14px repeat-y;
+        radial-gradient(circle 5px at 50% 0,    #fff 95%, #0000) 0 0    / 17px 10px repeat-x,
+        radial-gradient(circle 5px at 50% 100%, #fff 95%, #0000) 0 100% / 17px 10px repeat-x,
+        radial-gradient(circle 5px at 0 50%,    #fff 95%, #0000) 0 0    / 10px 17px repeat-y,
+        radial-gradient(circle 5px at 100% 50%, #fff 95%, #0000) 100% 0 / 10px 17px repeat-y;
 }
 
-html[data-skin-comp="hey"] .task-card:hover {
-    border-color: var(--st-accent) !important;
-    box-shadow: 2px 3px 0 rgba(0, 71, 255, 0.28) !important;
-}
-
-html[data-skin-comp="hey"] .st-home-project-card::before {
-    display: none;
-}
-
+html[data-skin-comp="hey"] .task-card:hover,
 html[data-skin-comp="hey"] .st-home-project-card:hover {
     border-color: var(--st-accent) !important;
-    box-shadow: 3px 3px 0 rgba(0, 71, 255, 0.22) !important;
+    box-shadow: 3px 4px 0 rgba(0, 71, 255, 0.28) !important;
 }
 
 html[data-skin-comp="hey"] .swimlane {
