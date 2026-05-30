@@ -76,31 +76,35 @@ html[data-skin-comp="hey"] .todo-list {
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
-    --st-r: 7px;   /* perforation bump radius */
-    --st-p: 12px;  /* spacing between bumps (< 2r so the edge stays continuous + wavy) */
-    --st-b: 2.5px; /* ink line thickness */
+    --st-r: 6px;   /* perforation notch radius */
+    --st-p: 13px;  /* spacing between notches */
     position: relative;
-    border: var(--st-b) solid transparent !important;
+    border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    background:
-        linear-gradient(#fff 0 0) padding-box,
-        #000 border-box !important;
+    background: #fff !important;
     -webkit-mask:
-        radial-gradient(circle var(--st-r), #000 97%, #0000) 50% 50% /
-            var(--st-p) var(--st-p) round,
-        linear-gradient(#000 0 0) padding-box;
+        radial-gradient(var(--st-r) at 50% 0,    #0000 96%, #000) 0 0    / var(--st-p) 100% repeat-x,
+        radial-gradient(var(--st-r) at 50% 100%, #0000 96%, #000) 0 100% / var(--st-p) 100% repeat-x,
+        radial-gradient(var(--st-r) at 0 50%,    #0000 96%, #000) 0 0    / 100% var(--st-p) repeat-y,
+        radial-gradient(var(--st-r) at 100% 50%, #0000 96%, #000) 100% 0 / 100% var(--st-p) repeat-y;
+    -webkit-mask-composite: source-in;
     mask:
-        radial-gradient(circle var(--st-r), #000 97%, #0000) 50% 50% /
-            var(--st-p) var(--st-p) round,
-        linear-gradient(#000 0 0) padding-box;
+        radial-gradient(var(--st-r) at 50% 0,    #0000 96%, #000) 0 0    / var(--st-p) 100% repeat-x,
+        radial-gradient(var(--st-r) at 50% 100%, #0000 96%, #000) 0 100% / var(--st-p) 100% repeat-x,
+        radial-gradient(var(--st-r) at 0 50%,    #0000 96%, #000) 0 0    / 100% var(--st-p) repeat-y,
+        radial-gradient(var(--st-r) at 100% 50%, #0000 96%, #000) 100% 0 / 100% var(--st-p) repeat-y;
+    mask-composite: intersect;
+    filter:
+        drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000)
+        drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000);
 }
 
 html[data-skin-comp="hey"] .task-card:hover,
 html[data-skin-comp="hey"] .st-home-project-card:hover {
-    background:
-        linear-gradient(#fff 0 0) padding-box,
-        var(--st-accent) border-box !important;
+    filter:
+        drop-shadow(1px 0 0 var(--st-accent)) drop-shadow(-1px 0 0 var(--st-accent))
+        drop-shadow(0 1px 0 var(--st-accent)) drop-shadow(0 -1px 0 var(--st-accent));
 }
 
 /* Board columns — no box; just a thick black header rule (matches mockup 190) */
