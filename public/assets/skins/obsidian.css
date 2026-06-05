@@ -14,7 +14,7 @@ html[data-skin-comp="obsidian"] {
     --st-accent: #e8a838;
     --st-accent-soft: rgba(232, 168, 56, 0.12);
     --st-accent-hover: #f0b84a;
-    --st-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+    --st-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.55), 0 7px 18px rgba(0, 0, 0, 0.28);
     --st-shadow-md: 0 12px 32px rgba(0, 0, 0, 0.55);
     --st-radius: 10px;
     --st-radius-sm: 8px;
