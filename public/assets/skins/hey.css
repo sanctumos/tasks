@@ -22,6 +22,7 @@ html[data-skin-comp="hey"] {
     --st-status-doing-soft: #fff8e6;
     --st-status-done-soft: #eaffea;
     --st-status-blocked-soft: #ffeaea;
+    --st-board-card-title-lines: 3;
 }
 
 html[data-skin-comp="hey"] body {
@@ -40,9 +41,10 @@ html[data-skin-comp="hey"] .todo-row__title {
 }
 
 html[data-skin-comp="hey"] .task-card__title {
-    font-size: 1.12rem;
-    line-height: 1.18;
-    margin-bottom: 0.5rem;
+    font-size: clamp(1.12rem, 1.8vw, 1.38rem);
+    line-height: 1.05;
+    margin-bottom: 0.45rem;
+    text-wrap: balance;
 }
 
 html[data-skin-comp="hey"] .page-header__title h1 {
@@ -69,20 +71,16 @@ html[data-skin-comp="hey"] .todo-list {
     background: #fff !important;
 }
 
-/* Stamp cards — thin continuous wavy stamp edge.
-   A tileable SVG wavy frame is applied via border-image so the stroke stays thin and the
-   wave amplitude stays constant while the bumps tile along each edge (border-width reserves
-   the wave band; corners use short flat leads so they meet as clean stamp corners). The
-   card body is white; the wavy black line reads against the light grey page. */
+/* Stamp cards — small same-direction scallop bites, closer to a postage perforation than trim. */
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
     background: #fff !important;
-    border: 15px solid transparent !important;
+    border: 14px solid transparent !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     border-image: url("/assets/skins/hey-stamp.svg") 30 round !important;
-    padding: 0.55rem 0.7rem !important;
+    padding: 0.5rem 0.68rem !important;
 }
 
 /* Board columns — no box; just a thick black header rule (matches mockup 190) */
