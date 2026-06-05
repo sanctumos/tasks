@@ -16,14 +16,14 @@ $stSkinSlugs = skinLabAvailableSlugs();
     <title><?= htmlspecialchars($pageTitle) ?> · Sanctum Tasks</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/assets/admin.css?v=14" rel="stylesheet">
+    <link href="/assets/admin.css?v=15" rel="stylesheet">
     <?php if ($stShowSkinCompBar): ?>
         <?php /* Comp bar toggles data-skin-comp client-side — load every skin sheet so switches paint. */ ?>
         <?php foreach ($stSkinSlugs as $slug): ?>
-    <link href="/assets/skins/<?= htmlspecialchars($slug) ?>.css?v=23" rel="stylesheet">
+    <link href="/assets/skins/<?= htmlspecialchars($slug) ?>.css?v=25" rel="stylesheet">
         <?php endforeach; ?>
     <?php else: ?>
-    <link href="/assets/skins/<?= htmlspecialchars($stSkinSlug) ?>.css?v=23" rel="stylesheet">
+    <link href="/assets/skins/<?= htmlspecialchars($stSkinSlug) ?>.css?v=25" rel="stylesheet">
     <?php endif; ?>
     <?php if ($stShowSkinCompBar): ?>
     <script src="/js/st-skin-comp-switcher.js?v=1"></script>

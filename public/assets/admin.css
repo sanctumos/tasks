@@ -22,6 +22,11 @@
     --st-radius: 10px;
     --st-radius-sm: 6px;
 
+    /* Board card layout contract: skins may change voice, not card rhythm. */
+    --st-board-card-height: 9.35rem;
+    --st-board-card-title-lines: 2;
+    --st-board-card-meta-max-height: 1.55rem;
+
     /* Status palette */
     --st-status-todo: #4a5260;
     --st-status-todo-soft: #eef0f4;
@@ -281,6 +286,49 @@ body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-t
 .task-card__footer { display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem; }
 .task-card__assignee { font-size: 0.72rem; color: var(--st-text-secondary); }
 .task-card__assignee i { color: var(--st-text-muted); }
+
+.board .task-card {
+    display: flex;
+    flex-direction: column;
+    height: var(--st-board-card-height);
+    min-height: var(--st-board-card-height);
+    overflow: hidden;
+}
+.board .task-card__title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--st-board-card-title-lines);
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    text-overflow: ellipsis;
+}
+.board .task-card__meta {
+    flex: 0 0 auto;
+    min-width: 0;
+    max-height: var(--st-board-card-meta-max-height);
+    overflow: hidden;
+    row-gap: 0.25rem;
+}
+.board .task-card__meta > * {
+    max-width: 100%;
+}
+.board .task-card__footer {
+    flex: 0 0 auto;
+    gap: 0.55rem;
+    margin-top: auto;
+    min-width: 0;
+    overflow: hidden;
+}
+.board .task-card__assignee {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.board .task-card__footer > .text-muted {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
 
 /* Inline edit dropdown inside a task card */
 .task-card .form-select-sm.js-autosave {
