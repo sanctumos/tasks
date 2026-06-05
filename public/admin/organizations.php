@@ -4,6 +4,7 @@
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/skin-lab-env.php';
 require_once __DIR__ . '/_helpers.php';
 
 requireAdmin();
@@ -38,8 +39,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = $result['error'] ?? 'Rename failed';
             $messageType = 'danger';
         }
+    } elseif ($action === 'default_skin') {
+        $orgId = (int)($_POST['org_id'] ?? 0);
+        $skin = (string)($_POST['default_skin_slug'] ?? '');
+        $result = updateOrganizationDefaultSkin($orgId, $skin, (int)$currentUser['id']);
+        if ($result['success']) {
+            $message = 'Organization default skin saved.';
+        } else {
+            $message = $result['error'] ?? 'Save failed';
+            $messageType = 'danger';
+        }
     }
 }
+
+$skinSlugs = skinLabAvailableSlugs();
+$skinLabels = [
+    'hey' => 'HEY Bold',
+    'ledger' => 'Ledger & Ink',
+    'brutalist' => 'Brutalist Signal',
+    'obsidian' => 'Obsidian Focus',
+];
 
 $orgs = listOrganizationsWithStats();
 
@@ -74,6 +93,7 @@ require __DIR__ . '/_layout_top.php';
                 <th>Name</th>
                 <th style="width: 110px;">Users</th>
                 <th style="width: 110px;">Projects</th>
+                <th style="width: 220px;">Default skin</th>
                 <th style="width: 200px;">Actions</th>
             </tr>
         </thead>
@@ -83,6 +103,31 @@ require __DIR__ . '/_layout_top.php';
                     <td><strong><?= htmlspecialchars($o['name']) ?></strong><div class="text-muted small">ID <?= (int)$o['id'] ?></div></td>
                     <td><?= (int)($o['user_count'] ?? 0) ?></td>
                     <td><?= (int)($o['project_count'] ?? 0) ?></td>
+                    <td>
+                        <?php
+                        $settings = [];
+                        if (!empty($o['settings_json'])) {
+                            $decoded = json_decode((string)$o['settings_json'], true);
+                            if (is_array($decoded)) {
+                                $settings = $decoded;
+                            }
+                        }
+                        $orgSkin = skinLabNormalizeSlug($settings['default_skin_slug'] ?? null) ?? 'hey';
+                        ?>
+                        <form method="post" action="/admin/organizations.php" class="d-flex flex-wrap gap-2 align-items-center m-0">
+                            <?= csrfInputField() ?>
+                            <input type="hidden" name="action" value="default_skin">
+                            <input type="hidden" name="org_id" value="<?= (int)$o['id'] ?>">
+                            <select class="form-select form-select-sm" name="default_skin_slug" style="max-width: 180px;">
+                                <?php foreach ($skinSlugs as $slug): ?>
+                                    <option value="<?= htmlspecialchars($slug) ?>" <?= $orgSkin === $slug ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($skinLabels[$slug] ?? $slug) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Save</button>
+                        </form>
+                    </td>
                     <td class="task-actions">
                         <form method="post" action="/admin/organizations.php" class="d-flex flex-wrap gap-2 align-items-center m-0">
                             <?= csrfInputField() ?>

@@ -19,6 +19,7 @@ $isAdmin = isAdminRole((string)($currentUser['role'] ?? ''));
 
 $availableTabs = [
     'password' => ['label' => 'Password', 'icon' => 'bi-asterisk', 'admin' => false],
+    'appearance' => ['label' => 'Appearance', 'icon' => 'bi-palette', 'admin' => false],
     'mfa' => ['label' => 'MFA', 'icon' => 'bi-shield-lock', 'admin' => false],
     'api-keys' => ['label' => 'API keys', 'icon' => 'bi-key', 'admin' => true],
     'audit' => ['label' => 'Audit log', 'icon' => 'bi-shield-check', 'admin' => true],
@@ -76,6 +77,9 @@ function st_settings_tab_link(string $tab, string $active, array $availableTabs,
 switch ($tab) {
     case 'password':
         require __DIR__ . '/_settings/password.php';
+        break;
+    case 'appearance':
+        require __DIR__ . '/_settings/appearance.php';
         break;
     case 'mfa':
         require __DIR__ . '/_settings/mfa.php';
