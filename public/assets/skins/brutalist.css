@@ -18,6 +18,7 @@ html[data-skin-comp="brutalist"] {
     --st-shadow-md: none;
     --st-radius: 0;
     --st-radius-sm: 0;
+    --st-board-card-title-lines: 3;
 }
 
 html[data-skin-comp="brutalist"] body {
@@ -60,8 +61,11 @@ html[data-skin-comp="brutalist"] .task-card__title {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0;
-    font-size: clamp(2.1rem, 3.8vw, 3.35rem);
-    line-height: 0.9;
+    font-size: clamp(1.78rem, 3vw, 2.65rem);
+    line-height: 0.92;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+    -webkit-line-clamp: var(--st-board-card-title-lines);
 }
 
 html[data-skin-comp="brutalist"] .task-card__meta,
@@ -101,7 +105,7 @@ html[data-skin-comp="brutalist"] .todo-list {
 }
 
 html[data-skin-comp="brutalist"] .task-card {
-    padding: 0.32rem 0.44rem !important;
+    padding: 0.5rem 0.58rem !important;
 }
 
 html[data-skin-comp="brutalist"] .board {
@@ -117,6 +121,23 @@ html[data-skin-comp="brutalist"] .swimlane {
 
 html[data-skin-comp="brutalist"] .swimlane__body {
     gap: 0.85rem;
+}
+
+html[data-skin-comp="brutalist"] .task-card__meta {
+    row-gap: 0.25rem;
+}
+
+html[data-skin-comp="brutalist"] .task-card__footer {
+    gap: 0.65rem;
+}
+
+html[data-skin-comp="brutalist"] .task-card__footer > .text-muted {
+    flex: 0 0 auto;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
 }
 
 html[data-skin-comp="brutalist"] .swimlane__header {
