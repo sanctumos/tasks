@@ -75,11 +75,11 @@ html[data-skin-comp="hey"] .todo-list {
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
-    background: #fff !important;
+    background: transparent !important;
     border: 13px solid transparent !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    border-image: url("/assets/skins/hey-stamp.svg") 30 round !important;
+    border-image: url("/assets/skins/hey-stamp.svg") 30 fill round !important;
     padding: 0.55rem 0.7rem !important;
 }
 
