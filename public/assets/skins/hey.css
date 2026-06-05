@@ -14,8 +14,8 @@ html[data-skin-comp="hey"] {
     --st-accent: #0047ff;
     --st-accent-soft: #e8f0ff;
     --st-accent-hover: #0036cc;
-    --st-shadow-sm: none;
-    --st-shadow-md: none;
+    --st-shadow-sm: 2px 2px 0 rgba(0, 0, 0, 0.12);
+    --st-shadow-md: 3px 3px 0 rgba(0, 0, 0, 0.14);
     --st-radius: 12px;
     --st-radius-sm: 8px;
     --st-status-todo-soft: #ffffff;
@@ -66,7 +66,7 @@ html[data-skin-comp="hey"] .metadata-rail,
 html[data-skin-comp="hey"] .filter-bar,
 html[data-skin-comp="hey"] .todo-list {
     border: 2px solid #000 !important;
-    box-shadow: none !important;
+    box-shadow: var(--st-shadow-sm) !important;
     border-radius: var(--st-radius-sm) !important;
     background: #fff !important;
 }
@@ -75,12 +75,50 @@ html[data-skin-comp="hey"] .todo-list {
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
+    position: relative;
+    isolation: isolate;
     background: transparent !important;
     border: 13px solid transparent !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    border-image: url("/assets/skins/hey-stamp.svg") 30 fill round !important;
+    border-image: none !important;
     padding: 0.55rem 0.7rem !important;
+}
+
+html[data-skin-comp="hey"] .task-card::before,
+html[data-skin-comp="hey"] .st-home-project-card::before,
+html[data-skin-comp="hey"] .surface-pad::before,
+html[data-skin-comp="hey"] .task-card::after,
+html[data-skin-comp="hey"] .st-home-project-card::after,
+html[data-skin-comp="hey"] .surface-pad::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 13px solid transparent;
+    border-image: url("/assets/skins/hey-stamp.svg") 30 fill round;
+    pointer-events: none;
+}
+
+html[data-skin-comp="hey"] .task-card::before,
+html[data-skin-comp="hey"] .st-home-project-card::before,
+html[data-skin-comp="hey"] .surface-pad::before {
+    z-index: -2;
+    transform: translate(2px, 2px);
+    filter: brightness(0);
+    opacity: 0.12;
+}
+
+html[data-skin-comp="hey"] .task-card::after,
+html[data-skin-comp="hey"] .st-home-project-card::after,
+html[data-skin-comp="hey"] .surface-pad::after {
+    z-index: -1;
+}
+
+html[data-skin-comp="hey"] .task-card > *,
+html[data-skin-comp="hey"] .st-home-project-card > *,
+html[data-skin-comp="hey"] .surface-pad > * {
+    position: relative;
+    z-index: 1;
 }
 
 /* Board columns — no box; just a thick black header rule (matches mockup 190) */

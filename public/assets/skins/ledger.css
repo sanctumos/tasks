@@ -14,8 +14,8 @@ html[data-skin-comp="ledger"] {
     --st-accent: #1a1814;
     --st-accent-soft: #efe9dc;
     --st-accent-hover: #000000;
-    --st-shadow-sm: none;
-    --st-shadow-md: none;
+    --st-shadow-sm: 0 1px 2px rgba(26, 24, 20, 0.08), 0 5px 14px rgba(26, 24, 20, 0.05);
+    --st-shadow-md: 0 2px 4px rgba(26, 24, 20, 0.1), 0 8px 20px rgba(26, 24, 20, 0.06);
     --st-radius: 0;
     --st-radius-sm: 0;
     --st-status-todo-soft: transparent;
@@ -81,7 +81,7 @@ html[data-skin-comp="ledger"] .comment-body-col,
 html[data-skin-comp="ledger"] .todo-list {
     border: 1px solid var(--st-border-subtle) !important;
     border-radius: 0 !important;
-    box-shadow: none !important;
+    box-shadow: var(--st-shadow-sm) !important;
     background: var(--st-bg-elevated) !important;
 }
 
@@ -89,6 +89,7 @@ html[data-skin-comp="ledger"] .surface-pad {
     background: var(--st-bg-elevated) !important;
     border: 1px solid var(--st-border-subtle) !important;
     border-bottom: 1px solid var(--st-border-strong) !important;
+    box-shadow: var(--st-shadow-sm) !important;
 }
 
 html[data-skin-comp="ledger"] .board {
@@ -99,7 +100,7 @@ html[data-skin-comp="ledger"] .swimlane {
     background: var(--st-bg-soft) !important;
     border: 1px solid var(--st-border-subtle) !important;
     border-radius: 0 !important;
-    box-shadow: none !important;
+    box-shadow: var(--st-shadow-sm) !important;
     padding: 1rem 1.15rem;
 }
 
