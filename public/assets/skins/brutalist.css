@@ -139,6 +139,28 @@ html[data-skin-comp="brutalist"] .swimlane__header .status-pill {
     line-height: 1;
 }
 
+/* Match the mock's one-word lane labels. */
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--todo,
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--doing,
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--done {
+    font-size: 0;
+}
+
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--todo::after {
+    content: "TODO";
+    font-size: clamp(4.2rem, 8.6vw, 7.4rem);
+}
+
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--doing::after {
+    content: "DOING";
+    font-size: clamp(4.2rem, 8.6vw, 7.4rem);
+}
+
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--done::after {
+    content: "DONE";
+    font-size: clamp(4.2rem, 8.6vw, 7.4rem);
+}
+
 html[data-skin-comp="brutalist"] .swimlane__header .status-pill::before {
     display: none;
 }
