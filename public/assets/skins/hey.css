@@ -71,16 +71,16 @@ html[data-skin-comp="hey"] .todo-list {
     background: #fff !important;
 }
 
-/* Stamp cards — small same-direction scallop bites, closer to a postage perforation than trim. */
+/* Stamp cards — continuous, small-amplitude scalloped stamp outline. */
 html[data-skin-comp="hey"] .task-card,
 html[data-skin-comp="hey"] .st-home-project-card,
 html[data-skin-comp="hey"] .surface-pad {
     background: #fff !important;
-    border: 14px solid transparent !important;
+    border: 13px solid transparent !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     border-image: url("/assets/skins/hey-stamp.svg") 30 round !important;
-    padding: 0.5rem 0.68rem !important;
+    padding: 0.55rem 0.7rem !important;
 }
 
 /* Board columns — no box; just a thick black header rule (matches mockup 190) */
