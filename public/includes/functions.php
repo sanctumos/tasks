@@ -2133,6 +2133,74 @@ function updateOrganizationName(int $orgId, string $name, ?int $actorUserId): ar
     return ['success' => true];
 }
 
+function updateOrganizationDefaultSkin(int $orgId, ?string $skinSlug, ?int $actorUserId): array {
+    if ($orgId <= 0) {
+        return ['success' => false, 'error' => 'Invalid organization'];
+    }
+    require_once __DIR__ . '/skin-lab-env.php';
+    $normalized = $skinSlug === null || $skinSlug === ''
+        ? null
+        : skinLabNormalizeSlug($skinSlug);
+    if ($skinSlug !== null && $skinSlug !== '' && $normalized === null) {
+        return ['success' => false, 'error' => 'Invalid skin'];
+    }
+    $org = getOrganizationById($orgId);
+    if (!$org) {
+        return ['success' => false, 'error' => 'Organization not found'];
+    }
+    $settings = [];
+    if (!empty($org['settings_json'])) {
+        $decoded = json_decode((string)$org['settings_json'], true);
+        if (is_array($decoded)) {
+            $settings = $decoded;
+        }
+    }
+    if ($normalized === null) {
+        unset($settings['default_skin_slug']);
+    } else {
+        $settings['default_skin_slug'] = $normalized;
+    }
+    $json = $settings === [] ? null : json_encode($settings, JSON_UNESCAPED_UNICODE);
+    $db = getDbConnection();
+    $stmt = $db->prepare('UPDATE organizations SET settings_json = :s WHERE id = :id');
+    if ($json === null) {
+        $stmt->bindValue(':s', null, SQLITE3_NULL);
+    } else {
+        $stmt->bindValue(':s', $json, SQLITE3_TEXT);
+    }
+    $stmt->bindValue(':id', $orgId, SQLITE3_INTEGER);
+    $stmt->execute();
+    createAuditLog($actorUserId, 'organization.update', 'organization', (string)$orgId, [
+        'default_skin_slug' => $normalized,
+    ]);
+    return ['success' => true, 'default_skin_slug' => $normalized ?? 'hey'];
+}
+
+function updateUserSkinPreference(int $userId, ?string $skinSlug): array {
+    if ($userId <= 0) {
+        return ['success' => false, 'error' => 'Invalid user'];
+    }
+    require_once __DIR__ . '/skin-lab-env.php';
+    $useOrgDefault = $skinSlug === null || $skinSlug === '' || $skinSlug === '__org__';
+    $normalized = null;
+    if (!$useOrgDefault) {
+        $normalized = skinLabNormalizeSlug($skinSlug);
+        if ($normalized === null) {
+            return ['success' => false, 'error' => 'Invalid skin'];
+        }
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare('UPDATE users SET skin_slug = :s WHERE id = :id');
+    if ($normalized === null) {
+        $stmt->bindValue(':s', null, SQLITE3_NULL);
+    } else {
+        $stmt->bindValue(':s', $normalized, SQLITE3_TEXT);
+    }
+    $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
+    $stmt->execute();
+    return ['success' => true, 'skin_slug' => $normalized];
+}
+
 /** Remove memberships on projects outside the given organization (runs before org reassignment). */
 function removeUserProjectMembershipsOutsideOrganization(int $userId, int $orgId): void {
     if ($userId <= 0 || $orgId <= 0) {
