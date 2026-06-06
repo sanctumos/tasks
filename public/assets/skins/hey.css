@@ -82,7 +82,42 @@ html[data-skin-comp="hey"] .surface-pad {
     border-radius: 0 !important;
     box-shadow: none !important;
     border-image: none !important;
-    padding: 0.55rem 0.7rem !important;
+    padding: 0.62rem 0.8rem !important;
+}
+
+/* General panel content in HEY needs more breathing room than cards. */
+html[data-skin-comp="hey"] .surface-pad {
+    padding: 0.9rem 1.05rem !important;
+}
+
+/* Activity feed cards should not feel double-spaced or edge-crowded. */
+html[data-skin-comp="hey"] .activity-feed__item.surface-pad {
+    padding: 0.72rem 0.9rem !important;
+}
+html[data-skin-comp="hey"] .activity-feed__item {
+    gap: 0.62rem;
+}
+html[data-skin-comp="hey"] .activity-feed__icon {
+    margin-top: 0.08rem;
+}
+html[data-skin-comp="hey"] .activity-feed__item + .activity-feed__item {
+    margin-top: 0.42rem;
+}
+
+/* Docs listing columns should not force noisy wraps in HEY's heavier type. */
+html[data-skin-comp="hey"] .docs-table .docs-table__col-title {
+    min-width: 18rem;
+}
+html[data-skin-comp="hey"] .docs-table .docs-table__col-project a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+}
+html[data-skin-comp="hey"] .docs-table .task-title-cell a {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: 0.98rem;
+    line-height: 1.25;
 }
 
 html[data-skin-comp="hey"] .task-card::before,

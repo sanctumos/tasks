@@ -56,7 +56,7 @@ require __DIR__ . '/_layout_top.php';
 <?php else: ?>
     <ul class="activity-feed list-unstyled mb-0">
         <?php foreach ($feed as $ev): ?>
-            <li class="activity-feed__item surface surface-pad mb-2">
+            <li class="activity-feed__item surface surface-pad">
                 <div class="activity-feed__icon"><i class="bi <?= htmlspecialchars((string)($ev['icon'] ?? 'bi-activity')) ?>"></i></div>
                 <div class="activity-feed__body">
                     <a class="activity-feed__summary text-decoration-none" href="<?= htmlspecialchars((string)($ev['href'] ?? '/admin/')) ?>"><?= htmlspecialchars((string)($ev['summary'] ?? '')) ?></a>
