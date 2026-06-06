@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../config/settings.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/api_response.php';
+require_once __DIR__ . '/rate_limit_config.php';
 
 /**
  * Check if request is authenticated with API key
@@ -132,12 +133,14 @@ function check_rate_limit($endpoint, $tasks_user_id = null) {
             }
         }
 
-        global $ENDPOINT_RATE_LIMITS, $USER_ENDPOINT_RATE_LIMITS;
+        $cfg = q_bridge_get_rate_limit_config();
         $is_user_key = str_starts_with($rate_key, 'user:');
-        if ($is_user_key && isset($USER_ENDPOINT_RATE_LIMITS[$endpoint])) {
-            $endpoint_limit = (int)$USER_ENDPOINT_RATE_LIMITS[$endpoint];
+        if ($is_user_key && isset($cfg['user_endpoints'][$endpoint])) {
+            $endpoint_limit = (int)$cfg['user_endpoints'][$endpoint];
+        } elseif (isset($cfg['ip_endpoints'][$endpoint])) {
+            $endpoint_limit = (int)$cfg['ip_endpoints'][$endpoint];
         } else {
-            $endpoint_limit = $ENDPOINT_RATE_LIMITS[$endpoint] ?? RATE_LIMIT_ENDPOINT_MAX;
+            $endpoint_limit = RATE_LIMIT_ENDPOINT_MAX;
         }
 
         if ($current_count >= $endpoint_limit) {
@@ -182,9 +185,12 @@ function check_overall_rate_limit($endpoint = '', $tasks_user_id = null) {
     $rate_key = q_bridge_rate_limit_key($endpoint, $tasks_user_id);
     $current_time = time();
     $window_start = $current_time - RATE_LIMIT_WINDOW;
+    $cfg = q_bridge_get_rate_limit_config();
     $max_requests = RATE_LIMIT_MAX_REQUESTS;
-    if (str_starts_with($rate_key, 'user:') && defined('RATE_LIMIT_USER_MAX_REQUESTS')) {
-        $max_requests = (int)RATE_LIMIT_USER_MAX_REQUESTS;
+    if (str_starts_with($rate_key, 'user:')) {
+        $max_requests = (int)($cfg['user_max_requests'] ?? RATE_LIMIT_MAX_REQUESTS);
+    } else {
+        $max_requests = (int)($cfg['ip_max_requests'] ?? RATE_LIMIT_MAX_REQUESTS);
     }
 
     try {

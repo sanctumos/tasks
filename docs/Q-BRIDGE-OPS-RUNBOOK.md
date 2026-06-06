@@ -72,7 +72,7 @@ Runs bridge seed (on multihost when `Q_PROD_SMOKE_SSH=multihost`) + optional `as
 
 ## 5. Rate limits
 
-Per-user caps on widget routes: `messages`, `responses`, `history`, `user_session`. Defaults in `settings.php` — policy discussion [Task #678](https://tasks.decisionsciencecorp.com/admin/view.php?id=678).
+Per-user caps on widget routes: `messages`, `responses`, `history`, `user_session`. **Admins** tune limits at **Settings → Ask Q** (`/admin/settings.php?tab=ask-q`); stored in Tasks `app_settings` key `q_bridge.rate_limits`. File defaults in `q-bridge/includes/rate_limit_config.php`.
 
 Clear stuck counters (break-glass): backup `q_bridge_webchat.db`, then `DELETE FROM rate_limits WHERE ip_address LIKE 'user:%';`
 

@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace SanctumTasks\Tests\Unit;
+
+use PHPUnit\Framework\TestCase;
+
+final class QBridgeRateLimitConfigTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        require_once dirname(__DIR__, 3) . '/public/q-bridge/includes/rate_limit_config.php';
+        q_bridge_clear_rate_limit_config_cache();
+    }
+
+    public function testDefaultsMatchApprovedPolicy(): void
+    {
+        $cfg = q_bridge_rate_limit_defaults();
+        $this->assertSame(60, $cfg['user_endpoints']['/api/messages']);
+        $this->assertSame(600, $cfg['user_max_requests']);
+    }
+
+    public function testValidateRejectsOutOfRange(): void
+    {
+        $r = q_bridge_validate_rate_limit_input([
+            'messages' => 0,
+            'responses' => 300,
+            'history' => 120,
+            'user_session' => 30,
+            'user_max_requests' => 600,
+            'ip_max_requests' => 1000,
+        ]);
+        $this->assertFalse($r['success']);
+    }
+
+    public function testMergeOverridesUserEndpoints(): void
+    {
+        $base = q_bridge_rate_limit_defaults();
+        $merged = q_bridge_merge_rate_limit_config($base, [
+            'user_endpoints' => ['/api/messages' => 99],
+        ]);
+        $this->assertSame(99, $merged['user_endpoints']['/api/messages']);
+        $this->assertSame(300, $merged['user_endpoints']['/api/responses']);
+    }
+}
