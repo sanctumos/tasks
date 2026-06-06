@@ -1447,6 +1447,9 @@ function createTask($title, $status, $createdByUserId, $assignedToUserId = null,
 
     $body = normalizeTaskBody($body);
     $creatorUser = getUserById($createdByUserId, false);
+    if ($creatorUser && normalizePersonKind($creatorUser['person_kind'] ?? 'team_member') === 'client') {
+        return ['success' => false, 'error' => 'Clients have read-only access to tasks'];
+    }
     $project = normalizeTaskProject($options['project'] ?? null);
     $projectFk = null;
     if (array_key_exists('project_id', $options) && $options['project_id'] !== null && $options['project_id'] !== '') {
@@ -2842,6 +2845,9 @@ function addProjectMember(int $actorUserId, int $projectId, int $targetUserId, s
     if (!userMayAccessOrganization($target, $orgId)) {
         return ['success' => false, 'error' => 'User is not in this organization'];
     }
+    if (normalizePersonKind($target['person_kind'] ?? 'team_member') === 'client' && empty((int)($proj['client_visible'] ?? 0))) {
+        return ['success' => false, 'error' => 'Client users can only be added to client-visible projects'];
+    }
     $mr = normalizeProjectMemberRole($memberRole);
     if ($mr === null) {
         return ['success' => false, 'error' => 'Invalid member role'];
@@ -3623,6 +3629,9 @@ function createDocument(int $userId, int $projectId, string $title, ?string $bod
     }
     if (!userCanAccessDirectoryProject($user, $proj)) {
         return ['success' => false, 'error' => 'You do not have access to this project'];
+    }
+    if (normalizePersonKind($user['person_kind'] ?? 'team_member') === 'client') {
+        return ['success' => false, 'error' => 'Clients have read-only access to documents'];
     }
 
     $publicEnabled = $enablePublicSharing ? 1 : 0;

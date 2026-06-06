@@ -99,8 +99,9 @@ API and Python mirror: CRUD projects, list directory with filters, assign task t
 
 ### Phase 3 — Clients & visibility (MVP)
 
-- Enforce **who sees which project** using `project_members` + person_kind.
-- “Client can see only client-enabled projects” — rules TBD from seed scenarios.
+- Enforce **who sees which project** using `project_members` + `person_kind` + `projects.client_visible` / `all_access`.
+- **Access matrix + seed fixtures:** [`CLIENT_VISIBILITY_ACCESS_MATRIX.md`](CLIENT_VISIBILITY_ACCESS_MATRIX.md) and `tools/e2e/q_acl_fixture_lib.php`.
+- Clients are **read-only** for task/document create in MVP; membership of `person_kind=client` users requires `client_visible=1`.
 - Avoid building Basecamp **Correspondence** or approvals until core read/write paths are stable.
 
 ### Phase 4 — Dock tools (incremental)
@@ -156,7 +157,7 @@ That document’s **§2–5** (surface survey + gap analysis) and **§8 referenc
 | **Client login surface** | Same web app and session auth as today (**`/admin/`**) for MVP; a narrower **client portal** is optional later, not required for Phase 1–3. |
 | **Phase 4 ordering** | After **to-do lists**: **schedule-style aggregation** (due dates / calendar views from existing fields) → **Doors** (external URLs on projects) → **message board / realtime chat** stays deferred unless scoped. |
 | **`tasks.project` migration** | Add **`project_id`**; backfill by **normalized string match** against `projects.name`; unmatched strings stay on legacy column until fixed in admin or a small remap table/import pass. |
-| **Visibility MVP** | **`person_kind` + `project_members`** + flags on **`projects`** (e.g. internal vs client-visible); refine when seed scenarios arrive. |
+| **Visibility MVP** | **`person_kind` + `project_members`** + **`client_visible`** / **`all_access`** on **`projects`** — see [`CLIENT_VISIBILITY_ACCESS_MATRIX.md`](CLIENT_VISIBILITY_ACCESS_MATRIX.md). |
 
 ---
 

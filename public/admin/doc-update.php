@@ -99,6 +99,18 @@ if ($projectId <= 0) {
     exit;
 }
 
+$newProj = getDirectoryProjectById($projectId);
+if (!$newProj || !userCanAccessDirectoryProject($currentUser, $newProj)) {
+    $_SESSION['admin_flash_error'] = 'Project not found.';
+    header('Location: /admin/doc-create.php');
+    exit;
+}
+if (normalizePersonKind($currentUser['person_kind'] ?? 'team_member') === 'client') {
+    $_SESSION['admin_flash_error'] = 'You do not have permission to create documents.';
+    header('Location: /admin/doc-create.php?project_id=' . $projectId);
+    exit;
+}
+
 $enableSharing = isset($_POST['public_link_enabled']);
 $res = createDocument((int)$currentUser['id'], $projectId, $title, is_string($body) ? $body : null, $directoryPath, $enableSharing);
 if (!empty($res['success'])) {
