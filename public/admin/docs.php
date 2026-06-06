@@ -145,33 +145,33 @@ require __DIR__ . '/_layout_top.php';
             No documents in this directory.
         </div>
     <?php else: ?>
-    <div class="surface">
-        <table class="task-table">
+    <div class="surface docs-table-wrap">
+        <table class="task-table docs-table">
             <thead>
                 <tr>
-                    <th>Title</th>
-                    <th>Directory</th>
-                    <th>Project</th>
-                    <th>Author</th>
-                    <th>Comments</th>
-                    <th>Updated</th>
+                    <th class="docs-table__col-title">Title</th>
+                    <th class="docs-table__col-directory">Directory</th>
+                    <th class="docs-table__col-project">Project</th>
+                    <th class="docs-table__col-author">Author</th>
+                    <th class="docs-table__col-comments">Comments</th>
+                    <th class="docs-table__col-updated">Updated</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($documentsInDir as $d): ?>
                     <tr>
-                        <td class="task-title-cell">
+                        <td class="task-title-cell docs-table__col-title">
                             <a href="/admin/doc.php?id=<?= (int)$d['id'] ?>"><?= htmlspecialchars((string)$d['title']) ?></a>
                         </td>
-                        <td><span class="text-muted small"><?= htmlspecialchars((string)(normalizeDocumentDirectoryPath((string)($d['directory_path'] ?? '')) ?: '/')) ?></span></td>
-                        <td>
+                        <td class="docs-table__col-directory"><span class="text-muted small"><?= htmlspecialchars((string)(normalizeDocumentDirectoryPath((string)($d['directory_path'] ?? '')) ?: '/')) ?></span></td>
+                        <td class="docs-table__col-project">
                             <a class="text-decoration-none" href="/admin/project.php?id=<?= (int)$d['project_id'] ?>">
                                 <i class="bi bi-kanban me-1"></i><?= htmlspecialchars((string)$d['project_name']) ?>
                             </a>
                         </td>
-                        <td><?= htmlspecialchars((string)$d['created_by_username']) ?></td>
-                        <td><i class="bi bi-chat-text text-muted me-1"></i><?= (int)$d['comment_count'] ?></td>
-                        <td>
+                        <td class="docs-table__col-author"><?= htmlspecialchars((string)$d['created_by_username']) ?></td>
+                        <td class="docs-table__col-comments"><i class="bi bi-chat-text text-muted me-1"></i><?= (int)$d['comment_count'] ?></td>
+                        <td class="docs-table__col-updated">
                             <span title="<?= htmlspecialchars(st_absolute_time_attr($d['updated_at'] ?? null)) ?>">
                                 <?= htmlspecialchars(st_absolute_time($d['updated_at'] ?? null)) ?>
                                 <span class="text-muted small">(<?= st_relative_time($d['updated_at'] ?? null) ?>)</span>

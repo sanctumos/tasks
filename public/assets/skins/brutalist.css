@@ -1,0 +1,341 @@
+/* Brutalist Signal — concrete gray, zero radius, oversized condensed caps, mono metadata */
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=Teko:wght@500;600;700&display=swap');
+
+html[data-skin-comp="brutalist"] {
+    --st-bg-app: #d8d8d6;
+    --st-bg-surface: #ececea;
+    --st-bg-soft: #cfcfcf;
+    --st-bg-elevated: #f2f2f0;
+    --st-border-subtle: #000000;
+    --st-border-strong: #000000;
+    --st-text-primary: #000000;
+    --st-text-secondary: #111111;
+    --st-text-muted: #333333;
+    --st-accent: #000000;
+    --st-accent-soft: #c8c8c6;
+    --st-accent-hover: #000000;
+    --st-shadow-sm: none;
+    --st-shadow-md: none;
+    --st-radius: 0;
+    --st-radius-sm: 0;
+    --st-board-card-title-lines: 3;
+}
+
+html[data-skin-comp="brutalist"] body {
+    font-family: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: var(--st-bg-app) !important;
+    letter-spacing: 0.015em;
+}
+
+html[data-skin-comp="brutalist"] h1,
+html[data-skin-comp="brutalist"] .page-header__title h1,
+html[data-skin-comp="brutalist"] .task-title {
+    font-family: Impact, Haettenschweiler, "Arial Narrow Bold", "Teko", "Barlow Condensed", sans-serif;
+    font-size: clamp(2.8rem, 6.5vw, 5.4rem);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    line-height: 0.88;
+}
+
+html[data-skin-comp="brutalist"] .page-header__title .subtitle {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--st-text-muted);
+}
+
+html[data-skin-comp="brutalist"] .section-title {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #000;
+}
+
+html[data-skin-comp="brutalist"] .task-card__title {
+    font-family: Impact, Haettenschweiler, "Arial Narrow Bold", "Teko", "Barlow Condensed", sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0;
+    font-size: clamp(1.78rem, 3vw, 2.65rem);
+    line-height: 0.92;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+    -webkit-line-clamp: var(--st-board-card-title-lines);
+}
+
+html[data-skin-comp="brutalist"] .task-card__meta,
+html[data-skin-comp="brutalist"] .task-card__assignee,
+html[data-skin-comp="brutalist"] .swimlane__count,
+html[data-skin-comp="brutalist"] .fine-print,
+html[data-skin-comp="brutalist"] .metadata-rail__row label {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.58rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+}
+
+html[data-skin-comp="brutalist"] .task-card,
+html[data-skin-comp="brutalist"] .surface,
+html[data-skin-comp="brutalist"] .filter-bar,
+html[data-skin-comp="brutalist"] .metadata-rail,
+html[data-skin-comp="brutalist"] .todo-list,
+html[data-skin-comp="brutalist"] .comment-body-col,
+html[data-skin-comp="brutalist"] .admin-breadcrumb,
+html[data-skin-comp="brutalist"] .btn,
+html[data-skin-comp="brutalist"] .form-control,
+html[data-skin-comp="brutalist"] .form-select,
+html[data-skin-comp="brutalist"] .st-home-project-card {
+    border-radius: 0 !important;
+}
+
+html[data-skin-comp="brutalist"] .task-card,
+html[data-skin-comp="brutalist"] .surface,
+html[data-skin-comp="brutalist"] .filter-bar,
+html[data-skin-comp="brutalist"] .metadata-rail,
+html[data-skin-comp="brutalist"] .todo-list {
+    border: 2px solid #000 !important;
+    box-shadow: none !important;
+    background: var(--st-bg-elevated) !important;
+}
+
+html[data-skin-comp="brutalist"] .task-card {
+    padding: 0.58rem 0.66rem !important;
+}
+
+/* Home project cards in Brutalist should feel compressed and dense. */
+html[data-skin-comp="brutalist"] .st-home-project-card {
+    padding: 0.44rem 0.52rem !important;
+    gap: 0.12rem;
+    min-height: auto;
+}
+html[data-skin-comp="brutalist"] .st-home-project-card .task-card__title {
+    margin-bottom: 0.02rem;
+    line-height: 0.9;
+}
+html[data-skin-comp="brutalist"] .st-home-project-card__desc {
+    margin: 0;
+    line-height: 1.12;
+}
+html[data-skin-comp="brutalist"] .st-home-project-card .task-card__meta {
+    gap: 0.25rem;
+    margin-top: 0.02rem;
+}
+html[data-skin-comp="brutalist"] .st-home-project-card .task-card__footer {
+    margin-top: 0 !important;
+    padding-top: 0.12rem !important;
+}
+
+html[data-skin-comp="brutalist"] .board {
+    gap: 1rem;
+}
+
+html[data-skin-comp="brutalist"] .swimlane {
+    background: var(--st-bg-soft) !important;
+    border: 2px solid #000 !important;
+    border-radius: 0 !important;
+    padding: 0.85rem;
+}
+
+html[data-skin-comp="brutalist"] .swimlane__body {
+    gap: 0.68rem;
+}
+
+html[data-skin-comp="brutalist"] .task-card__meta {
+    row-gap: 0.25rem;
+}
+
+html[data-skin-comp="brutalist"] .task-card__footer {
+    gap: 0.65rem;
+}
+
+html[data-skin-comp="brutalist"] .task-card__footer > .text-muted {
+    flex: 0 0 auto;
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+html[data-skin-comp="brutalist"] .swimlane__header {
+    border-bottom: 2px solid #000;
+    padding-bottom: 0.55rem;
+    margin-bottom: 0.75rem;
+    align-items: flex-end;
+}
+
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill {
+    font-family: Impact, Haettenschweiler, "Arial Narrow Bold", "Teko", "Barlow Condensed", sans-serif;
+    font-size: clamp(4.2rem, 8.6vw, 7.4rem);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0;
+    padding: 0;
+    border: 0;
+    background: transparent !important;
+    color: #000 !important;
+    line-height: 1;
+}
+
+/* Match the mock's one-word lane labels. */
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--todo,
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--doing,
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--done {
+    font-size: 0;
+}
+
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--todo::after {
+    content: "TODO";
+    font-size: clamp(4.2rem, 8.6vw, 7.4rem);
+}
+
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--doing::after {
+    content: "DOING";
+    font-size: clamp(4.2rem, 8.6vw, 7.4rem);
+}
+
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill--done::after {
+    content: "DONE";
+    font-size: clamp(4.2rem, 8.6vw, 7.4rem);
+}
+
+html[data-skin-comp="brutalist"] .swimlane__header .status-pill::before {
+    display: none;
+}
+
+html[data-skin-comp="brutalist"] .swimlane__count::before {
+    content: " ";
+}
+
+html[data-skin-comp="brutalist"] .swimlane__count {
+    font-size: 1.05rem;
+    letter-spacing: 0.05em;
+}
+
+html[data-skin-comp="brutalist"] .swimlane__count::after {
+    content: " TASKS";
+}
+
+html[data-skin-comp="brutalist"] .admin-nav {
+    background: #000 !important;
+    border-radius: 0;
+    border-bottom: 3px solid #000;
+    box-shadow: none;
+}
+
+html[data-skin-comp="brutalist"] .admin-nav .navbar-brand {
+    font-family: "Teko", "Barlow Condensed", sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+html[data-skin-comp="brutalist"] .admin-nav .btn-outline-light {
+    border-radius: 0;
+    border-width: 1px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+html[data-skin-comp="brutalist"] .tabbar {
+    border-bottom: 2px solid #000;
+}
+
+html[data-skin-comp="brutalist"] .tabbar a {
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.82rem;
+    border-bottom-width: 3px;
+}
+
+html[data-skin-comp="brutalist"] .tabbar a.active {
+    color: #000;
+    border-bottom-color: #000;
+}
+
+html[data-skin-comp="brutalist"] .status-pill {
+    border-radius: 0;
+    font-weight: 800;
+    text-transform: uppercase;
+    border: 2px solid #000;
+    background: #fff !important;
+    letter-spacing: 0.05em;
+}
+
+html[data-skin-comp="brutalist"] .status-pill::before {
+    border-radius: 0;
+    width: 0.5rem;
+    height: 0.5rem;
+}
+
+html[data-skin-comp="brutalist"] .priority-chip {
+    border-radius: 0;
+    border: 1px solid #000;
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.65rem;
+}
+
+html[data-skin-comp="brutalist"] .btn-primary {
+    background: #000;
+    border: 2px solid #000;
+    border-radius: 0;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+html[data-skin-comp="brutalist"] .btn-primary:hover {
+    background: #fff;
+    color: #000;
+}
+
+html[data-skin-comp="brutalist"] .todo-row {
+    border-bottom: 1px solid #000;
+    border-radius: 0;
+}
+
+html[data-skin-comp="brutalist"] .todo-row__title {
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 0.88rem;
+}
+
+html[data-skin-comp="brutalist"] .task-table thead th {
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 2px solid #000;
+    background: var(--st-bg-soft);
+}
+
+html[data-skin-comp="brutalist"] .task-table tbody td {
+    border-bottom: 1px solid #000;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.82rem;
+}
+
+html[data-skin-comp="brutalist"] .comment-body-col {
+    border: 2px solid #000 !important;
+    box-shadow: none !important;
+}
+
+html[data-skin-comp="brutalist"] .meta-chip {
+    border-radius: 0;
+    border: 1px solid #000;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+}

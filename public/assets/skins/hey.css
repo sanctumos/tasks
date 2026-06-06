@@ -1,0 +1,376 @@
+/* HEY Bold — high contrast, stamp frames, electric blue accent */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=IBM+Plex+Sans:wght@400;600;700&display=swap');
+
+html[data-skin-comp="hey"] {
+    --st-bg-app: #e9edf3;
+    --st-bg-surface: #ffffff;
+    --st-bg-soft: #ffffff;
+    --st-bg-elevated: #ffffff;
+    --st-border-subtle: #000000;
+    --st-border-strong: #000000;
+    --st-text-primary: #000000;
+    --st-text-secondary: #111111;
+    --st-text-muted: #444444;
+    --st-accent: #0047ff;
+    --st-accent-soft: #e8f0ff;
+    --st-accent-hover: #0036cc;
+    --st-shadow-sm: 2px 2px 0 rgba(0, 0, 0, 0.12);
+    --st-shadow-md: 3px 3px 0 rgba(0, 0, 0, 0.14);
+    --st-radius: 12px;
+    --st-radius-sm: 8px;
+    --st-status-todo-soft: #ffffff;
+    --st-status-doing-soft: #fff8e6;
+    --st-status-done-soft: #eaffea;
+    --st-status-blocked-soft: #ffeaea;
+    --st-board-card-title-lines: 3;
+}
+
+html[data-skin-comp="hey"] body {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    background: var(--st-bg-app) !important;
+}
+
+html[data-skin-comp="hey"] h1,
+html[data-skin-comp="hey"] .page-header__title h1,
+html[data-skin-comp="hey"] .task-title,
+html[data-skin-comp="hey"] .task-card__title,
+html[data-skin-comp="hey"] .todo-row__title {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+html[data-skin-comp="hey"] .task-card__title {
+    font-size: clamp(1.12rem, 1.8vw, 1.38rem);
+    line-height: 1.05;
+    margin-bottom: 0.45rem;
+    text-wrap: balance;
+}
+
+html[data-skin-comp="hey"] .page-header__title h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.05;
+}
+
+html[data-skin-comp="hey"] .section-title {
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    color: #000;
+    text-transform: uppercase;
+}
+
+/* Surfaces — clean thick border (panels keep a box; columns do not) */
+html[data-skin-comp="hey"] .surface,
+html[data-skin-comp="hey"] .metadata-rail,
+html[data-skin-comp="hey"] .filter-bar,
+html[data-skin-comp="hey"] .todo-list {
+    border: 2px solid #000 !important;
+    box-shadow: var(--st-shadow-sm) !important;
+    border-radius: var(--st-radius-sm) !important;
+    background: #fff !important;
+}
+
+/* Stamp cards — continuous, small-amplitude scalloped stamp outline. */
+html[data-skin-comp="hey"] .task-card,
+html[data-skin-comp="hey"] .st-home-project-card,
+html[data-skin-comp="hey"] .surface-pad {
+    position: relative;
+    isolation: isolate;
+    background: transparent !important;
+    border: 13px solid transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border-image: none !important;
+    padding: 0.62rem 0.8rem !important;
+}
+
+/* General panel content in HEY needs more breathing room than cards. */
+html[data-skin-comp="hey"] .surface-pad {
+    padding: 0.9rem 1.05rem !important;
+}
+
+/* Activity feed cards should not feel double-spaced or edge-crowded. */
+html[data-skin-comp="hey"] .activity-feed__item.surface-pad {
+    padding: 0.72rem 0.9rem !important;
+}
+html[data-skin-comp="hey"] .activity-feed__item {
+    gap: 0.62rem;
+}
+html[data-skin-comp="hey"] .activity-feed__icon {
+    margin-top: 0.08rem;
+}
+html[data-skin-comp="hey"] .activity-feed__item + .activity-feed__item {
+    margin-top: 0.42rem;
+}
+
+/* Docs listing columns should not force noisy wraps in HEY's heavier type. */
+html[data-skin-comp="hey"] .docs-table .docs-table__col-title {
+    min-width: 18rem;
+}
+html[data-skin-comp="hey"] .docs-table .docs-table__col-project a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+}
+html[data-skin-comp="hey"] .docs-table .task-title-cell a {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: 0.98rem;
+    line-height: 1.25;
+}
+
+html[data-skin-comp="hey"] .task-card::before,
+html[data-skin-comp="hey"] .st-home-project-card::before,
+html[data-skin-comp="hey"] .surface-pad::before,
+html[data-skin-comp="hey"] .task-card::after,
+html[data-skin-comp="hey"] .st-home-project-card::after,
+html[data-skin-comp="hey"] .surface-pad::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 13px solid transparent;
+    border-image: url("/assets/skins/hey-stamp.svg") 30 fill round;
+    pointer-events: none;
+}
+
+html[data-skin-comp="hey"] .task-card::before,
+html[data-skin-comp="hey"] .st-home-project-card::before,
+html[data-skin-comp="hey"] .surface-pad::before {
+    z-index: -2;
+    transform: translate(2px, 2px);
+    filter: brightness(0);
+    opacity: 0.12;
+}
+
+html[data-skin-comp="hey"] .task-card::after,
+html[data-skin-comp="hey"] .st-home-project-card::after,
+html[data-skin-comp="hey"] .surface-pad::after {
+    z-index: -1;
+}
+
+html[data-skin-comp="hey"] .task-card > *,
+html[data-skin-comp="hey"] .st-home-project-card > *,
+html[data-skin-comp="hey"] .surface-pad > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Board columns — no box; just a thick black header rule (matches mockup 190) */
+html[data-skin-comp="hey"] .swimlane {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 0.5rem;
+}
+
+html[data-skin-comp="hey"] .swimlane__header {
+    border-bottom: 3px solid #000;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    justify-content: flex-start;
+    gap: 0.6rem;
+}
+
+html[data-skin-comp="hey"] .swimlane__header .status-pill {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 1.35rem;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    color: #000 !important;
+    border: 0 !important;
+    background: transparent !important;
+    padding: 0;
+}
+
+html[data-skin-comp="hey"] .swimlane__header .status-pill::before {
+    display: none;
+}
+
+html[data-skin-comp="hey"] .swimlane__count {
+    font-weight: 700;
+    background: #000;
+    color: #fff;
+    border-radius: 999px;
+    min-width: 1.6rem;
+    height: 1.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.82rem;
+}
+
+html[data-skin-comp="hey"] .admin-nav {
+    background: #fff !important;
+    border-bottom: 2px solid #000;
+    box-shadow: none;
+}
+
+html[data-skin-comp="hey"] .admin-nav .navbar-brand {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #000 !important;
+}
+
+html[data-skin-comp="hey"] .admin-nav .navbar-text,
+html[data-skin-comp="hey"] .admin-nav .navbar-text i {
+    color: #000 !important;
+}
+
+html[data-skin-comp="hey"] .admin-nav .btn-outline-light {
+    color: #000 !important;
+    border-color: #000 !important;
+    font-weight: 600;
+}
+
+html[data-skin-comp="hey"] .admin-nav .btn-outline-light:hover {
+    background: var(--st-accent) !important;
+    border-color: var(--st-accent) !important;
+    color: #fff !important;
+}
+
+html[data-skin-comp="hey"] .admin-nav .navbar-toggler {
+    border-color: #000;
+}
+
+html[data-skin-comp="hey"] .btn-primary {
+    background: var(--st-accent);
+    border-color: var(--st-accent);
+    font-weight: 700;
+    border-radius: 999px;
+    padding-left: 1.1rem;
+    padding-right: 1.1rem;
+}
+
+html[data-skin-comp="hey"] .btn-primary:hover {
+    background: var(--st-accent-hover);
+    border-color: var(--st-accent-hover);
+}
+
+html[data-skin-comp="hey"] .btn-outline-primary,
+html[data-skin-comp="hey"] .btn-outline-secondary {
+    border-width: 2px;
+    font-weight: 600;
+    border-radius: 999px;
+}
+
+html[data-skin-comp="hey"] .status-pill {
+    border-radius: 4px;
+    border: 2px solid currentColor !important;
+    background: transparent !important;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.72rem;
+    padding: 0.15rem 0.55rem;
+}
+
+html[data-skin-comp="hey"] .status-pill::before {
+    display: none;
+}
+
+html[data-skin-comp="hey"] .priority-chip {
+    border-radius: 4px;
+    border: 1.5px solid currentColor;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.68rem;
+}
+
+html[data-skin-comp="hey"] .tabbar {
+    border-bottom: 2px solid #000;
+    gap: 0.5rem;
+}
+
+html[data-skin-comp="hey"] .tabbar a {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.82rem;
+    border-bottom-width: 3px;
+}
+
+html[data-skin-comp="hey"] .tabbar a.active {
+    color: #000;
+    border-bottom-color: var(--st-accent);
+}
+
+html[data-skin-comp="hey"] .admin-breadcrumb {
+    border: 2px solid #000;
+    border-radius: var(--st-radius-sm);
+    box-shadow: none;
+}
+
+html[data-skin-comp="hey"] .todo-row {
+    border: 2px solid transparent;
+    border-radius: var(--st-radius-sm);
+    padding: 0.55rem 0.65rem;
+}
+
+html[data-skin-comp="hey"] .todo-row:hover,
+html[data-skin-comp="hey"] .todo-row:focus-within {
+    border-color: #000;
+    background: #fff;
+}
+
+html[data-skin-comp="hey"] .todo-row + .todo-row {
+    border-top: 1px solid #000;
+}
+
+html[data-skin-comp="hey"] .comment-body-col {
+    border: 2px solid #000;
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.16);
+    border-radius: var(--st-radius-sm);
+}
+
+html[data-skin-comp="hey"] .comment-item--mine .comment-body-col {
+    background: var(--st-accent-soft) !important;
+    border-color: var(--st-accent);
+    box-shadow: 3px 3px 0 var(--st-accent);
+}
+
+html[data-skin-comp="hey"] .form-control,
+html[data-skin-comp="hey"] .form-select {
+    border: 2px solid #000;
+    border-radius: var(--st-radius-sm);
+    background: #fff;
+}
+
+html[data-skin-comp="hey"] .form-control:focus,
+html[data-skin-comp="hey"] .form-select:focus {
+    border-color: var(--st-accent);
+    box-shadow: 0 0 0 3px var(--st-accent-soft);
+}
+
+html[data-skin-comp="hey"] .task-table thead th {
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    border-bottom: 2px solid #000;
+    background: #fff;
+}
+
+html[data-skin-comp="hey"] .task-table tbody td {
+    border-bottom: 1px solid #000;
+}
+
+html[data-skin-comp="hey"] .task-table .task-title-cell a {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 700;
+    font-size: 1.02rem;
+}
+
+html[data-skin-comp="hey"] .admin-nav .form-select {
+    background-color: #fff !important;
+    color: #000 !important;
+    border: 2px solid #000 !important;
+}
+
+html[data-skin-comp="hey"] .meta-chip {
+    border: 1.5px solid #000;
+    border-radius: 4px;
+    font-weight: 600;
+}

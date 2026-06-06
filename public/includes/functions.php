@@ -524,8 +524,8 @@ function getEffectiveDirectoryOrgId(array $userRow): int {
 function getUserById($id, bool $includeSensitive = false): ?array {
     $db = getDbConnection();
     $sql = $includeSensitive
-        ? "SELECT id, username, role, is_active, must_change_password, mfa_enabled, mfa_secret, password_hash, org_id, person_kind, limited_project_access, created_at FROM users WHERE id = :id LIMIT 1"
-        : "SELECT id, username, role, is_active, must_change_password, mfa_enabled, org_id, person_kind, limited_project_access, created_at FROM users WHERE id = :id LIMIT 1";
+        ? "SELECT id, username, role, is_active, must_change_password, mfa_enabled, mfa_secret, password_hash, org_id, person_kind, limited_project_access, skin_slug, created_at FROM users WHERE id = :id LIMIT 1"
+        : "SELECT id, username, role, is_active, must_change_password, mfa_enabled, org_id, person_kind, limited_project_access, skin_slug, created_at FROM users WHERE id = :id LIMIT 1";
     $stmt = $db->prepare($sql);
     $stmt->bindValue(':id', (int)$id, SQLITE3_INTEGER);
     $res = $stmt->execute();
@@ -2131,6 +2131,134 @@ function updateOrganizationName(int $orgId, string $name, ?int $actorUserId): ar
     }
     createAuditLog($actorUserId, 'organization.update', 'organization', (string)$orgId, ['name' => $name]);
     return ['success' => true];
+}
+
+function getAppSetting(string $settingKey): ?string {
+    $settingKey = trim($settingKey);
+    if ($settingKey === '' || !preg_match('/^[a-z0-9_.-]{1,100}$/i', $settingKey)) {
+        return null;
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare('SELECT setting_value FROM app_settings WHERE setting_key = :k LIMIT 1');
+    $stmt->bindValue(':k', $settingKey, SQLITE3_TEXT);
+    $res = $stmt->execute();
+    $row = $res->fetchArray(SQLITE3_ASSOC);
+    if (!$row || !array_key_exists('setting_value', $row)) {
+        return null;
+    }
+    return $row['setting_value'] === null ? null : (string)$row['setting_value'];
+}
+
+function setAppSetting(string $settingKey, ?string $settingValue, ?int $actorUserId = null): array {
+    $settingKey = trim($settingKey);
+    if ($settingKey === '' || !preg_match('/^[a-z0-9_.-]{1,100}$/i', $settingKey)) {
+        return ['success' => false, 'error' => 'Invalid setting key'];
+    }
+    $db = getDbConnection();
+    if ($settingValue === null || $settingValue === '') {
+        $del = $db->prepare('DELETE FROM app_settings WHERE setting_key = :k');
+        $del->bindValue(':k', $settingKey, SQLITE3_TEXT);
+        $del->execute();
+        createAuditLog($actorUserId, 'app_setting.delete', 'app_setting', $settingKey);
+        return ['success' => true, 'setting_key' => $settingKey, 'setting_value' => null];
+    }
+    $stmt = $db->prepare('
+        INSERT INTO app_settings (setting_key, setting_value, updated_at)
+        VALUES (:k, :v, CURRENT_TIMESTAMP)
+        ON CONFLICT(setting_key) DO UPDATE SET
+            setting_value = excluded.setting_value,
+            updated_at = CURRENT_TIMESTAMP
+    ');
+    $stmt->bindValue(':k', $settingKey, SQLITE3_TEXT);
+    $stmt->bindValue(':v', $settingValue, SQLITE3_TEXT);
+    $stmt->execute();
+    createAuditLog($actorUserId, 'app_setting.update', 'app_setting', $settingKey, [
+        'setting_value' => $settingValue,
+    ]);
+    return ['success' => true, 'setting_key' => $settingKey, 'setting_value' => $settingValue];
+}
+
+function updateOrganizationDefaultSkin(int $orgId, ?string $skinSlug, ?int $actorUserId): array {
+    if ($orgId <= 0) {
+        return ['success' => false, 'error' => 'Invalid organization'];
+    }
+    require_once __DIR__ . '/skin-lab-env.php';
+    $normalized = $skinSlug === null || $skinSlug === ''
+        ? null
+        : skinLabNormalizeSlug($skinSlug);
+    if ($skinSlug !== null && $skinSlug !== '' && $normalized === null) {
+        return ['success' => false, 'error' => 'Invalid skin'];
+    }
+    $org = getOrganizationById($orgId);
+    if (!$org) {
+        return ['success' => false, 'error' => 'Organization not found'];
+    }
+    $settings = [];
+    if (!empty($org['settings_json'])) {
+        $decoded = json_decode((string)$org['settings_json'], true);
+        if (is_array($decoded)) {
+            $settings = $decoded;
+        }
+    }
+    if ($normalized === null) {
+        unset($settings['default_skin_slug']);
+    } else {
+        $settings['default_skin_slug'] = $normalized;
+    }
+    $json = $settings === [] ? null : json_encode($settings, JSON_UNESCAPED_UNICODE);
+    $db = getDbConnection();
+    $stmt = $db->prepare('UPDATE organizations SET settings_json = :s WHERE id = :id');
+    if ($json === null) {
+        $stmt->bindValue(':s', null, SQLITE3_NULL);
+    } else {
+        $stmt->bindValue(':s', $json, SQLITE3_TEXT);
+    }
+    $stmt->bindValue(':id', $orgId, SQLITE3_INTEGER);
+    $stmt->execute();
+    createAuditLog($actorUserId, 'organization.update', 'organization', (string)$orgId, [
+        'default_skin_slug' => $normalized,
+    ]);
+    return ['success' => true, 'default_skin_slug' => $normalized ?? 'hey'];
+}
+
+function updateUserSkinPreference(int $userId, ?string $skinSlug): array {
+    if ($userId <= 0) {
+        return ['success' => false, 'error' => 'Invalid user'];
+    }
+    require_once __DIR__ . '/skin-lab-env.php';
+    $useOrgDefault = $skinSlug === null || $skinSlug === '' || $skinSlug === '__org__';
+    $normalized = null;
+    if (!$useOrgDefault) {
+        $normalized = skinLabNormalizeSlug($skinSlug);
+        if ($normalized === null) {
+            return ['success' => false, 'error' => 'Invalid skin'];
+        }
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare('UPDATE users SET skin_slug = :s WHERE id = :id');
+    if ($normalized === null) {
+        $stmt->bindValue(':s', null, SQLITE3_NULL);
+    } else {
+        $stmt->bindValue(':s', $normalized, SQLITE3_TEXT);
+    }
+    $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
+    $stmt->execute();
+    return ['success' => true, 'skin_slug' => $normalized];
+}
+
+function updateMasterSkinPreference(?string $skinSlug, ?int $actorUserId): array {
+    require_once __DIR__ . '/skin-lab-env.php';
+    $normalized = $skinSlug === null || $skinSlug === ''
+        ? null
+        : skinLabNormalizeSlug($skinSlug);
+    if ($skinSlug !== null && $skinSlug !== '' && $normalized === null) {
+        return ['success' => false, 'error' => 'Invalid skin'];
+    }
+    $saved = setAppSetting('master_skin_slug', $normalized, $actorUserId);
+    if (!$saved['success']) {
+        return $saved;
+    }
+    return ['success' => true, 'master_skin_slug' => $normalized ?? 'hey'];
 }
 
 /** Remove memberships on projects outside the given organization (runs before org reassignment). */

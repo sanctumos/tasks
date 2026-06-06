@@ -1,0 +1,316 @@
+/* Ledger & Ink — cream paper, serif editorial, ruled checklist */
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap');
+
+html[data-skin-comp="ledger"] {
+    --st-bg-app: #faf6ef;
+    --st-bg-surface: #fffdf8;
+    --st-bg-soft: #f5f0e6;
+    --st-bg-elevated: #fffdf8;
+    --st-border-subtle: rgba(26, 24, 20, 0.14);
+    --st-border-strong: rgba(26, 24, 20, 0.28);
+    --st-text-primary: #1a1814;
+    --st-text-secondary: #3d3830;
+    --st-text-muted: #6b6458;
+    --st-accent: #1a1814;
+    --st-accent-soft: #efe9dc;
+    --st-accent-hover: #000000;
+    --st-shadow-sm: 0 1px 2px rgba(26, 24, 20, 0.08), 0 5px 14px rgba(26, 24, 20, 0.05);
+    --st-shadow-md: 0 2px 4px rgba(26, 24, 20, 0.1), 0 8px 20px rgba(26, 24, 20, 0.06);
+    --st-radius: 0;
+    --st-radius-sm: 0;
+    --st-status-todo-soft: transparent;
+    --st-status-doing-soft: transparent;
+    --st-status-done-soft: transparent;
+    --st-status-blocked-soft: transparent;
+}
+
+html[data-skin-comp="ledger"] body {
+    font-family: "Crimson Pro", Georgia, "Times New Roman", serif;
+    font-size: 1.05rem;
+    background-color: var(--st-bg-app) !important;
+    background-image:
+        radial-gradient(circle at 1px 1px, rgba(26, 24, 20, 0.03) 1px, transparent 0);
+    background-size: 24px 24px;
+}
+
+html[data-skin-comp="ledger"] h1,
+html[data-skin-comp="ledger"] .page-header__title h1,
+html[data-skin-comp="ledger"] .task-title,
+html[data-skin-comp="ledger"] .section-title,
+html[data-skin-comp="ledger"] .todo-list__title strong,
+html[data-skin-comp="ledger"] .swimlane__header .status-pill {
+    font-family: "Crimson Pro", Georgia, serif;
+    font-weight: 700;
+}
+
+html[data-skin-comp="ledger"] .page-header__title h1 {
+    font-size: clamp(1.85rem, 4vw, 2.5rem);
+    letter-spacing: -0.01em;
+}
+
+html[data-skin-comp="ledger"] .page-header__title .subtitle {
+    font-family: "Crimson Pro", Georgia, serif;
+    font-style: italic;
+    color: var(--st-text-secondary);
+    font-size: 1rem;
+}
+
+html[data-skin-comp="ledger"] .section-title {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--st-text-muted);
+}
+
+html[data-skin-comp="ledger"] .todo-row,
+html[data-skin-comp="ledger"] .admin-breadcrumb {
+    border: none !important;
+    border-bottom: 1px solid var(--st-border-strong) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* Cards/panels — cream paper tiles WITH spacing (margins between tiles) */
+html[data-skin-comp="ledger"] .task-card,
+html[data-skin-comp="ledger"] .surface,
+html[data-skin-comp="ledger"] .filter-bar,
+html[data-skin-comp="ledger"] .metadata-rail,
+html[data-skin-comp="ledger"] .comment-body-col,
+html[data-skin-comp="ledger"] .todo-list {
+    border: 1px solid var(--st-border-subtle) !important;
+    border-radius: 0 !important;
+    box-shadow: var(--st-shadow-sm) !important;
+    background: var(--st-bg-elevated) !important;
+}
+
+html[data-skin-comp="ledger"] .surface-pad {
+    background: var(--st-bg-elevated) !important;
+    border: 1px solid var(--st-border-subtle) !important;
+    border-bottom: 1px solid var(--st-border-strong) !important;
+    box-shadow: var(--st-shadow-sm) !important;
+}
+
+html[data-skin-comp="ledger"] .board {
+    gap: 1rem;
+}
+
+html[data-skin-comp="ledger"] .swimlane {
+    background: var(--st-bg-soft) !important;
+    border: 1px solid var(--st-border-subtle) !important;
+    border-radius: 0 !important;
+    box-shadow: var(--st-shadow-sm) !important;
+    padding: 1rem 1.15rem;
+}
+
+html[data-skin-comp="ledger"] .swimlane__body {
+    gap: 0.65rem;
+}
+
+html[data-skin-comp="ledger"] .swimlane__header {
+    border-bottom: 1px solid var(--st-border-strong);
+    padding-bottom: 0.65rem;
+    margin-bottom: 0.75rem;
+}
+
+html[data-skin-comp="ledger"] .swimlane__header .status-pill {
+    font-size: 1.05rem;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    padding: 0;
+    border: 0;
+    background: transparent !important;
+    color: var(--st-text-primary) !important;
+}
+
+html[data-skin-comp="ledger"] .swimlane__header .status-pill::before {
+    display: none;
+}
+
+html[data-skin-comp="ledger"] .swimlane__count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--st-text-muted);
+}
+
+html[data-skin-comp="ledger"] .task-card {
+    padding: 0.7rem 0.85rem !important;
+}
+
+html[data-skin-comp="ledger"] .task-card__title {
+    font-family: "Crimson Pro", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.08rem;
+}
+
+html[data-skin-comp="ledger"] .btn,
+html[data-skin-comp="ledger"] .form-control,
+html[data-skin-comp="ledger"] .form-select,
+html[data-skin-comp="ledger"] .badge,
+html[data-skin-comp="ledger"] .meta-chip,
+html[data-skin-comp="ledger"] .todo-row__title,
+html[data-skin-comp="ledger"] .comment-body,
+html[data-skin-comp="ledger"] .metadata-rail__value,
+html[data-skin-comp="ledger"] .metadata-rail__label {
+    font-family: "Crimson Pro", Georgia, serif;
+}
+
+html[data-skin-comp="ledger"] .task-card__meta,
+html[data-skin-comp="ledger"] .todo-row__meta,
+html[data-skin-comp="ledger"] .task-table tbody td,
+html[data-skin-comp="ledger"] .metadata-rail__value {
+    font-variant-numeric: tabular-nums;
+}
+
+html[data-skin-comp="ledger"] .admin-nav {
+    background: var(--st-bg-elevated) !important;
+    color: var(--st-text-primary);
+    border-bottom: 1px solid var(--st-border-strong);
+    box-shadow: none;
+}
+
+html[data-skin-comp="ledger"] .admin-nav .navbar-brand,
+html[data-skin-comp="ledger"] .admin-nav .btn-outline-light,
+html[data-skin-comp="ledger"] .admin-nav .navbar-text {
+    color: var(--st-text-primary) !important;
+}
+
+html[data-skin-comp="ledger"] .admin-nav .form-select {
+    background-color: var(--st-bg-surface) !important;
+    color: var(--st-text-primary) !important;
+    border: 1px solid var(--st-border-strong) !important;
+    border-radius: 0 !important;
+    font-family: "Crimson Pro", Georgia, serif;
+}
+
+html[data-skin-comp="ledger"] .admin-nav .btn-outline-light {
+    border-color: transparent !important;
+    border-radius: 0;
+    font-family: "Crimson Pro", Georgia, serif;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    font-size: 0.98rem;
+}
+
+html[data-skin-comp="ledger"] .admin-nav .btn-outline-light:hover {
+    background: transparent !important;
+    color: var(--st-accent-hover) !important;
+    border-bottom-color: var(--st-text-primary) !important;
+}
+
+html[data-skin-comp="ledger"] .tabbar {
+    border-bottom: 1px solid var(--st-border-strong);
+    gap: 1.25rem;
+}
+
+html[data-skin-comp="ledger"] .tabbar a {
+    font-family: "Crimson Pro", Georgia, serif;
+    font-size: 1rem;
+    font-weight: 600;
+    border-bottom: 1px solid transparent;
+    padding-bottom: 0.65rem;
+}
+
+html[data-skin-comp="ledger"] .tabbar a.active {
+    color: var(--st-text-primary);
+    border-bottom-color: var(--st-text-primary);
+}
+
+html[data-skin-comp="ledger"] .status-pill {
+    border-radius: 0;
+    border: 0;
+    background: transparent !important;
+    padding: 0;
+    font-family: "Crimson Pro", Georgia, serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+html[data-skin-comp="ledger"] .status-pill::before {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 0;
+    background: currentColor !important;
+    opacity: 0.7;
+}
+
+html[data-skin-comp="ledger"] .priority-chip {
+    border-radius: 0;
+    border: 0;
+    background: transparent;
+    padding-left: 0;
+    padding-right: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.68rem;
+}
+
+html[data-skin-comp="ledger"] .todo-row + .todo-row {
+    border-top: 1px solid var(--st-border-subtle);
+}
+
+html[data-skin-comp="ledger"] .todo-checkbox {
+    border-radius: 2px;
+}
+
+html[data-skin-comp="ledger"] .todo-list {
+    border: 1px solid var(--st-border-subtle) !important;
+    padding: 0.85rem 1rem;
+}
+
+html[data-skin-comp="ledger"] .todo-list__header {
+    border-bottom: 1px solid var(--st-border-strong);
+}
+
+html[data-skin-comp="ledger"] .task-table thead th {
+    font-family: "Crimson Pro", Georgia, serif;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    background: transparent;
+    border-bottom: 2px solid var(--st-border-strong);
+}
+
+html[data-skin-comp="ledger"] .task-table tbody td {
+    border-bottom: 1px solid var(--st-border-subtle);
+    background: transparent;
+}
+
+html[data-skin-comp="ledger"] .task-table tbody tr:hover td {
+    background: var(--st-accent-soft);
+}
+
+html[data-skin-comp="ledger"] .btn-primary {
+    background: var(--st-text-primary);
+    border-color: var(--st-text-primary);
+    border-radius: 0;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+html[data-skin-comp="ledger"] .btn-primary:hover {
+    background: #000;
+    border-color: #000;
+}
+
+html[data-skin-comp="ledger"] .comment-body-col {
+    border-left: 2px solid var(--st-border-strong) !important;
+    border-bottom: none !important;
+    padding-left: 1rem;
+}
+
+html[data-skin-comp="ledger"] .metadata-rail__row {
+    border-bottom: 1px solid var(--st-border-subtle);
+}
+
+html[data-skin-comp="ledger"] .st-home-project-card {
+    border: 1px solid var(--st-border-subtle) !important;
+    background: var(--st-bg-elevated) !important;
+    box-shadow: none !important;
+}
+
+html[data-skin-comp="ledger"] .st-home-project-card:hover {
+    border-color: var(--st-border-strong) !important;
+}
