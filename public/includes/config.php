@@ -143,6 +143,13 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ");
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS app_settings (
+            setting_key TEXT PRIMARY KEY,
+            setting_value TEXT DEFAULT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
     if (tableExists($db, 'users')) {
         ensureColumnExists($db, 'users', 'org_id', 'INTEGER DEFAULT NULL');
         ensureColumnExists($db, 'users', 'person_kind', "TEXT NOT NULL DEFAULT 'team_member'");
