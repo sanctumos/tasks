@@ -21,23 +21,28 @@ function isSkinLabDevHost(): bool {
     return $host === 'dev.tasks.decisionsciencecorp.com';
 }
 
+function skinLabMasterSlug(): string {
+    $raw = getAppSetting('master_skin_slug');
+    return skinLabNormalizeSlug($raw) ?? 'hey';
+}
+
 function skinLabOrgDefaultSlug(?array $userRow = null): string {
     $orgId = 0;
     if ($userRow !== null) {
         $orgId = getEffectiveDirectoryOrgId($userRow);
     }
     if ($orgId <= 0) {
-        return 'hey';
+        return skinLabMasterSlug();
     }
     $org = getOrganizationById($orgId);
     if (!$org || empty($org['settings_json'])) {
-        return 'hey';
+        return skinLabMasterSlug();
     }
     $settings = json_decode((string)$org['settings_json'], true);
     if (!is_array($settings)) {
-        return 'hey';
+        return skinLabMasterSlug();
     }
-    return skinLabNormalizeSlug($settings['default_skin_slug'] ?? null) ?? 'hey';
+    return skinLabNormalizeSlug($settings['default_skin_slug'] ?? null) ?? skinLabMasterSlug();
 }
 
 function skinLabUserOverrideSlug(?array $userRow): ?string {
@@ -51,7 +56,7 @@ function skinLabUserOverrideSlug(?array $userRow): ?string {
     return skinLabNormalizeSlug((string)$raw);
 }
 
-/** Effective skin for the current request (user override → org default → hey). */
+/** Effective skin for the current request (user override → org default → master → hey). */
 function skinLabEffectiveSlug(?array $userRow = null): string {
     $user = $userRow;
     if ($user === null && function_exists('getCurrentUser')) {
