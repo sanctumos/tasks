@@ -146,6 +146,26 @@ def test_main_describe_outputs_valid_json(monkeypatch: pytest.MonkeyPatch, capsy
     assert payload["plugin"]["version"] == "0.4.0"
 
 
+def test_main_describe_profile_chatter(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture):
+    monkeypatch.setattr(sys, "argv", ["cli.py", "--describe", "--describe-profile", "chatter"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["profile"] == "chatter"
+    assert payload["command_count"] == 15
+
+
+def test_main_tool_help_without_api_key(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture):
+    monkeypatch.setattr(sys, "argv", ["cli.py", "tool-help", "create task", "--profile", "chatter"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "success"
+    assert payload["matches"]
+
+
 def test_main_parses_create_task_extended_options(monkeypatch: pytest.MonkeyPatch):
     captured = {}
 

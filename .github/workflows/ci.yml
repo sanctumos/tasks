@@ -72,3 +72,16 @@ jobs:
         run: |
           set -euo pipefail
           pytest -q
+
+      - name: Ask Q design smoke (local PHP)
+        run: |
+          set -euo pipefail
+          python3 tools/design-smoke/ask_q_verify.py
+          python3 tools/design-smoke/ask_q_multiturn_verify.py
+
+      - name: SMCP plugin describe-profile smoke
+        run: |
+          set -euo pipefail
+          export PYTHONPATH="${GITHUB_WORKSPACE}/smcp_plugin:${GITHUB_WORKSPACE}"
+          python3 smcp_plugin/tasks/cli.py --describe --describe-profile chatter | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('profile')=='chatter'; assert d.get('command_count')==15"
+          python3 smcp_plugin/tasks/cli.py tool-help document --profile chatter | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['status']=='success' and d['matches']"

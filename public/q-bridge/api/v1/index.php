@@ -110,9 +110,8 @@ function handle_user_session() {
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
         send_error_response('Method not allowed', 405);
     }
-    apply_rate_limiting('/api/user_session');
-
     $tasksUserId = require_tasks_logged_in_user_id();
+    apply_rate_limiting('/api/user_session', $tasksUserId);
     $ensured = q_bridge_ensure_user_session($tasksUserId);
     log_api_request('/api/user_session', 'GET');
     send_success_response([
@@ -129,10 +128,9 @@ function handle_history() {
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
         send_error_response('Method not allowed', 405);
     }
-    apply_rate_limiting('/api/history');
-
     $limit = min(20, max(1, (int)($_GET['limit'] ?? 6)));
     $tasksUserId = require_tasks_logged_in_user_id();
+    apply_rate_limiting('/api/history', $tasksUserId);
     $ensured = q_bridge_ensure_user_session($tasksUserId);
     $payload = q_bridge_fetch_user_recent_history($tasksUserId, $limit);
     log_api_request('/api/history', 'GET');
@@ -152,9 +150,6 @@ function handle_messages() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         send_error_response('Method not allowed', 405);
     }
-    
-    // Rate limiting
-    apply_rate_limiting('/api/messages');
     
     // Get and validate input
     $input = json_decode(file_get_contents('php://input'), true);
@@ -182,6 +177,7 @@ function handle_messages() {
     
     try {
         $tasksUserId = require_tasks_logged_in_user_id();
+        apply_rate_limiting('/api/messages', $tasksUserId);
 
         $pdo = get_db_connection();
 
@@ -455,9 +451,6 @@ function handle_responses() {
         send_error_response('Method not allowed', 405);
     }
     
-    // Rate limiting
-    apply_rate_limiting('/api/responses');
-    
     $session_id = sanitize_input($_GET['session_id'] ?? '');
     $since = $_GET['since'] ?? '';
     
@@ -472,9 +465,12 @@ function handle_responses() {
     $bridgeAuthed = is_authenticated();
     if (!$bridgeAuthed) {
         $tasksUserId = require_tasks_logged_in_user_id();
+        apply_rate_limiting('/api/responses', $tasksUserId);
         if (!q_bridge_session_belongs_to_tasks_user($session_id, (int)$tasksUserId)) {
             send_forbidden_response('Session does not belong to the authenticated Tasks user');
         }
+    } else {
+        apply_rate_limiting('/api/responses');
     }
     
     try {

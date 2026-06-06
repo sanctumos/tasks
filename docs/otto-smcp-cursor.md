@@ -4,7 +4,7 @@
 
 This is **SMCP** ([sanctumos/smcp](https://github.com/sanctumos/smcp)), not a separate MCP product. Tools surface as `tasks__create-task`, `tasks__list-documents`, etc.
 
-**Phase 2b (tool governance):** After attach registry ships, run the **Cursor verification checklist** in [`SMCP-TOOL-GOVERNANCE-PHASE.md` §5](SMCP-TOOL-GOVERNANCE-PHASE.md) (Tasks doc [#310](https://tasks.decisionsciencecorp.com/admin/doc.php?id=310)) before changing Otto’s default profile from `full` → `chatter`.
+**Phase 2b (tool governance):** Otto’s stdio wrapper sets **`SMCP_ATTACH_PROFILE=chatter`** by default (override with env). Run the **Cursor verification checklist** in [`SMCP-TOOL-GOVERNANCE-PHASE.md` §5](SMCP-TOOL-GOVERNANCE-PHASE.md) (Tasks doc [#310](https://tasks.decisionsciencecorp.com/admin/doc.php?id=310)) after governor ships.
 
 ## Layout (what lives where)
 
@@ -51,7 +51,13 @@ export TASKS_API_BASE_URL="${TASKS_DSC_BASE_URL%/}"
 export PYTHONPATH=~/projects/sanctum-tasks/smcp_plugin:~/projects/sanctum-tasks
 ~/projects/sanctum-tasks/smcp_plugin/tasks/cli.py health
 
-# Stdio server (blocks — normal; Cursor attaches as client)
+# Chatter profile only (15 commands)
+~/projects/sanctum-tasks/smcp_plugin/tasks/cli.py --describe --describe-profile chatter
+
+# Intent routing
+~/projects/sanctum-tasks/smcp_plugin/tasks/cli.py tool-help "document transcript"
+
+# Stdio server — SMCP_ATTACH_PROFILE=chatter by default (blocks; Cursor attaches as client)
 ~/.otto-local/smcp-runtime/run-otto-smcp-stdio.sh
 ```
 

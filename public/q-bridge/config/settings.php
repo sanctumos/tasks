@@ -12,13 +12,32 @@ define('RATE_LIMIT_WINDOW', 3600); // 1 hour in seconds
 define('RATE_LIMIT_MAX_REQUESTS', 1000); // Max requests per window per IP
 define('RATE_LIMIT_ENDPOINT_MAX', 100); // Max requests per window per endpoint per IP
 
-// Endpoint-specific rate limits
+// Session-auth widget endpoints use per-Tasks-user keys (see auth.php).
+define('RATE_LIMIT_USER_ENDPOINTS', [
+    '/api/messages',
+    '/api/responses',
+    '/api/history',
+    '/api/user_session',
+]);
+
+// Per-user caps (tasks_user_id) — proposed default pending Mark sign-off on #678
+$USER_ENDPOINT_RATE_LIMITS = [
+    '/api/messages' => 60,
+    '/api/responses' => 300,
+    '/api/history' => 120,
+    '/api/user_session' => 30,
+];
+define('RATE_LIMIT_USER_MAX_REQUESTS', 600);
+
+// Endpoint-specific rate limits (per IP — Broca poll + legacy)
 $ENDPOINT_RATE_LIMITS = [
-    '/api/messages' => 50,      // 50 messages per hour per IP
-    '/api/responses' => 200,     // 200 response checks per hour per IP
-    '/api/inbox' => 120,         // 120 inbox checks per hour (for plugin)
-    '/api/outbox' => 200,        // 200 outbox posts per hour (for plugin)
-    '/api/sessions' => 20        // 20 session list requests per hour (admin)
+    '/api/messages' => 50,
+    '/api/responses' => 200,
+    '/api/history' => 120,
+    '/api/user_session' => 30,
+    '/api/inbox' => 120,
+    '/api/outbox' => 200,
+    '/api/sessions' => 20,
 ];
 
 // Authentication
