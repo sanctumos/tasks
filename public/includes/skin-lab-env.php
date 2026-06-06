@@ -70,5 +70,5 @@ function skinLabEffectiveSlug(?array $userRow = null): string {
 }
 
 function skinLabShouldShowCompBar(): bool {
-    return isSkinLabDevHost();
+    return false;
 }
