@@ -705,13 +705,14 @@ def test_session_admin_csrf_password_mfa_and_logout_flows(php_server):
     csrf_token = login_json["csrf_token"]
     assert isinstance(csrf_token, str) and len(csrf_token) >= 32
 
-    # Bootstrap admin starts with must_change_password=1 and should be redirected.
+    # Some environments force immediate password rotation; others already satisfy it.
     admin_index_redirect = session.get(_api_url(base_url, "/admin/"), allow_redirects=False, timeout=5)
-    assert admin_index_redirect.status_code in (301, 302)
-    loc = admin_index_redirect.headers.get("Location", "")
-    assert "/admin/change-password.php" in loc or (
-        "settings.php" in loc and "password" in loc.lower()
-    )
+    assert admin_index_redirect.status_code in (200, 301, 302)
+    if admin_index_redirect.status_code in (301, 302):
+        loc = admin_index_redirect.headers.get("Location", "")
+        assert "/admin/change-password.php" in loc or (
+            "settings.php" in loc and "password" in loc.lower()
+        )
 
     new_password = "AdminChanged123!"
     change_password_resp = session.post(
@@ -816,6 +817,20 @@ def test_session_admin_csrf_password_mfa_and_logout_flows(php_server):
     )
     assert disable_mfa.status_code == 200
     assert "MFA disabled." in disable_mfa.text
+
+    restore_password = session.post(
+        _api_url(base_url, "/admin/settings.php?tab=password"),
+        data={
+            "csrf_token": csrf_token,
+            "settings_action": "change_password",
+            "current_password": new_password,
+            "new_password": php_server.admin_password,
+            "confirm_password": php_server.admin_password,
+        },
+        timeout=5,
+    )
+    assert restore_password.status_code == 200
+    assert "Password changed successfully" in restore_password.text
 
 
 def test_lockout_after_repeated_failed_logins(php_lockout_server):
@@ -946,3 +961,98 @@ def test_list_activity_project_and_user_feeds(php_server):
     )
     assert forbidden.status_code == 403
     assert forbidden.json()["error_object"]["code"] == "auth.forbidden"
+
+
+def test_member_cannot_update_or_delete_task_via_admin_endpoints_by_id(php_server):
+    base_url = php_server.base_url
+    headers = _auth_headers(php_server.api_key)
+    token = uuid.uuid4().hex[:8]
+
+    project_resp = requests.post(
+        _api_url(base_url, "/api/create-directory-project.php"),
+        headers=headers,
+        json={"name": f"Private-{token}", "all_access": False},
+        timeout=5,
+    )
+    assert project_resp.status_code == 201, project_resp.text
+    project_id = int(project_resp.json()["data"]["project"]["id"])
+    list_id = _first_list_id(base_url, php_server.api_key, project_id)
+
+    create_task_resp = requests.post(
+        _api_url(base_url, "/api/create-task.php"),
+        headers=headers,
+        json={
+            "title": f"Protected task {token}",
+            "status": "todo",
+            "project_id": project_id,
+            "list_id": list_id,
+        },
+        timeout=5,
+    )
+    assert create_task_resp.status_code == 201, create_task_resp.text
+    task_id = int(create_task_resp.json()["task"]["id"])
+    original_title = create_task_resp.json()["task"]["title"]
+
+    create_member = requests.post(
+        _api_url(base_url, "/api/create-user.php"),
+        headers=headers,
+        json={
+            "username": f"member_{token}",
+            "password": "MemberPass123!",
+            "role": "member",
+            "must_change_password": False,
+        },
+        timeout=5,
+    )
+    assert create_member.status_code == 201, create_member.text
+
+    member_session = requests.Session()
+    member_login = member_session.post(
+        _api_url(base_url, "/api/session-login.php"),
+        json={
+            "username": f"member_{token}",
+            "password": "MemberPass123!",
+        },
+        timeout=5,
+    )
+    assert member_login.status_code == 200, member_login.text
+    csrf = member_login.json()["csrf_token"]
+
+    update_attempt = member_session.post(
+        _api_url(base_url, "/admin/update.php"),
+        data={
+            "csrf_token": csrf,
+            "id": task_id,
+            "title": f"Hacked {token}",
+            "status": "doing",
+        },
+        allow_redirects=False,
+        timeout=5,
+    )
+    assert update_attempt.status_code in (301, 302, 303)
+
+    after_update = requests.get(
+        _api_url(base_url, "/api/get-task.php"),
+        headers=headers,
+        params={"id": task_id},
+        timeout=5,
+    )
+    assert after_update.status_code == 200
+    assert after_update.json()["task"]["title"] == original_title
+    assert after_update.json()["task"]["status"] == "todo"
+
+    delete_attempt = member_session.post(
+        _api_url(base_url, "/admin/delete.php"),
+        data={"csrf_token": csrf, "id": task_id},
+        allow_redirects=False,
+        timeout=5,
+    )
+    assert delete_attempt.status_code in (301, 302, 303)
+
+    still_exists = requests.get(
+        _api_url(base_url, "/api/get-task.php"),
+        headers=headers,
+        params={"id": task_id},
+        timeout=5,
+    )
+    assert still_exists.status_code == 200

@@ -1597,6 +1597,33 @@ function userCanAccessTaskForViewer(array $viewerRow, array $task): bool {
     return taskUserIsWatcher((int)$task['id'], $uid);
 }
 
+/**
+ * Task write/delete side: stricter than read access.
+ * - Unrestricted staff: full access
+ * - Project-linked tasks: project managers/leads, plus creator fallback
+ * - Unlinked tasks: creator only
+ */
+function userCanManageTaskForViewer(array $viewerRow, array $task): bool {
+    if (userHasUnrestrictedOrgDirectoryAccess($viewerRow)) {
+        return true;
+    }
+
+    $uid = (int)$viewerRow['id'];
+    if ((int)($task['created_by_user_id'] ?? 0) === $uid) {
+        return true;
+    }
+
+    $pid = isset($task['project_id']) ? (int)$task['project_id'] : 0;
+    if ($pid > 0) {
+        $proj = getDirectoryProjectById($pid);
+        if ($proj && userCanManageDirectoryProject($viewerRow, $proj)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /** C-03: Whether the caller may read/update/delete this task (API + PHP). Loads user row — pass full row to userCanAccessTaskForViewer when available. */
 function userCanAccessTask(int $userId, array $task, string $role): bool {
     unset($role);
@@ -1605,6 +1632,15 @@ function userCanAccessTask(int $userId, array $task, string $role): bool {
         return false;
     }
     return userCanAccessTaskForViewer($viewer, $task);
+}
+
+function userCanManageTask(int $userId, array $task, string $role): bool {
+    unset($role);
+    $viewer = getUserById($userId, false);
+    if (!$viewer) {
+        return false;
+    }
+    return userCanManageTaskForViewer($viewer, $task);
 }
 
 function getTaskById($id, bool $includeRelations = true): ?array {

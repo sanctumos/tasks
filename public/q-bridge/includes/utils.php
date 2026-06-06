@@ -148,40 +148,7 @@ function maybe_cleanup_inactive_sessions($probability = 0.1): int {
  * @return bool True if successful, false otherwise
  */
 function update_config_keys($api_key, $admin_key): bool {
-    try {
-        $settings_file = __DIR__ . '/../config/settings.php';
-        
-        if (!file_exists($settings_file)) {
-            throw new Exception('Settings file not found');
-        }
-        
-        $content = file_get_contents($settings_file);
-        
-        // Update API key
-        $content = preg_replace(
-            "/return getenv\('WEB_CHAT_API_KEY'\) \?: '[^']*';/",
-            "return getenv('WEB_CHAT_API_KEY') ?: '{$api_key}';",
-            $content
-        );
-        
-        // Update admin key
-        $content = preg_replace(
-            "/return getenv\('WEB_CHAT_ADMIN_KEY'\) \?: '[^']*';/",
-            "return getenv('WEB_CHAT_ADMIN_KEY') ?: '{$admin_key}';",
-            $content
-        );
-        
-        // Write back to file
-        if (file_put_contents($settings_file, $content) === false) {
-            throw new Exception('Failed to write settings file');
-        }
-        
-        return true;
-        
-    } catch (Exception $e) {
-        log_message('ERROR', 'Failed to update config keys', [
-            'error' => $e->getMessage()
-        ]);
-        return false;
-    }
+    unset($api_key, $admin_key);
+    log_message('WARNING', 'update_config_keys() is disabled; configure keys out-of-band');
+    return false;
 } 

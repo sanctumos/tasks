@@ -110,7 +110,7 @@ function handle_user_session() {
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
         send_error_response('Method not allowed', 405);
     }
-    check_rate_limit('/api/user_session');
+    apply_rate_limiting('/api/user_session');
 
     $tasksUserId = require_tasks_logged_in_user_id();
     $ensured = q_bridge_ensure_user_session($tasksUserId);
@@ -129,7 +129,7 @@ function handle_history() {
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
         send_error_response('Method not allowed', 405);
     }
-    check_rate_limit('/api/history');
+    apply_rate_limiting('/api/history');
 
     $limit = min(20, max(1, (int)($_GET['limit'] ?? 6)));
     $tasksUserId = require_tasks_logged_in_user_id();
@@ -154,7 +154,7 @@ function handle_messages() {
     }
     
     // Rate limiting
-    check_rate_limit('/api/messages');
+    apply_rate_limiting('/api/messages');
     
     // Get and validate input
     $input = json_decode(file_get_contents('php://input'), true);
@@ -260,7 +260,7 @@ function handle_inbox() {
     require_auth();
     
     // Rate limiting
-    check_rate_limit('/api/inbox');
+    apply_rate_limiting('/api/inbox');
     
     // Get query parameters
     $limit = min((int)($_GET['limit'] ?? 50), 100);
@@ -388,7 +388,7 @@ function handle_outbox() {
     require_auth();
     
     // Rate limiting
-    check_rate_limit('/api/outbox');
+    apply_rate_limiting('/api/outbox');
     
     // Get and validate input
     $input = json_decode(file_get_contents('php://input'), true);
@@ -456,7 +456,7 @@ function handle_responses() {
     }
     
     // Rate limiting
-    check_rate_limit('/api/responses');
+    apply_rate_limiting('/api/responses');
     
     $session_id = sanitize_input($_GET['session_id'] ?? '');
     $since = $_GET['since'] ?? '';
@@ -468,16 +468,21 @@ function handle_responses() {
     if (!validate_session_id($session_id)) {
         send_error_response('Invalid session ID', 400);
     }
+
+    $bridgeAuthed = is_authenticated();
+    if (!$bridgeAuthed) {
+        $tasksUserId = require_tasks_logged_in_user_id();
+        if (!q_bridge_session_belongs_to_tasks_user($session_id, (int)$tasksUserId)) {
+            send_forbidden_response('Session does not belong to the authenticated Tasks user');
+        }
+    }
     
     try {
         $pdo = get_db_connection();
         
-        // Check session activity - create if doesn't exist
+        // Check session activity; do not auto-create arbitrary sessions on reads.
         if (!is_session_active($session_id)) {
-            // Try to create the session if it doesn't exist
-            if (!create_session($session_id)) {
-                send_error_response('Invalid session ID', 400);
-            }
+            send_error_response('Invalid or expired session', 400);
         }
         
         // Build query
@@ -528,7 +533,7 @@ function handle_sessions() {
     require_admin_auth();
     
     // Rate limiting
-    check_rate_limit('/api/sessions');
+    apply_rate_limiting('/api/sessions');
     
     // Get query parameters
     $limit = min((int)($_GET['limit'] ?? 50), 100);
@@ -619,50 +624,17 @@ function handle_config() {
     require_admin_auth();
     
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        // Get current configuration
         try {
             send_success_response([
                 'session_timeout' => SESSION_TIMEOUT,
-                'api_key' => get_api_key(),
-                'admin_key' => get_admin_key()
+                'poll_key_configured' => get_api_key() !== '',
+                'admin_key_configured' => get_admin_key() !== '',
             ]);
         } catch (Exception $e) {
             send_error_response('Internal server error', 500);
         }
     } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // Update configuration
-        $input = json_decode(file_get_contents('php://input'), true);
-        
-        if (!$input) {
-            send_error_response('Invalid JSON', 400);
-        }
-        
-        $api_key = sanitize_input($input['api_key'] ?? '');
-        $admin_key = sanitize_input($input['admin_key'] ?? '');
-        
-        if (empty($api_key) || empty($admin_key)) {
-            send_error_response('Missing required fields', 400);
-        }
-        
-        try {
-            // Update keys in settings file
-            update_config_keys($api_key, $admin_key);
-            
-            log_message('INFO', 'Configuration updated', [
-                'api_key_updated' => !empty($api_key),
-                'admin_key_updated' => !empty($admin_key)
-            ]);
-            
-            send_success_response([
-                'message' => 'Configuration updated successfully'
-            ]);
-            
-        } catch (Exception $e) {
-            log_message('ERROR', 'Failed to update configuration', [
-                'error' => $e->getMessage()
-            ]);
-            send_error_response('Internal server error', 500);
-        }
+        send_error_response('Configuration updates are not supported via HTTP API', 405);
     } else {
         send_error_response('Method not allowed', 405);
     }

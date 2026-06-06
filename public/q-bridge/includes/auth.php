@@ -24,8 +24,13 @@ function is_authenticated() {
         return false;
     }
     
-    $api_key = substr($auth_header, strlen(API_KEY_PREFIX));
-    return $api_key === get_api_key();
+    $api_key = trim((string)substr($auth_header, strlen(API_KEY_PREFIX)));
+    $expected = trim((string)get_api_key());
+    if ($expected === '' || q_bridge_is_placeholder_secret($expected)) {
+        log_message('ERROR', 'Q bridge poll key is not configured securely');
+        return false;
+    }
+    return hash_equals($expected, $api_key);
 }
 
 /**
@@ -45,8 +50,13 @@ function is_admin_authenticated() {
         return false;
     }
     
-    $admin_key = substr($auth_header, strlen(API_KEY_PREFIX));
-    return $admin_key === get_admin_key();
+    $admin_key = trim((string)substr($auth_header, strlen(API_KEY_PREFIX)));
+    $expected = trim((string)get_admin_key());
+    if ($expected === '' || q_bridge_is_placeholder_secret($expected)) {
+        log_message('ERROR', 'Q bridge admin key is not configured securely');
+        return false;
+    }
+    return hash_equals($expected, $admin_key);
 }
 
 /**
@@ -85,6 +95,7 @@ function check_rate_limit($endpoint) {
     $ip = get_client_ip();
     $current_time = time();
     $window_start = $current_time - RATE_LIMIT_WINDOW;
+    $current_time_str = date('Y-m-d H:i:s', $current_time);
     
     try {
         $pdo = get_db_connection();
@@ -93,15 +104,22 @@ function check_rate_limit($endpoint) {
         $stmt = $pdo->prepare("DELETE FROM rate_limits WHERE window_start < ?");
         $stmt->execute([date('Y-m-d H:i:s', $window_start)]);
         
-        // Check current rate limit for this IP and endpoint
+        // Check current rate limit record for this IP and endpoint
         $stmt = $pdo->prepare("
-            SELECT COUNT(*) as count 
+            SELECT count, window_start
             FROM rate_limits 
-            WHERE ip_address = ? AND endpoint = ? AND window_start >= ?
+            WHERE ip_address = ? AND endpoint = ?
+            LIMIT 1
         ");
-        $stmt->execute([$ip, $endpoint, date('Y-m-d H:i:s', $window_start)]);
+        $stmt->execute([$ip, $endpoint]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $current_count = $result['count'] ?? 0;
+        $current_count = 0;
+        if ($result) {
+            $existing_window = strtotime((string)($result['window_start'] ?? '')) ?: 0;
+            if ($existing_window >= $window_start) {
+                $current_count = (int)($result['count'] ?? 0);
+            }
+        }
         
         // Get endpoint-specific limit
         global $ENDPOINT_RATE_LIMITS;
@@ -117,7 +135,7 @@ function check_rate_limit($endpoint) {
             return false;
         }
         
-        // Add current request to rate limit tracking
+        // Add/update current request in rate limit tracking
         $stmt = $pdo->prepare("
             INSERT OR REPLACE INTO rate_limits (ip_address, endpoint, count, window_start)
             VALUES (?, ?, ?, ?)
@@ -126,7 +144,7 @@ function check_rate_limit($endpoint) {
             $ip,
             $endpoint,
             $current_count + 1,
-            date('Y-m-d H:i:s', $current_time)
+            $current_time_str
         ]);
         
         return true;
@@ -157,8 +175,8 @@ function check_overall_rate_limit() {
         
         // Check total requests for this IP
         $stmt = $pdo->prepare("
-            SELECT COUNT(*) as count 
-            FROM rate_limits 
+            SELECT COALESCE(SUM(count), 0) as count
+            FROM rate_limits
             WHERE ip_address = ? AND window_start >= ?
         ");
         $stmt->execute([$ip, date('Y-m-d H:i:s', $window_start)]);

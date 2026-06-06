@@ -168,7 +168,7 @@ if ($mineFilter) {
 }
 
 // Tasks belonging to this project (by project_id) — for the Tasks tab
-$projectTasksResult = listTasks($projectTaskFilters, true);
+$projectTasksResult = listTasks($projectTaskFilters, true, null, $currentUser);
 $projectTasks = $projectTasksResult['tasks'];
 
 // Also catch tasks linked by legacy text-name (project name match)
@@ -182,7 +182,7 @@ $legacyTaskFilters = [
 if ($mineFilter) {
     $legacyTaskFilters['assigned_to_user_id'] = $mineUserId;
 }
-$legacyTasksResult = listTasks($legacyTaskFilters, true);
+$legacyTasksResult = listTasks($legacyTaskFilters, true, null, $currentUser);
 foreach ($legacyTasksResult['tasks'] as $lt) {
     if ((int)($lt['project_id'] ?? 0) !== $id) {
         $projectTasks[] = $lt;

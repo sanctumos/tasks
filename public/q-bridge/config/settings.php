@@ -26,23 +26,39 @@ define('API_KEY_HEADER', 'Authorization');
 define('API_KEY_PREFIX', 'Bearer ');
 
 // Poll auth for Broca plugin (Bearer token Broca sends on inbox/outbox).
+function q_bridge_is_placeholder_secret(string $value): bool {
+    $v = strtoupper(trim($value));
+    if ($v === '') {
+        return true;
+    }
+    if (str_starts_with($v, 'CHANGE_ME')) {
+        return true;
+    }
+    $deny = ['FREE0PS', 'DEFAULT', 'PASSWORD', 'SECRET', 'TOKEN'];
+    return in_array($v, $deny, true);
+}
+
 function get_api_key() {
     $k = trim((string)(getenv('TASKS_Q_BRIDGE_POLL_API_KEY') ?: getenv('WEB_CHAT_API_KEY') ?: ''));
-    if ($k !== '') {
+    if (!q_bridge_is_placeholder_secret($k)) {
         return $k;
     }
     $file = dirname(Q_BRIDGE_DB_PATH) . '/q_bridge_poll_api_key.txt';
     if (is_file($file)) {
         $existing = trim((string)@file_get_contents($file));
-        if ($existing !== '') {
+        if (!q_bridge_is_placeholder_secret($existing)) {
             return $existing;
         }
     }
-    return 'CHANGE_ME_Q_BRIDGE_POLL_KEY';
+    return '';
 }
 
 function get_admin_key() {
-    return getenv('WEB_CHAT_ADMIN_KEY') ?: getenv('TASKS_Q_BRIDGE_ADMIN_KEY') ?: 'free0ps';
+    $k = trim((string)(getenv('WEB_CHAT_ADMIN_KEY') ?: getenv('TASKS_Q_BRIDGE_ADMIN_KEY') ?: ''));
+    if (q_bridge_is_placeholder_secret($k)) {
+        return '';
+    }
+    return $k;
 }
 
 // CORS Configuration
