@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -17,6 +18,27 @@ RUN_SCRIPT = os.getenv(
     "Q_SMCP_RUN_SCRIPT",
     "/home/rizzn/sanctum/agents/q/smcp/run-smcp-stdio-for-letta.sh",
 )
+TOOL_PREFIX = "q_vernal_tasks__"
+
+# docs/Q-VERNAL-TOOL-PROFILE.md — chatter profile (Phase 2)
+CHATTER_TOOL_SUFFIXES = (
+    "create-task",
+    "update-task",
+    "get-task",
+    "search-tasks",
+    "list-tasks",
+    "create-comment",
+    "list-comments",
+    "get-document",
+    "list-documents",
+    "create-document",
+    "update-document",
+    "create-document-comment",
+    "list-document-comments",
+    "list-directory-projects",
+    "list-todo-lists",
+)
+CHATTER_TOOL_NAMES = frozenset(f"{TOOL_PREFIX}{s}" for s in CHATTER_TOOL_SUFFIXES)
 
 
 def req(method: str, path: str, body: dict | None = None) -> dict:
@@ -53,10 +75,44 @@ def tool_list(payload: dict | list) -> list:
 
 def q_tool_count(server_id: str) -> int:
     tools = tool_list(req("GET", f"/v1/mcp-servers/{server_id}/tools"))
-    return sum(1 for t in tools if (t.get("name") or "").startswith("q_vernal_tasks__"))
+    return sum(1 for t in tools if (t.get("name") or "").startswith(TOOL_PREFIX))
+
+
+def profile_allows(name: str, profile: str) -> bool:
+    if not name.startswith(TOOL_PREFIX):
+        return False
+    if profile == "full":
+        return True
+    if profile == "chatter":
+        return name in CHATTER_TOOL_NAMES
+    raise ValueError(f"unknown profile: {profile}")
+
+
+def detach_tool(agent_id: str, tool_id: str, name: str) -> bool:
+    for path in (
+        f"/v1/agents/{agent_id}/tools/detach/{tool_id}",
+        f"/v1/agents/{agent_id}/tools/{tool_id}/detach",
+    ):
+        try:
+            req("PATCH", path)
+            print("detached", name)
+            return True
+        except urllib.error.HTTPError:
+            continue
+    print("warn: could not detach", name, file=sys.stderr)
+    return False
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Attach Q Vernal SMCP tools on moya Letta")
+    parser.add_argument(
+        "--profile",
+        choices=("chatter", "full"),
+        default=os.getenv("Q_SMCP_ATTACH_PROFILE", "chatter"),
+        help="Tool exposure profile (default: chatter)",
+    )
+    args = parser.parse_args()
+    profile = args.profile
     if not os.getenv("LETTA_API_KEY"):
         for path in (
             Path("/home/rizzn/sanctum/agents/athena/broca/.env"),
@@ -128,12 +184,24 @@ def main() -> None:
 
     tools = req("GET", f"/v1/mcp-servers/{server_id}/tools")
     tool_list_data = tool_list(tools)
-    print("mcp tools", len(tool_list_data))
+    print("mcp tools", len(tool_list_data), "profile", profile)
+
+    agent_tools = tool_list(req("GET", f"/v1/agents/{AGENT_ID}/tools"))
+    detached = 0
+    for t in agent_tools:
+        name = t.get("name") or ""
+        tid = t.get("id")
+        if not tid or not name.startswith(TOOL_PREFIX):
+            continue
+        if profile_allows(name, profile):
+            continue
+        if detach_tool(AGENT_ID, tid, name):
+            detached += 1
 
     attached = 0
     for t in tool_list_data:
         name = t.get("name") or ""
-        if not name.startswith("q_vernal_tasks__"):
+        if not profile_allows(name, profile):
             continue
         tid = t.get("id")
         if not tid:
@@ -146,7 +214,23 @@ def main() -> None:
                 attached += 1
             else:
                 print("attach fail", name, e.code, file=sys.stderr)
-    print("attached", attached, "q_vernal_tasks tools to", AGENT_ID)
+
+    final = tool_list(req("GET", f"/v1/agents/{AGENT_ID}/tools"))
+    final_q = sorted(
+        n for n in ((t.get("name") or "") for t in final) if n.startswith(TOOL_PREFIX)
+    )
+    print("detached_excluded", detached)
+    print("attached_profile", attached)
+    print("agent_q_tool_count", len(final_q))
+    if profile == "chatter" and len(final_q) != len(CHATTER_TOOL_NAMES):
+        missing = sorted(CHATTER_TOOL_NAMES - set(final_q))
+        extra = sorted(set(final_q) - CHATTER_TOOL_NAMES)
+        if missing:
+            print("missing", missing, file=sys.stderr)
+        if extra:
+            print("extra", extra, file=sys.stderr)
+        sys.exit(1)
+    print("agent_q_tools", final_q)
 
 
 if __name__ == "__main__":
