@@ -177,11 +177,11 @@ if (!function_exists('st_markdown_promote_mermaid_diagrams')) {
      * Turn Parsedown fenced ```mermaid blocks into <div class="mermaid"> for client render.
      */
     function st_markdown_promote_mermaid_diagrams(string $html): string {
-        if ($html === '' || stripos($html, 'mermaid') === false) {
+        if ($html === '' || stripos($html, 'language-mermaid') === false) {
             return $html;
         }
         return (string)preg_replace_callback(
-            '#<pre>\s*<code(?:\s+class="[^"]*language-mermaid[^"]*")?>(.*?)</code>\s*</pre>#is',
+            '#<pre>\s*<code\s+class="[^"]*\blanguage-mermaid\b[^"]*">(.*?)</code>\s*</pre>#is',
             static function (array $m): string {
                 $src = html_entity_decode($m[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
                 return '<div class="mermaid st-mermaid-diagram" role="figure" aria-label="Diagram">'
