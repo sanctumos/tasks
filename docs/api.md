@@ -330,6 +330,7 @@ Kinds include: `task_assigned`, `task_mention`, `task_comment_mention`, `task_co
 
 | Method | Path | Notes |
 | ------ | ---- | ----- |
+| `GET` | `/api/list-schedule.php` | Due-date aggregation (`due_at`) scoped by ACL. |
 | `GET` | `/api/list-activity.php` | **Exactly one** of `project_id` or `user_id`. |
 
 **Query parameters**
@@ -342,6 +343,23 @@ Kinds include: `task_assigned`, `task_mention`, `task_comment_mention`, `task_co
 | `before_id` | No | Cursor: return rows with audit log `id` **strictly less** than this value (older items). |
 
 **Response `200`:** `events` (each item includes `id`, `actor_user_id`, `actor_username`, `action`, `entity_type`, `entity_id`, `metadata`, `created_at`, human `summary`, admin `href`, Bootstrap-icon `icon`, optional `task_title` / `document_title`), and `count`. **`ip_address` is never included** in API JSON.
+
+---
+
+#### `GET /api/list-schedule.php`
+
+Aggregates tasks with **`due_at`** set, respecting the same directory ACL as `list-tasks.php`. Returns flat `entries` plus `grouped_by_date` for calendar-style UIs.
+
+| Name | Required | Notes |
+| ---- | -------- | ----- |
+| `scope` | No | `mine` (default — assignee is caller), `all` (visible projects), or `project` (requires `project_id`). |
+| `project_id` | When `scope=project` | Directory project id; **404-style** empty when inaccessible. |
+| `due_after` / `due_before` | No | ISO-ish datetimes; default window is today → +30 days, with overdue lookback when `include_overdue=true`. |
+| `include_done` | No | Default false — omits tasks whose status has `is_done`. |
+| `include_overdue` | No | Default true — extends `due_after` backward 90 days. |
+| `limit` | No | Default **200**, max **500**. |
+
+**Response `200`:** `schedule` object with `scope`, `due_after`, `due_before`, `entries[]`, `grouped_by_date[]`, `count`.
 
 ---
 

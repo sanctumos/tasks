@@ -4030,4 +4030,5 @@ function addDocumentComment(int $documentId, int $userId, string $comment): arra
 }
 
 require_once __DIR__ . '/activity_feed.php';
+require_once __DIR__ . '/schedule.php';
 require_once __DIR__ . '/notifications.php';

@@ -396,6 +396,38 @@ class TasksClient:
             'pagination': response.get('pagination'),
         }
 
+    def list_schedule(
+        self,
+        scope: str = 'mine',
+        project_id: Optional[int] = None,
+        due_after: Optional[str] = None,
+        due_before: Optional[str] = None,
+        include_done: bool = False,
+        include_overdue: bool = True,
+        limit: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Aggregate tasks with due_at into a schedule view (grouped by date in API).
+
+        scope: mine | project | all
+        """
+        params: Dict[str, Any] = {'scope': scope}
+        if project_id is not None:
+            params['project_id'] = project_id
+        if due_after is not None:
+            params['due_after'] = due_after
+        if due_before is not None:
+            params['due_before'] = due_before
+        if include_done:
+            params['include_done'] = 'true'
+        if not include_overdue:
+            params['include_overdue'] = 'false'
+        if limit is not None:
+            params['limit'] = limit
+        response = self._request('GET', 'list-schedule.php', params=params)
+        data = response.get('data', response)
+        return data.get('schedule', data)
+
     def search_tasks(self, q: str, **kwargs) -> Dict[str, Any]:
         params = {'q': q}
         params.update(kwargs)

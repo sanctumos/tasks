@@ -42,7 +42,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
 
 $canManage = userCanManageDirectoryProject($currentUser, $project);
 $tab = (string)($_GET['tab'] ?? 'lists');
-if (!in_array($tab, ['tasks', 'lists', 'activity', 'docs', 'members', 'settings'], true)) {
+if (!in_array($tab, ['tasks', 'lists', 'schedule', 'activity', 'docs', 'members', 'settings'], true)) {
     $tab = 'lists';
 }
 
@@ -141,6 +141,20 @@ if ($tab === 'docs') {
     $projectDocsDirChildren = $aggProjectDocs['dir_children'];
     $projectDocsInDir = $aggProjectDocs['documents_in_dir'];
 }
+$projectSchedule = null;
+if ($tab === 'schedule') {
+    $utc = new DateTimeZone('UTC');
+    $windowStart = new DateTime('today', $utc);
+    $projectSchedule = listScheduleForViewer($currentUser, [
+        'scope' => 'project',
+        'project_id' => $id,
+        'due_after' => (clone $windowStart)->modify('-90 days')->format('Y-m-d 00:00:00'),
+        'due_before' => (clone $windowStart)->modify('+60 days')->setTime(23, 59, 59)->format('Y-m-d H:i:s'),
+        'include_overdue' => true,
+        'limit' => 300,
+    ]);
+}
+
 $projectActivityItems = [];
 $projectActivityBefore = isset($_GET['before_id']) ? (int)$_GET['before_id'] : 0;
 if ($tab === 'activity') {
@@ -252,6 +266,7 @@ $pageTitle = $project['name'];
 $tabHuman = [
     'tasks' => 'Tasks',
     'lists' => 'Lists',
+    'schedule' => 'Schedule',
     'activity' => 'Activity',
     'docs' => 'Docs',
     'members' => 'Members',
@@ -314,6 +329,7 @@ require __DIR__ . '/_layout_top.php';
 <nav class="tabbar" aria-label="Project sections">
     <?= st_tab_link('lists', $tab, 'Lists', 'bi-card-checklist', count($lists)) ?>
     <?= st_tab_link('tasks', $tab, 'Tasks', 'bi-list-check', $totalTasks) ?>
+    <?= st_tab_link('schedule', $tab, 'Schedule', 'bi-calendar3', null) ?>
     <?= st_tab_link('activity', $tab, 'Activity', 'bi-activity', null) ?>
     <?= st_tab_link('docs', $tab, 'Docs', 'bi-journals', $projectDocsCount) ?>
     <?= st_tab_link('members', $tab, 'Members', 'bi-people', count($members)) ?>
@@ -539,6 +555,43 @@ require __DIR__ . '/_layout_top.php';
                 <?php foreach ($tasksUnfiled as $t): echo $renderTodoRow($t); endforeach; ?>
             </ol>
         </section>
+    <?php endif; ?>
+
+<?php elseif ($tab === 'schedule'): ?>
+    <?php
+    $projGroups = $projectSchedule['grouped_by_date'] ?? [];
+    $projEntryCount = (int)($projectSchedule['count'] ?? 0);
+    ?>
+    <div class="surface surface-pad mb-3">
+        <div class="section-title"><i class="bi bi-calendar3"></i> Project schedule</div>
+        <p class="text-muted small mb-0"><?= $projEntryCount ?> open task<?= $projEntryCount === 1 ? '' : 's' ?> with due dates (includes overdue).</p>
+    </div>
+    <?php if ($projGroups === []): ?>
+        <div class="surface surface-pad text-center text-muted">
+            <p class="mb-0">No upcoming due dates on this project.</p>
+        </div>
+    <?php else: ?>
+        <div class="schedule-by-day">
+            <?php foreach ($projGroups as $group): ?>
+                <section class="schedule-day surface mb-3">
+                    <header class="schedule-day__head px-3 py-2 border-bottom">
+                        <strong><?= htmlspecialchars((string)($group['date'] ?? '')) ?></strong>
+                        <span class="text-muted small ms-2"><?= (int)($group['count'] ?? 0) ?> item<?= (int)($group['count'] ?? 0) === 1 ? '' : 's' ?></span>
+                    </header>
+                    <ul class="list-unstyled mb-0">
+                        <?php foreach (($group['entries'] ?? []) as $item): ?>
+                            <li class="schedule-day__item px-3 py-2 border-bottom border-light-subtle d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                                <a href="/admin/view.php?id=<?= (int)($item['task_id'] ?? 0) ?>" class="text-decoration-none fw-medium"><?= htmlspecialchars((string)($item['title'] ?? '')) ?></a>
+                                <span class="text-muted small">
+                                    <?php if (!empty($item['is_overdue'])): ?><span class="badge text-bg-danger me-1">Overdue</span><?php endif; ?>
+                                    <?= htmlspecialchars((string)($item['assigned_to_username'] ?? 'Unassigned')) ?>
+                                </span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </section>
+            <?php endforeach; ?>
+        </div>
     <?php endif; ?>
 
 <?php elseif ($tab === 'activity'): ?>

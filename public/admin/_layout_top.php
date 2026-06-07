@@ -66,6 +66,7 @@ window.__ST_SKIN_LAB__ = {
                 <div class="d-flex flex-column flex-lg-row flex-wrap gap-2 ms-lg-auto align-items-stretch align-items-lg-center py-3 py-lg-0">
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/" title="Your projects &amp; all tasks"><i class="bi bi-house-door me-1"></i>Home</a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/docs.php"><i class="bi bi-journals me-1"></i>Docs</a>
+                    <a class="btn btn-outline-light text-center text-lg-start" href="/admin/schedule.php"><i class="bi bi-calendar3 me-1"></i>Schedule</a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/activity.php"><i class="bi bi-activity me-1"></i>Activity</a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/workspace-projects.php"><i class="bi bi-kanban me-1"></i>Projects</a>
                     <div class="dropdown">

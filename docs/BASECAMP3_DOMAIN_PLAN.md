@@ -109,7 +109,7 @@ API and Python mirror: CRUD projects, list directory with filters, assign task t
 Order suggests:
 
 1. **To-dos / lists** — Already closest to current product: introduce **`todo_lists`** (per project), optional groups; tasks gain `list_id` or equivalent; matches BC hierarchy todoset → list → todo at a **simplified** depth.
-2. **Schedule** — Aggregate `due_at` per user/project; optional `schedule_entries` table later if you need events without tasks.
+2. **Schedule** — Aggregate `due_at` per user/project (`GET /api/list-schedule.php`, `/admin/schedule.php`, project **Schedule** tab); optional `schedule_entries` table later if you need events without tasks.
 3. **Message board / chat** — **Defer** unless scoped; highest complexity. Prefer linking “Doors” (external URLs) first.
 
 ### Phase 5 — Home & Basecamp-flavored UX
