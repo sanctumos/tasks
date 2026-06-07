@@ -24,6 +24,9 @@ $availableTabs = [
     'api-keys' => ['label' => 'API keys', 'icon' => 'bi-key', 'admin' => true],
     'audit' => ['label' => 'Audit log', 'icon' => 'bi-shield-check', 'admin' => true],
 ];
+if (defined('TASKS_Q_BRIDGE_ENABLED') && TASKS_Q_BRIDGE_ENABLED) {
+    $availableTabs['ask-q'] = ['label' => 'Ask Q', 'icon' => 'bi-chat-dots', 'admin' => true];
+}
 
 $tab = (string)($_GET['tab'] ?? 'password');
 if (!isset($availableTabs[$tab])) {
@@ -92,6 +95,11 @@ switch ($tab) {
     case 'audit':
         if ($isAdmin) {
             require __DIR__ . '/_settings/audit.php';
+        }
+        break;
+    case 'ask-q':
+        if ($isAdmin) {
+            require __DIR__ . '/_settings/ask_q.php';
         }
         break;
 }

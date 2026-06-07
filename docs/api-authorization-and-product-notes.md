@@ -57,6 +57,8 @@ Agreeing one pattern per integration avoids “Otto sees it, Mark doesn’t” s
 
 ### 1. Client visibility / “portal”
 
+Formal matrix and seed fixtures: [`CLIENT_VISIBILITY_ACCESS_MATRIX.md`](CLIENT_VISIBILITY_ACCESS_MATRIX.md).
+
 There is **no** separate anonymous or public read-token mode in the reviewed surface. Visibility is **always** tied to an authenticated **user** (session or API key) and the ACL above.
 
 **Open product question:** Should “clients watch work as it goes” mean:

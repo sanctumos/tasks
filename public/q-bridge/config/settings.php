@@ -12,13 +12,32 @@ define('RATE_LIMIT_WINDOW', 3600); // 1 hour in seconds
 define('RATE_LIMIT_MAX_REQUESTS', 1000); // Max requests per window per IP
 define('RATE_LIMIT_ENDPOINT_MAX', 100); // Max requests per window per endpoint per IP
 
-// Endpoint-specific rate limits
+// Session-auth widget endpoints use per-Tasks-user keys (see auth.php).
+define('RATE_LIMIT_USER_ENDPOINTS', [
+    '/api/messages',
+    '/api/responses',
+    '/api/history',
+    '/api/user_session',
+]);
+
+// Per-user caps (tasks_user_id) — proposed default pending Mark sign-off on #678
+$USER_ENDPOINT_RATE_LIMITS = [
+    '/api/messages' => 60,
+    '/api/responses' => 300,
+    '/api/history' => 120,
+    '/api/user_session' => 30,
+];
+define('RATE_LIMIT_USER_MAX_REQUESTS', 600);
+
+// Endpoint-specific rate limits (per IP — Broca poll + legacy)
 $ENDPOINT_RATE_LIMITS = [
-    '/api/messages' => 50,      // 50 messages per hour per IP
-    '/api/responses' => 200,     // 200 response checks per hour per IP
-    '/api/inbox' => 120,         // 120 inbox checks per hour (for plugin)
-    '/api/outbox' => 200,        // 200 outbox posts per hour (for plugin)
-    '/api/sessions' => 20        // 20 session list requests per hour (admin)
+    '/api/messages' => 50,
+    '/api/responses' => 200,
+    '/api/history' => 120,
+    '/api/user_session' => 30,
+    '/api/inbox' => 120,
+    '/api/outbox' => 200,
+    '/api/sessions' => 20,
 ];
 
 // Authentication
@@ -26,23 +45,39 @@ define('API_KEY_HEADER', 'Authorization');
 define('API_KEY_PREFIX', 'Bearer ');
 
 // Poll auth for Broca plugin (Bearer token Broca sends on inbox/outbox).
+function q_bridge_is_placeholder_secret(string $value): bool {
+    $v = strtoupper(trim($value));
+    if ($v === '') {
+        return true;
+    }
+    if (str_starts_with($v, 'CHANGE_ME')) {
+        return true;
+    }
+    $deny = ['FREE0PS', 'DEFAULT', 'PASSWORD', 'SECRET', 'TOKEN'];
+    return in_array($v, $deny, true);
+}
+
 function get_api_key() {
     $k = trim((string)(getenv('TASKS_Q_BRIDGE_POLL_API_KEY') ?: getenv('WEB_CHAT_API_KEY') ?: ''));
-    if ($k !== '') {
+    if (!q_bridge_is_placeholder_secret($k)) {
         return $k;
     }
     $file = dirname(Q_BRIDGE_DB_PATH) . '/q_bridge_poll_api_key.txt';
     if (is_file($file)) {
         $existing = trim((string)@file_get_contents($file));
-        if ($existing !== '') {
+        if (!q_bridge_is_placeholder_secret($existing)) {
             return $existing;
         }
     }
-    return 'CHANGE_ME_Q_BRIDGE_POLL_KEY';
+    return '';
 }
 
 function get_admin_key() {
-    return getenv('WEB_CHAT_ADMIN_KEY') ?: getenv('TASKS_Q_BRIDGE_ADMIN_KEY') ?: 'free0ps';
+    $k = trim((string)(getenv('WEB_CHAT_ADMIN_KEY') ?: getenv('TASKS_Q_BRIDGE_ADMIN_KEY') ?: ''));
+    if (q_bridge_is_placeholder_secret($k)) {
+        return '';
+    }
+    return $k;
 }
 
 // CORS Configuration

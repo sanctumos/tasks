@@ -804,6 +804,14 @@ def set_project_pin(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
     return _wrap(run)
 
 
+def run_tool_help(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    from tool_profiles import tool_help
+
+    profile = args.get("profile") or "chatter"
+    query = args.get("query") or ""
+    return tool_help(query, profile)
+
+
 def command_handlers() -> Dict[str, Callable[[Dict[str, Any], str], Dict[str, Any]]]:
     """Resolve handlers at call time so tests can monkeypatch module functions."""
     return {
@@ -856,6 +864,7 @@ def command_handlers() -> Dict[str, Callable[[Dict[str, Any], str], Dict[str, An
         "remove-project-member": remove_project_member,
         "list-project-pins": list_project_pins,
         "set-project-pin": set_project_pin,
+        "tool-help": run_tool_help,
     }
 
 
@@ -893,6 +902,12 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--describe", action="store_true", help="JSON plugin + command schema for MCP")
+    parser.add_argument(
+        "--describe-profile",
+        metavar="PROFILE",
+        choices=("chatter", "admin", "full"),
+        help="With --describe: filter commands to named exposure profile",
+    )
     parser.add_argument("--debug", action="store_true", help="Include tracebacks in error JSON")
     subparsers = parser.add_subparsers(dest="command", help="Command")
 
@@ -1238,6 +1253,18 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--unpin", action="store_false", dest="pinned")
     p.add_argument("--sort-order", type=int, default=0, dest="sort_order")
 
+    p = subparsers.add_parser(
+        "tool-help",
+        help="Intent → recommended tasks commands for a named profile (no API call)",
+    )
+    p.add_argument("query", nargs="?", default="", help="Intent keywords (task, document, comment, …)")
+    p.add_argument(
+        "--profile",
+        choices=("chatter", "admin", "full"),
+        default="chatter",
+        help="Exposure profile for tool recommendations",
+    )
+
     return parser
 
 
@@ -1262,12 +1289,27 @@ def main() -> None:
     DEBUG_TRACEBACKS = bool(getattr(args, "debug", False))
 
     if args.describe:
-        print(json.dumps(get_plugin_description(parser), indent=2))
+        desc = get_plugin_description(parser)
+        profile = getattr(args, "describe_profile", None)
+        if profile:
+            from tool_profiles import filter_plugin_description
+
+            desc = filter_plugin_description(desc, profile)
+        print(json.dumps(desc, indent=2))
         sys.exit(0)
 
     if not args.command:
         parser.print_help()
         sys.exit(1)
+
+    if args.command == "tool-help":
+        args_dict = {
+            "query": getattr(args, "query", "") or "",
+            "profile": getattr(args, "profile", "chatter") or "chatter",
+        }
+        result = run_tool_help(args_dict, "")
+        print(json.dumps(result, indent=2))
+        sys.exit(0 if result.get("status") == "success" else 1)
 
     api_key = resolve_api_key(getattr(args, "api_key", None))
     if not api_key:
@@ -1282,7 +1324,7 @@ def main() -> None:
 
     args_dict: Dict[str, Any] = {}
     for key, value in vars(args).items():
-        if key in ("command", "describe", "api_key", "debug"):
+        if key in ("command", "describe", "describe_profile", "api_key", "debug", "query", "profile"):
             continue
         if value is None:
             continue

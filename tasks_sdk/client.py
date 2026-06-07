@@ -396,6 +396,38 @@ class TasksClient:
             'pagination': response.get('pagination'),
         }
 
+    def list_schedule(
+        self,
+        scope: str = 'mine',
+        project_id: Optional[int] = None,
+        due_after: Optional[str] = None,
+        due_before: Optional[str] = None,
+        include_done: bool = False,
+        include_overdue: bool = True,
+        limit: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Aggregate tasks with due_at into a schedule view (grouped by date in API).
+
+        scope: mine | project | all
+        """
+        params: Dict[str, Any] = {'scope': scope}
+        if project_id is not None:
+            params['project_id'] = project_id
+        if due_after is not None:
+            params['due_after'] = due_after
+        if due_before is not None:
+            params['due_before'] = due_before
+        if include_done:
+            params['include_done'] = 'true'
+        if not include_overdue:
+            params['include_overdue'] = 'false'
+        if limit is not None:
+            params['limit'] = limit
+        response = self._request('GET', 'list-schedule.php', params=params)
+        data = response.get('data', response)
+        return data.get('schedule', data)
+
     def search_tasks(self, q: str, **kwargs) -> Dict[str, Any]:
         params = {'q': q}
         params.update(kwargs)
@@ -740,6 +772,30 @@ class TasksClient:
     def create_todo_list(self, project_id: int, name: str) -> Dict[str, Any]:
         response = self._request('POST', 'create-todo-list.php', data={'project_id': project_id, 'name': name})
         return response
+
+    def list_project_doors(self, project_id: int) -> List[Dict[str, Any]]:
+        response = self._request('GET', 'list-project-doors.php', params={'project_id': project_id})
+        return response.get('project_doors', [])
+
+    def create_project_door(
+        self,
+        project_id: int,
+        title: str,
+        url: str,
+        *,
+        description: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        data: Dict[str, Any] = {'project_id': project_id, 'title': title, 'url': url}
+        if description is not None:
+            data['description'] = description
+        return self._request('POST', 'create-project-door.php', data=data)
+
+    def update_project_door(self, door_id: int, **fields: Any) -> Dict[str, Any]:
+        data = {'id': door_id, **fields}
+        return self._request('POST', 'update-project-door.php', data=data)
+
+    def delete_project_door(self, door_id: int) -> Dict[str, Any]:
+        return self._request('POST', 'delete-project-door.php', data={'id': door_id})
 
     def list_project_pins(self, limit: int = 200) -> List[Dict[str, Any]]:
         response = self._request('GET', 'list-project-pins.php', params={'limit': limit})

@@ -1447,6 +1447,9 @@ function createTask($title, $status, $createdByUserId, $assignedToUserId = null,
 
     $body = normalizeTaskBody($body);
     $creatorUser = getUserById($createdByUserId, false);
+    if ($creatorUser && normalizePersonKind($creatorUser['person_kind'] ?? 'team_member') === 'client') {
+        return ['success' => false, 'error' => 'Clients have read-only access to tasks'];
+    }
     $project = normalizeTaskProject($options['project'] ?? null);
     $projectFk = null;
     if (array_key_exists('project_id', $options) && $options['project_id'] !== null && $options['project_id'] !== '') {
@@ -1597,6 +1600,33 @@ function userCanAccessTaskForViewer(array $viewerRow, array $task): bool {
     return taskUserIsWatcher((int)$task['id'], $uid);
 }
 
+/**
+ * Task write/delete side: stricter than read access.
+ * - Unrestricted staff: full access
+ * - Project-linked tasks: project managers/leads, plus creator fallback
+ * - Unlinked tasks: creator only
+ */
+function userCanManageTaskForViewer(array $viewerRow, array $task): bool {
+    if (userHasUnrestrictedOrgDirectoryAccess($viewerRow)) {
+        return true;
+    }
+
+    $uid = (int)$viewerRow['id'];
+    if ((int)($task['created_by_user_id'] ?? 0) === $uid) {
+        return true;
+    }
+
+    $pid = isset($task['project_id']) ? (int)$task['project_id'] : 0;
+    if ($pid > 0) {
+        $proj = getDirectoryProjectById($pid);
+        if ($proj && userCanManageDirectoryProject($viewerRow, $proj)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 /** C-03: Whether the caller may read/update/delete this task (API + PHP). Loads user row — pass full row to userCanAccessTaskForViewer when available. */
 function userCanAccessTask(int $userId, array $task, string $role): bool {
     unset($role);
@@ -1605,6 +1635,15 @@ function userCanAccessTask(int $userId, array $task, string $role): bool {
         return false;
     }
     return userCanAccessTaskForViewer($viewer, $task);
+}
+
+function userCanManageTask(int $userId, array $task, string $role): bool {
+    unset($role);
+    $viewer = getUserById($userId, false);
+    if (!$viewer) {
+        return false;
+    }
+    return userCanManageTaskForViewer($viewer, $task);
 }
 
 function getTaskById($id, bool $includeRelations = true): ?array {
@@ -2806,6 +2845,9 @@ function addProjectMember(int $actorUserId, int $projectId, int $targetUserId, s
     if (!userMayAccessOrganization($target, $orgId)) {
         return ['success' => false, 'error' => 'User is not in this organization'];
     }
+    if (normalizePersonKind($target['person_kind'] ?? 'team_member') === 'client' && empty((int)($proj['client_visible'] ?? 0))) {
+        return ['success' => false, 'error' => 'Client users can only be added to client-visible projects'];
+    }
     $mr = normalizeProjectMemberRole($memberRole);
     if ($mr === null) {
         return ['success' => false, 'error' => 'Invalid member role'];
@@ -3588,6 +3630,9 @@ function createDocument(int $userId, int $projectId, string $title, ?string $bod
     if (!userCanAccessDirectoryProject($user, $proj)) {
         return ['success' => false, 'error' => 'You do not have access to this project'];
     }
+    if (normalizePersonKind($user['person_kind'] ?? 'team_member') === 'client') {
+        return ['success' => false, 'error' => 'Clients have read-only access to documents'];
+    }
 
     $publicEnabled = $enablePublicSharing ? 1 : 0;
     $shareTok = '';
@@ -3985,4 +4030,6 @@ function addDocumentComment(int $documentId, int $userId, string $comment): arra
 }
 
 require_once __DIR__ . '/activity_feed.php';
+require_once __DIR__ . '/schedule.php';
+require_once __DIR__ . '/doors.php';
 require_once __DIR__ . '/notifications.php';

@@ -22,6 +22,13 @@ if ($id <= 0) {
     exit();
 }
 
+$existingTask = getTaskById($id, false);
+if (!$existingTask || !userCanManageTaskForViewer($currentUser, $existingTask)) {
+    $_SESSION['admin_flash_error'] = 'You do not have permission to update this task.';
+    header('Location: /admin/');
+    exit();
+}
+
 $fields = [];
 if (array_key_exists('title', $_POST)) $fields['title'] = $_POST['title'];
 if (array_key_exists('status', $_POST)) $fields['status'] = $_POST['status'];

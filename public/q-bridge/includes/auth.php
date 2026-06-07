@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../config/settings.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/api_response.php';
+require_once __DIR__ . '/rate_limit_config.php';
 
 /**
  * Check if request is authenticated with API key
@@ -24,8 +25,13 @@ function is_authenticated() {
         return false;
     }
     
-    $api_key = substr($auth_header, strlen(API_KEY_PREFIX));
-    return $api_key === get_api_key();
+    $api_key = trim((string)substr($auth_header, strlen(API_KEY_PREFIX)));
+    $expected = trim((string)get_api_key());
+    if ($expected === '' || q_bridge_is_placeholder_secret($expected)) {
+        log_message('ERROR', 'Q bridge poll key is not configured securely');
+        return false;
+    }
+    return hash_equals($expected, $api_key);
 }
 
 /**
@@ -45,8 +51,13 @@ function is_admin_authenticated() {
         return false;
     }
     
-    $admin_key = substr($auth_header, strlen(API_KEY_PREFIX));
-    return $admin_key === get_admin_key();
+    $admin_key = trim((string)substr($auth_header, strlen(API_KEY_PREFIX)));
+    $expected = trim((string)get_admin_key());
+    if ($expected === '' || q_bridge_is_placeholder_secret($expected)) {
+        log_message('ERROR', 'Q bridge admin key is not configured securely');
+        return false;
+    }
+    return hash_equals($expected, $admin_key);
 }
 
 /**
@@ -76,68 +87,91 @@ function require_admin_auth() {
 }
 
 /**
+ * Rate-limit subject key: per Tasks user for widget session routes, else per IP.
+ */
+function q_bridge_rate_limit_key($endpoint, $tasks_user_id = null) {
+    $user_endpoints = defined('RATE_LIMIT_USER_ENDPOINTS') ? RATE_LIMIT_USER_ENDPOINTS : [];
+    $uid = (int)($tasks_user_id ?? 0);
+    if ($uid > 0 && in_array($endpoint, $user_endpoints, true)) {
+        return 'user:' . $uid;
+    }
+    return get_client_ip();
+}
+
+/**
  * Check rate limiting for current request
- * 
+ *
  * @param string $endpoint API endpoint
+ * @param int|null $tasks_user_id Logged-in Tasks user for per-user caps
  * @return bool True if within limits, false if rate limited
  */
-function check_rate_limit($endpoint) {
-    $ip = get_client_ip();
+function check_rate_limit($endpoint, $tasks_user_id = null) {
+    $rate_key = q_bridge_rate_limit_key($endpoint, $tasks_user_id);
     $current_time = time();
     $window_start = $current_time - RATE_LIMIT_WINDOW;
-    
+    $current_time_str = date('Y-m-d H:i:s', $current_time);
+
     try {
         $pdo = get_db_connection();
-        
-        // Clean up old rate limit entries
+
         $stmt = $pdo->prepare("DELETE FROM rate_limits WHERE window_start < ?");
         $stmt->execute([date('Y-m-d H:i:s', $window_start)]);
-        
-        // Check current rate limit for this IP and endpoint
+
         $stmt = $pdo->prepare("
-            SELECT COUNT(*) as count 
-            FROM rate_limits 
-            WHERE ip_address = ? AND endpoint = ? AND window_start >= ?
+            SELECT count, window_start
+            FROM rate_limits
+            WHERE ip_address = ? AND endpoint = ?
+            LIMIT 1
         ");
-        $stmt->execute([$ip, $endpoint, date('Y-m-d H:i:s', $window_start)]);
+        $stmt->execute([$rate_key, $endpoint]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $current_count = $result['count'] ?? 0;
-        
-        // Get endpoint-specific limit
-        global $ENDPOINT_RATE_LIMITS;
-        $endpoint_limit = $ENDPOINT_RATE_LIMITS[$endpoint] ?? RATE_LIMIT_ENDPOINT_MAX;
-        
+        $current_count = 0;
+        if ($result) {
+            $existing_window = strtotime((string)($result['window_start'] ?? '')) ?: 0;
+            if ($existing_window >= $window_start) {
+                $current_count = (int)($result['count'] ?? 0);
+            }
+        }
+
+        $cfg = q_bridge_get_rate_limit_config();
+        $is_user_key = str_starts_with($rate_key, 'user:');
+        if ($is_user_key && isset($cfg['user_endpoints'][$endpoint])) {
+            $endpoint_limit = (int)$cfg['user_endpoints'][$endpoint];
+        } elseif (isset($cfg['ip_endpoints'][$endpoint])) {
+            $endpoint_limit = (int)$cfg['ip_endpoints'][$endpoint];
+        } else {
+            $endpoint_limit = RATE_LIMIT_ENDPOINT_MAX;
+        }
+
         if ($current_count >= $endpoint_limit) {
             log_message('WARNING', 'Rate limit exceeded', [
-                'ip' => $ip,
+                'rate_key' => $rate_key,
                 'endpoint' => $endpoint,
                 'count' => $current_count,
                 'limit' => $endpoint_limit
             ]);
             return false;
         }
-        
-        // Add current request to rate limit tracking
+
         $stmt = $pdo->prepare("
             INSERT OR REPLACE INTO rate_limits (ip_address, endpoint, count, window_start)
             VALUES (?, ?, ?, ?)
         ");
         $stmt->execute([
-            $ip,
+            $rate_key,
             $endpoint,
             $current_count + 1,
-            date('Y-m-d H:i:s', $current_time)
+            $current_time_str
         ]);
-        
+
         return true;
-        
+
     } catch (Exception $e) {
         log_message('ERROR', 'Rate limit check failed', [
             'error' => $e->getMessage(),
-            'ip' => $ip,
+            'rate_key' => $rate_key,
             'endpoint' => $endpoint
         ]);
-        // If rate limiting fails, allow the request to proceed
         return true;
     }
 }
@@ -147,41 +181,46 @@ function check_rate_limit($endpoint) {
  * 
  * @return bool True if within limits, false if rate limited
  */
-function check_overall_rate_limit() {
-    $ip = get_client_ip();
+function check_overall_rate_limit($endpoint = '', $tasks_user_id = null) {
+    $rate_key = q_bridge_rate_limit_key($endpoint, $tasks_user_id);
     $current_time = time();
     $window_start = $current_time - RATE_LIMIT_WINDOW;
-    
+    $cfg = q_bridge_get_rate_limit_config();
+    $max_requests = RATE_LIMIT_MAX_REQUESTS;
+    if (str_starts_with($rate_key, 'user:')) {
+        $max_requests = (int)($cfg['user_max_requests'] ?? RATE_LIMIT_MAX_REQUESTS);
+    } else {
+        $max_requests = (int)($cfg['ip_max_requests'] ?? RATE_LIMIT_MAX_REQUESTS);
+    }
+
     try {
         $pdo = get_db_connection();
-        
-        // Check total requests for this IP
+
         $stmt = $pdo->prepare("
-            SELECT COUNT(*) as count 
-            FROM rate_limits 
+            SELECT COALESCE(SUM(count), 0) as count
+            FROM rate_limits
             WHERE ip_address = ? AND window_start >= ?
         ");
-        $stmt->execute([$ip, date('Y-m-d H:i:s', $window_start)]);
+        $stmt->execute([$rate_key, date('Y-m-d H:i:s', $window_start)]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $total_count = $result['count'] ?? 0;
-        
-        if ($total_count >= RATE_LIMIT_MAX_REQUESTS) {
+        $total_count = (int)($result['count'] ?? 0);
+
+        if ($total_count >= $max_requests) {
             log_message('WARNING', 'Overall rate limit exceeded', [
-                'ip' => $ip,
+                'rate_key' => $rate_key,
                 'count' => $total_count,
-                'limit' => RATE_LIMIT_MAX_REQUESTS
+                'limit' => $max_requests
             ]);
             return false;
         }
-        
+
         return true;
-        
+
     } catch (Exception $e) {
         log_message('ERROR', 'Overall rate limit check failed', [
             'error' => $e->getMessage(),
-            'ip' => $ip
+            'rate_key' => $rate_key
         ]);
-        // If rate limiting fails, allow the request to proceed
         return true;
     }
 }
@@ -191,14 +230,12 @@ function check_overall_rate_limit() {
  * 
  * @param string $endpoint API endpoint
  */
-function apply_rate_limiting($endpoint) {
-    // Check overall rate limit first
-    if (!check_overall_rate_limit()) {
+function apply_rate_limiting($endpoint, $tasks_user_id = null) {
+    if (!check_overall_rate_limit($endpoint, $tasks_user_id)) {
         send_rate_limit_response(RATE_LIMIT_WINDOW);
     }
-    
-    // Check endpoint-specific rate limit
-    if (!check_rate_limit($endpoint)) {
+
+    if (!check_rate_limit($endpoint, $tasks_user_id)) {
         send_rate_limit_response(RATE_LIMIT_WINDOW);
     }
 }

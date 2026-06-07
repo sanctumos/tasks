@@ -143,7 +143,27 @@ def test_main_describe_outputs_valid_json(monkeypatch: pytest.MonkeyPatch, capsy
     stdout = capsys.readouterr().out
     payload = json.loads(stdout)
     assert payload["plugin"]["name"] == "tasks"
-    assert payload["plugin"]["version"] == "0.3.0"
+    assert payload["plugin"]["version"] == "0.4.0"
+
+
+def test_main_describe_profile_chatter(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture):
+    monkeypatch.setattr(sys, "argv", ["cli.py", "--describe", "--describe-profile", "chatter"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["profile"] == "chatter"
+    assert payload["command_count"] == 15
+
+
+def test_main_tool_help_without_api_key(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture):
+    monkeypatch.setattr(sys, "argv", ["cli.py", "tool-help", "create task", "--profile", "chatter"])
+    with pytest.raises(SystemExit) as exc:
+        cli.main()
+    assert exc.value.code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "success"
+    assert payload["matches"]
 
 
 def test_main_parses_create_task_extended_options(monkeypatch: pytest.MonkeyPatch):
@@ -225,7 +245,7 @@ def test_get_plugin_description_tracks_parser_arguments():
     api_key_param = next(
         param for param in commands["create-task"]["parameters"] if param["name"] == "api-key"
     )
-    assert api_key_param["required"] is True
+    assert api_key_param["required"] is False
 
 
 @pytest.mark.parametrize(
