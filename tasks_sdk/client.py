@@ -773,6 +773,30 @@ class TasksClient:
         response = self._request('POST', 'create-todo-list.php', data={'project_id': project_id, 'name': name})
         return response
 
+    def list_project_doors(self, project_id: int) -> List[Dict[str, Any]]:
+        response = self._request('GET', 'list-project-doors.php', params={'project_id': project_id})
+        return response.get('project_doors', [])
+
+    def create_project_door(
+        self,
+        project_id: int,
+        title: str,
+        url: str,
+        *,
+        description: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        data: Dict[str, Any] = {'project_id': project_id, 'title': title, 'url': url}
+        if description is not None:
+            data['description'] = description
+        return self._request('POST', 'create-project-door.php', data=data)
+
+    def update_project_door(self, door_id: int, **fields: Any) -> Dict[str, Any]:
+        data = {'id': door_id, **fields}
+        return self._request('POST', 'update-project-door.php', data=data)
+
+    def delete_project_door(self, door_id: int) -> Dict[str, Any]:
+        return self._request('POST', 'delete-project-door.php', data={'id': door_id})
+
     def list_project_pins(self, limit: int = 200) -> List[Dict[str, Any]]:
         response = self._request('GET', 'list-project-pins.php', params={'limit': limit})
         return response.get('pins', [])

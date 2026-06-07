@@ -209,6 +209,22 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
     ");
     ensureIndexExists($db, 'idx_todo_lists_project', 'CREATE INDEX idx_todo_lists_project ON todo_lists(project_id)');
     $db->exec("
+        CREATE TABLE IF NOT EXISTS project_doors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            url TEXT NOT NULL,
+            description TEXT DEFAULT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_by_user_id INTEGER NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY(created_by_user_id) REFERENCES users(id)
+        )
+    ");
+    ensureIndexExists($db, 'idx_project_doors_project', 'CREATE INDEX idx_project_doors_project ON project_doors(project_id)');
+    $db->exec("
         CREATE TABLE IF NOT EXISTS user_project_pins (
             user_id INTEGER NOT NULL,
             project_id INTEGER NOT NULL,

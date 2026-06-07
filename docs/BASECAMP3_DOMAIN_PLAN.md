@@ -110,7 +110,8 @@ Order suggests:
 
 1. **To-dos / lists** — Already closest to current product: introduce **`todo_lists`** (per project), optional groups; tasks gain `list_id` or equivalent; matches BC hierarchy todoset → list → todo at a **simplified** depth.
 2. **Schedule** — Aggregate `due_at` per user/project (`GET /api/list-schedule.php`, `/admin/schedule.php`, project **Schedule** tab); optional `schedule_entries` table later if you need events without tasks.
-3. **Message board / chat** — **Defer** unless scoped; highest complexity. Prefer linking “Doors” (external URLs) first.
+3. **Doors** — External tool links per project (`project_doors`, `GET /api/list-project-doors.php`, project **Doors** tab).
+4. **Message board / chat** — **Defer** unless scoped; highest complexity.
 
 ### Phase 5 — Home & Basecamp-flavored UX
 

@@ -42,7 +42,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
 
 $canManage = userCanManageDirectoryProject($currentUser, $project);
 $tab = (string)($_GET['tab'] ?? 'lists');
-if (!in_array($tab, ['tasks', 'lists', 'schedule', 'activity', 'docs', 'members', 'settings'], true)) {
+if (!in_array($tab, ['tasks', 'lists', 'schedule', 'doors', 'activity', 'docs', 'members', 'settings'], true)) {
     $tab = 'lists';
 }
 
@@ -114,6 +114,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManage) {
             $message = $result['error'] ?? 'Could not create list';
             $messageType = 'danger';
         }
+    } elseif ($action === 'create_door') {
+        $result = createProjectDoor((int)$currentUser['id'], $id, [
+            'title' => (string)($_POST['door_title'] ?? ''),
+            'url' => (string)($_POST['door_url'] ?? ''),
+            'description' => (string)($_POST['door_description'] ?? ''),
+        ]);
+        if ($result['success']) {
+            $message = 'Door added.';
+            $tab = 'doors';
+        } else {
+            $message = $result['error'] ?? 'Could not add door';
+            $messageType = 'danger';
+            $tab = 'doors';
+        }
+    } elseif ($action === 'update_door') {
+        $doorId = (int)($_POST['door_id'] ?? 0);
+        $result = updateProjectDoor((int)$currentUser['id'], $doorId, [
+            'title' => (string)($_POST['door_title'] ?? ''),
+            'url' => (string)($_POST['door_url'] ?? ''),
+            'description' => (string)($_POST['door_description'] ?? ''),
+        ]);
+        if ($result['success']) {
+            $message = 'Door updated.';
+            $tab = 'doors';
+        } else {
+            $message = $result['error'] ?? 'Could not update door';
+            $messageType = 'danger';
+            $tab = 'doors';
+        }
+    } elseif ($action === 'delete_door') {
+        $doorId = (int)($_POST['door_id'] ?? 0);
+        $result = deleteProjectDoor((int)$currentUser['id'], $doorId);
+        if ($result['success']) {
+            $message = 'Door removed.';
+            $tab = 'doors';
+        } else {
+            $message = $result['error'] ?? 'Could not remove door';
+            $messageType = 'danger';
+            $tab = 'doors';
+        }
     }
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
@@ -141,6 +181,8 @@ if ($tab === 'docs') {
     $projectDocsDirChildren = $aggProjectDocs['dir_children'];
     $projectDocsInDir = $aggProjectDocs['documents_in_dir'];
 }
+$projectDoors = listProjectDoorsForProject($currentUser, $id);
+
 $projectSchedule = null;
 if ($tab === 'schedule') {
     $utc = new DateTimeZone('UTC');
@@ -267,6 +309,7 @@ $tabHuman = [
     'tasks' => 'Tasks',
     'lists' => 'Lists',
     'schedule' => 'Schedule',
+    'doors' => 'Doors',
     'activity' => 'Activity',
     'docs' => 'Docs',
     'members' => 'Members',
@@ -330,6 +373,7 @@ require __DIR__ . '/_layout_top.php';
     <?= st_tab_link('lists', $tab, 'Lists', 'bi-card-checklist', count($lists)) ?>
     <?= st_tab_link('tasks', $tab, 'Tasks', 'bi-list-check', $totalTasks) ?>
     <?= st_tab_link('schedule', $tab, 'Schedule', 'bi-calendar3', null) ?>
+    <?= st_tab_link('doors', $tab, 'Doors', 'bi-box-arrow-up-right', count($projectDoors)) ?>
     <?= st_tab_link('activity', $tab, 'Activity', 'bi-activity', null) ?>
     <?= st_tab_link('docs', $tab, 'Docs', 'bi-journals', $projectDocsCount) ?>
     <?= st_tab_link('members', $tab, 'Members', 'bi-people', count($members)) ?>
@@ -590,6 +634,87 @@ require __DIR__ . '/_layout_top.php';
                         <?php endforeach; ?>
                     </ul>
                 </section>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+
+<?php elseif ($tab === 'doors'): ?>
+    <div class="surface surface-pad mb-3">
+        <div class="section-title"><i class="bi bi-box-arrow-up-right"></i> Doors <span class="count"><?= count($projectDoors) ?></span></div>
+        <p class="text-muted small mb-0">Shortcuts to external tools — Figma, Google Docs, Drive folders, staging sites, and anything else that lives outside Tasks.</p>
+    </div>
+
+    <?php if ($canManage): ?>
+        <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=doors" class="surface surface-pad mb-3">
+            <?= csrfInputField() ?>
+            <input type="hidden" name="action" value="create_door">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1" for="door_title_new">Title</label>
+                    <input class="form-control form-control-sm" id="door_title_new" name="door_title" required maxlength="200" placeholder="Figma board">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1" for="door_url_new">URL</label>
+                    <input class="form-control form-control-sm" id="door_url_new" name="door_url" type="url" required placeholder="https://…">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1" for="door_description_new">Note <span class="text-muted">(optional)</span></label>
+                    <input class="form-control form-control-sm" id="door_description_new" name="door_description" maxlength="500" placeholder="Design system v2">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-plus-lg me-1"></i>Add door</button>
+                </div>
+            </div>
+        </form>
+    <?php endif; ?>
+
+    <?php if ($projectDoors === []): ?>
+        <div class="surface surface-pad text-center text-muted">
+            <p class="mb-0"><?= $canManage ? 'No doors yet — add your first external link above.' : 'No external links on this project yet.' ?></p>
+        </div>
+    <?php else: ?>
+        <div class="row g-3">
+            <?php foreach ($projectDoors as $door): ?>
+                <div class="col-md-6 col-lg-4">
+                    <article class="surface surface-pad h-100 d-flex flex-column">
+                        <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                            <a class="fw-semibold text-decoration-none stretched-link" href="<?= htmlspecialchars((string)$door['url']) ?>" target="_blank" rel="noopener noreferrer">
+                                <?= htmlspecialchars((string)$door['title']) ?>
+                                <i class="bi bi-box-arrow-up-right small ms-1 text-muted"></i>
+                            </a>
+                        </div>
+                        <?php if (!empty($door['description'])): ?>
+                            <p class="text-muted small mb-2"><?= htmlspecialchars((string)$door['description']) ?></p>
+                        <?php endif; ?>
+                        <p class="text-muted small mb-0 mt-auto text-truncate" title="<?= htmlspecialchars((string)$door['url']) ?>"><?= htmlspecialchars((string)$door['url']) ?></p>
+                        <?php if ($canManage): ?>
+                            <details class="mt-3 small">
+                                <summary class="text-muted" style="cursor:pointer">Edit</summary>
+                                <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=doors" class="mt-2">
+                                    <?= csrfInputField() ?>
+                                    <input type="hidden" name="action" value="update_door">
+                                    <input type="hidden" name="door_id" value="<?= (int)$door['id'] ?>">
+                                    <div class="mb-2">
+                                        <input class="form-control form-control-sm" name="door_title" value="<?= htmlspecialchars((string)$door['title']) ?>" required maxlength="200">
+                                    </div>
+                                    <div class="mb-2">
+                                        <input class="form-control form-control-sm" name="door_url" type="url" value="<?= htmlspecialchars((string)$door['url']) ?>" required>
+                                    </div>
+                                    <div class="mb-2">
+                                        <input class="form-control form-control-sm" name="door_description" value="<?= htmlspecialchars((string)($door['description'] ?? '')) ?>" maxlength="500" placeholder="Optional note">
+                                    </div>
+                                    <button type="submit" class="btn btn-outline-primary btn-sm">Save</button>
+                                </form>
+                                <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=doors" class="mt-2" onsubmit="return confirm('Remove this door?');">
+                                    <?= csrfInputField() ?>
+                                    <input type="hidden" name="action" value="delete_door">
+                                    <input type="hidden" name="door_id" value="<?= (int)$door['id'] ?>">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
+                                </form>
+                            </details>
+                        <?php endif; ?>
+                    </article>
+                </div>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>

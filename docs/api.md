@@ -413,9 +413,25 @@ JSON: `project_id`, `user_id`, optional `role` (`lead` \| `member` \| `client`).
 
 JSON: `project_id`, `user_id`.
 
-#### To-do lists & pins
+#### To-do lists, pins & doors
 
 See `list-todo-lists.php`, `create-todo-list.php`, `list-project-pins.php`, `set-project-pin.php`.
+
+#### `GET /api/list-project-doors.php`
+
+Query: `project_id`. Returns `project_doors` array (title, url, description, sort_order). Requires project read access.
+
+#### `POST /api/create-project-door.php`
+
+JSON: `project_id`, `title`, `url`, optional `description`. Requires project manage permission (lead / admin).
+
+#### `POST /api/update-project-door.php`
+
+JSON: `id`, plus fields to update: `title`, `url`, `description`, `sort_order`.
+
+#### `POST /api/delete-project-door.php`
+
+JSON: `id`.
 
 ### Tasks ↔ directory project
 
