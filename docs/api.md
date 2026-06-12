@@ -624,6 +624,10 @@ curl -sS -X POST \
 
 ---
 
+### Documents — body size
+
+`body` on create/update is silently truncated to **1,000,000** characters (~1 MB markdown). Task bodies remain capped at **10,000** characters.
+
 ### Documents — public anonymous read
 
 Project documents normally require session or API credentials. Editors who can **`userCanManageDocument`** may optionally enable **`public_link_enabled`**, which issues a **`public_link_token`** (never returned in JSON) and **`public_share_url`**: **`…/shared-document.php?token=<64-hex>`** for read-only markdown rendering (**comments stay private**).

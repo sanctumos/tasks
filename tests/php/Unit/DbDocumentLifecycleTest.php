@@ -197,4 +197,16 @@ final class DbDocumentLifecycleTest extends TestCase
         $hn = normalizeDocumentPublicLinkHexToken((string)($rn['public_link_token'] ?? ''));
         $this->assertNotNull($hn);
     }
+
+    public function testDocumentBodyTruncatesAtOneMegabyte(): void
+    {
+        [$uid, $pid] = $this->makeUserAndProject('maxbody');
+        $exact = str_repeat('x', 1000000);
+        $over = $exact . 'y';
+        $doc = createDocument($uid, $pid, 'Max body', $over);
+        $this->assertTrue($doc['success'], (string)($doc['error'] ?? 'create'));
+        $loaded = getDocumentById((int)$doc['id'], false);
+        $this->assertSame(1000000, strlen((string)$loaded['body']));
+        $this->assertSame($exact, $loaded['body']);
+    }
 }

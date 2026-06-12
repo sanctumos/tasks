@@ -3521,8 +3521,8 @@ function normalizeDocumentBody($body): ?string {
     if ($body === null) return null;
     $body = (string)$body;
     if (trim($body) === '') return null;
-    // Documents are long-form, so allow up to 100 KB of markdown.
-    return truncateString($body, 100000);
+    // Documents are long-form (transcripts, research dumps); cap ~1 MB markdown.
+    return truncateString($body, 1000000);
 }
 
 /** 64-character hex secret for unauthenticated `/shared-document.php` access. */
