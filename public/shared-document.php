@@ -30,7 +30,7 @@ if ($token === null) {
         $rawBody = isset($doc['body']) ? (string)$doc['body'] : '';
         $mdInner = trim($rawBody) === ''
             ? '<p class="text-muted mb-0">This document has no published body.</p>'
-            : '<div class="markdown-body">' . st_markdown($rawBody) . '</div>';
+            : '<div class="markdown-body">' . rewriteSharedDocumentAssetUrls(st_markdown($rawBody), $token) . '</div>';
         $bodyBlock = '<h1 class="mb-4">' . $htmlTitle . '</h1>'
             . '<p class="text-muted small mb-4"><i class="bi bi-clock"></i> Last updated&nbsp;UTC: ' . $upd . '</p>'
             . $mdInner;

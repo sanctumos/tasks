@@ -3726,6 +3726,93 @@ function getDocumentByPublicLinkToken(string $rawToken): ?array {
     return $row;
 }
 
+/**
+ * Whether markdown/HTML body embeds a Tasks-hosted attachment by get-asset.php id.
+ */
+function documentBodyReferencesAttachmentId(string $body, int $attachmentId): bool
+{
+    if ($attachmentId <= 0 || $body === '') {
+        return false;
+    }
+    return (bool)preg_match(
+        '#get-asset\.php\?(?:[^"\'<>\s]*&)?id=' . $attachmentId . '(?:&|["\'\s<>)])#i',
+        $body
+    );
+}
+
+/**
+ * Anonymous asset access when attachment is embedded in an active public document.
+ */
+function resolvePublicDocumentShareForAttachment(string $shareToken, int $attachmentId): ?array
+{
+    $doc = getDocumentByPublicLinkToken($shareToken);
+    if (!$doc) {
+        return null;
+    }
+    if (!documentBodyReferencesAttachmentId((string)($doc['body'] ?? ''), $attachmentId)) {
+        return null;
+    }
+    return $doc;
+}
+
+/**
+ * Append document_share_token to embedded get-asset.php URLs for guest viewers.
+ */
+function rewriteSharedDocumentAssetUrls(string $html, string $documentShareToken): string
+{
+    $tok = normalizeDocumentPublicLinkHexToken($documentShareToken);
+    if ($tok === null || $html === '') {
+        return $html;
+    }
+    $enc = rawurlencode($tok);
+    return (string)preg_replace_callback(
+        '#(/api/get-asset\.php\?id=\d+)(?![^"\'\s<>]*document_share_token)#i',
+        static function (array $m) use ($enc): string {
+            return $m[1] . '&document_share_token=' . $enc;
+        },
+        $html
+    );
+}
+
+/**
+ * Stream a task attachment row (local file or remote redirect). Does not return.
+ *
+ * @param array<string,mixed> $attachment
+ */
+function emitTaskAttachmentHttpResponse(array $attachment, bool $publicShare = false): void
+{
+    $cacheControl = $publicShare ? 'public, max-age=3600' : 'private, max-age=300';
+    $kind = normalizeTaskAttachmentStorageKind((string)($attachment['storage_kind'] ?? 'remote'));
+    if ($kind === 'local') {
+        $rel = trim((string)($attachment['storage_rel_path'] ?? ''));
+        $abs = taskAttachmentAbsolutePath($rel);
+        if ($abs === null || !is_file($abs)) {
+            apiError('asset.not_found', 'Asset file is missing', 404);
+        }
+        $mimeType = trim((string)($attachment['mime_type'] ?? ''));
+        if ($mimeType === '') {
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $mimeType = (string)$finfo->file($abs);
+        }
+        if ($mimeType === '') {
+            $mimeType = 'application/octet-stream';
+        }
+        header('Content-Type: ' . $mimeType);
+        header('Content-Length: ' . (string)filesize($abs));
+        header('Cache-Control: ' . $cacheControl);
+        readfile($abs);
+        exit();
+    }
+
+    $remote = trim((string)($attachment['file_url'] ?? ''));
+    if ($remote === '' || !filter_var($remote, FILTER_VALIDATE_URL)) {
+        apiError('asset.not_found', 'Asset URL is unavailable', 404);
+    }
+    header('Cache-Control: ' . ($publicShare ? 'public, max-age=300' : 'private, max-age=60'));
+    header('Location: ' . $remote, true, 302);
+    exit();
+}
+
 function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId = null): array {
     $limit = max(1, min(500, $limit));
     $uid = (int)$userRow['id'];

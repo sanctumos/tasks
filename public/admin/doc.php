@@ -325,7 +325,7 @@ require __DIR__ . '/_layout_top.php';
                         </button>
                     </div>
                 <?php endif; ?>
-                <div class="fine-print mt-2 mb-0">Comments stay private. Embedded images hosted as task attachments (<code>/api/get-asset.php</code>) may still require a signed-in viewer.</div>
+                <div class="fine-print mt-2 mb-0">Comments stay private. Inline images embedded in the document body are included on the public link when they use Tasks-hosted <code>/api/get-asset.php</code> URLs.</div>
                 <?php else: ?>
                     <div class="metadata-rail__value fine-print mb-0">
                         <?php if (!empty($doc['public_link_enabled'])): ?>

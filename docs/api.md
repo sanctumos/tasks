@@ -305,7 +305,7 @@ Admin-only — creates a status (see PHP for body fields).
 | Method | Path | Notes |
 | ------ | ---- | ----- |
 | `GET` | `/api/list-attachments.php` | `task_id` |
-| `GET` | `/api/get-asset.php` | `id` attachment id; requires session auth or API key; enforces task access |
+| `GET` | `/api/get-asset.php` | `id` attachment id; session auth or API key with task ACL. **Public share:** optional `document_share_token` (64-hex from `/shared-document.php`) when the attachment id is embedded in that document’s body — no login required. |
 
 #### Watchers
 
@@ -626,7 +626,7 @@ curl -sS -X POST \
 
 ### Documents — body size
 
-`body` on create/update is silently truncated to **1,000,000** characters (~1 MB markdown). Task bodies remain capped at **10,000** characters.
+`body` on create/update is silently truncated to **1,000,000** characters (~1 MB markdown). Task bodies remain capped at **10,000** characters. **Public share:** inline images using `/api/get-asset.php?id=…` in the document body are rewritten on `/shared-document.php` with `document_share_token` so guests can load them without logging in.
 
 ### Documents — public anonymous read
 
