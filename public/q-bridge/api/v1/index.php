@@ -252,11 +252,8 @@ function handle_inbox() {
         send_error_response('Method not allowed', 405);
     }
     
-    // Authentication required
+    // Authentication required (Broca poll key — no IP rate cap; daemon polls every few seconds)
     require_auth();
-    
-    // Rate limiting
-    apply_rate_limiting('/api/inbox');
     
     // Get query parameters
     $limit = min((int)($_GET['limit'] ?? 50), 100);
@@ -380,11 +377,8 @@ function handle_outbox() {
         send_error_response('Method not allowed', 405);
     }
     
-    // Authentication required
+    // Authentication required (Broca poll key — no IP rate cap)
     require_auth();
-    
-    // Rate limiting
-    apply_rate_limiting('/api/outbox');
     
     // Get and validate input
     $input = json_decode(file_get_contents('php://input'), true);
