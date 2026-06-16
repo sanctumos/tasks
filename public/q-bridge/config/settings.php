@@ -25,16 +25,16 @@ $USER_ENDPOINT_RATE_LIMITS = [
     '/api/messages' => 60,
     '/api/responses' => 300,
     '/api/history' => 120,
-    '/api/user_session' => 30,
+    '/api/user_session' => 600,
 ];
-define('RATE_LIMIT_USER_MAX_REQUESTS', 600);
+define('RATE_LIMIT_USER_MAX_REQUESTS', 1200);
 
 // Endpoint-specific rate limits (per IP — Broca poll + legacy)
 $ENDPOINT_RATE_LIMITS = [
     '/api/messages' => 50,
     '/api/responses' => 200,
     '/api/history' => 120,
-    '/api/user_session' => 30,
+    '/api/user_session' => 120,
     '/api/inbox' => 120,
     '/api/outbox' => 200,
     '/api/sessions' => 20,

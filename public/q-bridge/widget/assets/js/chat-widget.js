@@ -40,7 +40,8 @@
         typingTimeout: null,
         lastResponseSince: null,
         seenMessageIds: {},
-        historyLoading: false
+        historyLoading: false,
+        sessionBootstrapError: null
     };
 
     // Widget HTML template
@@ -158,6 +159,9 @@
     };
 
     // API communication
+    const SESSION_CACHE_TTL_MS = 10 * 60 * 1000;
+    const SESSION_CACHE_KEY = 'sanctum_q_user_session_cache';
+
     const api = {
         url(action, query) {
             const base = (config.apiBase || '/q-bridge/api/v1/').replace(/\/?$/, '/');
@@ -178,8 +182,78 @@
             return h;
         },
 
+        readSessionCache() {
+            if (!config.useSessionAuth) {
+                return null;
+            }
+            try {
+                const raw = sessionStorage.getItem(SESSION_CACHE_KEY);
+                if (!raw) {
+                    return null;
+                }
+                const parsed = JSON.parse(raw);
+                if (!parsed || !parsed.session_id || !parsed.fetchedAt) {
+                    return null;
+                }
+                if (Date.now() - parsed.fetchedAt > SESSION_CACHE_TTL_MS) {
+                    return null;
+                }
+                return parsed;
+            } catch (e) {
+                return null;
+            }
+        },
+
+        writeSessionCache(data) {
+            if (!config.useSessionAuth || !data || !data.session_id) {
+                return;
+            }
+            try {
+                sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({
+                    session_id: data.session_id,
+                    tasks_user_id: data.tasks_user_id || null,
+                    fetchedAt: Date.now()
+                }));
+            } catch (e) { /* ignore */ }
+        },
+
+        applySessionData(data) {
+            if (!data || !data.session_id) {
+                return false;
+            }
+            state.sessionId = data.session_id;
+            if (data.tasks_user_id) {
+                config.tasksUserId = data.tasks_user_id;
+            }
+            try {
+                localStorage.setItem('sanctum_q_chat_session_id', state.sessionId);
+                const uid = data.tasks_user_id ? String(data.tasks_user_id) : '0';
+                state.lastResponseSince = localStorage.getItem('sanctum_q_since_u_' + uid) || null;
+            } catch (e) { /* ignore */ }
+            return true;
+        },
+
+        formatRequestError(error, response, body) {
+            if (response && response.status === 429) {
+                const retry = body && body.retry_after ? Math.ceil(body.retry_after / 60) : 60;
+                return 'Ask Q is temporarily busy (rate limit). Wait about ' + retry + ' min and refresh the page.';
+            }
+            if (response && response.status === 401) {
+                return 'Tasks session expired. Refresh the page and log in again.';
+            }
+            if (body && body.error) {
+                return body.error;
+            }
+            if (error && error.message) {
+                return error.message;
+            }
+            return 'Request failed';
+        },
+
         async request(action, data, method) {
             method = method || 'POST';
+            let response = null;
+            let body = null;
             try {
                 const opts = {
                     method: method,
@@ -189,16 +263,29 @@
                 if (method === 'POST' && data) {
                     opts.body = JSON.stringify(data);
                 }
-                const response = await fetch(this.url(action, method === 'GET' ? data : null), opts);
+                response = await fetch(this.url(action, method === 'GET' ? data : null), opts);
+                try {
+                    body = await response.json();
+                } catch (parseErr) {
+                    body = null;
+                }
                 if (!response.ok) {
-                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                    const err = new Error(this.formatRequestError(null, response, body));
+                    err.httpStatus = response.status;
+                    err.apiBody = body;
+                    throw err;
                 }
-                const result = await response.json();
-                if (!result.success) {
-                    throw new Error(result.error || 'API request failed');
+                if (!body || !body.success) {
+                    const err = new Error(this.formatRequestError(null, response, body));
+                    err.httpStatus = response.status;
+                    err.apiBody = body;
+                    throw err;
                 }
-                return result.data;
+                return body.data;
             } catch (error) {
+                if (!error.httpStatus) {
+                    error.message = this.formatRequestError(error, response, body);
+                }
                 console.error('Sanctum Chat Widget API Error:', error);
                 throw error;
             }
@@ -309,6 +396,7 @@
         },
 
         async sendMessage(message) {
+            await this.ensureActiveSession();
             if (!state.sessionId) {
                 throw new Error('No active session');
             }
@@ -350,27 +438,49 @@
             return data || { items: [], latest_response_at: null };
         },
 
-        async bootstrapUserSession() {
+        async ensureActiveSession(forceRefresh) {
             if (!config.useSessionAuth) {
-                return;
+                return !!state.sessionId;
+            }
+            if (!forceRefresh) {
+                const cached = this.readSessionCache();
+                if (cached && this.applySessionData(cached)) {
+                    return true;
+                }
+                if (state.sessionId) {
+                    return true;
+                }
+            }
+            return this.bootstrapUserSession(forceRefresh);
+        },
+
+        async bootstrapUserSession(forceRefresh) {
+            if (!config.useSessionAuth) {
+                return false;
+            }
+            if (!forceRefresh) {
+                const cached = this.readSessionCache();
+                if (cached && this.applySessionData(cached)) {
+                    return true;
+                }
             }
             try {
                 const data = await this.getUserSession();
                 if (data && data.session_id) {
-                    state.sessionId = data.session_id;
-                    if (data.tasks_user_id) {
-                        config.tasksUserId = data.tasks_user_id;
-                    }
-                    const storageKey = 'sanctum_q_chat_session_id';
-                    const sinceKey = 'sanctum_q_since_u_' + (data.tasks_user_id || '0');
-                    try {
-                        localStorage.setItem(storageKey, state.sessionId);
-                        state.lastResponseSince = localStorage.getItem(sinceKey) || null;
-                    } catch (e) { /* ignore */ }
+                    this.applySessionData(data);
+                    this.writeSessionCache(data);
+                    return true;
                 }
             } catch (err) {
+                const cached = this.readSessionCache();
+                if (cached && this.applySessionData(cached)) {
+                    console.warn('Ask Q: using cached session after bootstrap failure', err);
+                    return true;
+                }
                 console.warn('Ask Q: could not resolve user session', err);
+                state.sessionBootstrapError = err.message || 'Could not start Ask Q session';
             }
+            return false;
         },
 
         // Update session
@@ -608,7 +718,13 @@
             if (state.isOpen) return;
 
             if (config.useSessionAuth && !state.sessionId) {
-                await api.bootstrapUserSession();
+                const ok = await api.ensureActiveSession(false);
+                if (!ok) {
+                    const msg = state.sessionBootstrapError
+                        || 'Could not connect Ask Q. Refresh the page or wait a minute and try again.';
+                    this.addMessage(msg, 'error');
+                    return;
+                }
             }
 
             state.isOpen = true;
@@ -669,7 +785,8 @@
                 
             } catch (error) {
                 console.error('Failed to send message:', error);
-                this.addMessage('Failed to send message. Please try again.', 'error');
+                const detail = (error && error.message) ? error.message : 'Failed to send message. Please try again.';
+                this.addMessage(detail, 'error');
             }
         },
 
