@@ -18,8 +18,9 @@ final class QBridgeRateLimitConfigTest extends TestCase
     {
         $cfg = q_bridge_rate_limit_defaults();
         $this->assertSame(60, $cfg['user_endpoints']['/api/messages']);
+        $this->assertSame(3600, $cfg['user_endpoints']['/api/responses']);
         $this->assertSame(600, $cfg['user_endpoints']['/api/user_session']);
-        $this->assertSame(1200, $cfg['user_max_requests']);
+        $this->assertSame(5000, $cfg['user_max_requests']);
     }
 
     public function testValidateRejectsOutOfRange(): void
@@ -42,6 +43,6 @@ final class QBridgeRateLimitConfigTest extends TestCase
             'user_endpoints' => ['/api/messages' => 99],
         ]);
         $this->assertSame(99, $merged['user_endpoints']['/api/messages']);
-        $this->assertSame(300, $merged['user_endpoints']['/api/responses']);
+        $this->assertSame(3600, $merged['user_endpoints']['/api/responses']);
     }
 }

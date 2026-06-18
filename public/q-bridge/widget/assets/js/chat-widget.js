@@ -25,7 +25,10 @@
         sound: true,
         persistSession: false,
         historyLimit: 6,
-        pageContext: null
+        pageContext: null,
+        pollIntervalActiveMs: 3000,
+        pollIntervalIdleMs: 12000,
+        pollIntervalHiddenMs: 45000
     };
 
     // Widget state
@@ -41,7 +44,12 @@
         lastResponseSince: null,
         seenMessageIds: {},
         historyLoading: false,
-        sessionBootstrapError: null
+        sessionBootstrapError: null,
+        waitingForReply: false,
+        pollTimer: null,
+        pollBackoffMs: 3000,
+        pollRateLimitedUntil: 0,
+        pollErrorShown: false
     };
 
     // Widget HTML template
@@ -740,7 +748,7 @@
             this.clearNotifications();
 
             await this.loadRecentHistory();
-            this.pollForResponses();
+            this.schedulePoll(800);
         },
 
         // Close chat window
@@ -748,6 +756,7 @@
             if (!state.isOpen) return;
             
             state.isOpen = false;
+            this.clearPollTimer();
             this.elements.widget.classList.remove('is-open');
             this.elements.window.classList.remove('open');
             this.syncVisualViewport();
@@ -777,11 +786,13 @@
                 // Emit message event
                 this.emit('message', { message, type: 'user' });
                 
+                state.waitingForReply = true;
+                state.pollErrorShown = false;
                 // Show typing indicator
                 this.showTypingIndicator();
                 
-                // Poll for responses
-                this.pollForResponses();
+                // Poll for responses (aggressive while waiting)
+                this.schedulePoll(500);
                 
             } catch (error) {
                 console.error('Failed to send message:', error);
@@ -1048,17 +1059,50 @@
             }
         },
 
+        clearPollTimer() {
+            if (state.pollTimer) {
+                clearTimeout(state.pollTimer);
+                state.pollTimer = null;
+            }
+        },
+
+        nextPollDelayMs() {
+            const now = Date.now();
+            if (state.pollRateLimitedUntil > now) {
+                return Math.max(5000, state.pollRateLimitedUntil - now);
+            }
+            if (document.visibilityState === 'hidden') {
+                return config.pollIntervalHiddenMs || 45000;
+            }
+            if (state.waitingForReply) {
+                return config.pollIntervalActiveMs || 3000;
+            }
+            return config.pollIntervalIdleMs || 12000;
+        },
+
+        schedulePoll(delayMs) {
+            this.clearPollTimer();
+            if (!state.isOpen || !state.sessionId) {
+                return;
+            }
+            const delay = typeof delayMs === 'number' ? delayMs : this.nextPollDelayMs();
+            state.pollTimer = setTimeout(() => this.pollForResponses(), delay);
+        },
+
         // Poll for responses
         async pollForResponses() {
             if (!state.sessionId) return;
-            
+            state.pollTimer = null;
+
             try {
                 const since = state.lastResponseSince || '';
                 const responses = await api.getMessages(since);
-                
+
                 if (responses && responses.length > 0) {
                     this.hideTypingIndicator();
-                    
+                    state.waitingForReply = false;
+                    state.pollErrorShown = false;
+
                     responses.forEach(response => {
                         const rid = response.id ? ('r-' + response.id) : null;
                         this.addMessage(response.response, 'bot', { messageId: rid });
@@ -1077,15 +1121,39 @@
                         this.elements.messages.scrollTop = this.elements.messages.scrollHeight;
                     }
                 }
-                
-                // Continue polling if chat is open
+
                 if (state.isOpen) {
-                    setTimeout(() => this.pollForResponses(), 3000);
+                    this.schedulePoll();
                 }
-                
+
             } catch (error) {
                 console.error('Failed to poll for responses:', error);
-                this.hideTypingIndicator();
+                const status = error && error.httpStatus;
+                if (status === 429) {
+                    const retrySec = (error.apiBody && error.apiBody.retry_after)
+                        ? parseInt(error.apiBody.retry_after, 10)
+                        : 60;
+                    state.pollRateLimitedUntil = Date.now() + (retrySec * 1000);
+                    if (!state.pollErrorShown) {
+                        state.pollErrorShown = true;
+                        const mins = Math.max(1, Math.ceil(retrySec / 60));
+                        this.addMessage(
+                            'Ask Q is rate-limited on updates — still waiting for Q. Retrying in ~'
+                            + mins + ' min (refreshing the page also helps).',
+                            'error'
+                        );
+                    }
+                    // Keep typing dots while we are waiting for a reply
+                    if (state.waitingForReply) {
+                        this.showTypingIndicator();
+                    }
+                } else {
+                    this.hideTypingIndicator();
+                }
+
+                if (state.isOpen) {
+                    this.schedulePoll(status === 429 ? null : 10000);
+                }
             }
         },
 
@@ -1120,6 +1188,12 @@
                 }
                 ui.applyChatterLabel();
                 state.isInitialized = true;
+
+                document.addEventListener('visibilitychange', function () {
+                    if (document.visibilityState === 'visible' && state.isOpen) {
+                        ui.schedulePoll(500);
+                    }
+                });
 
                 if (config.persistSession && config.useSessionAuth) {
                     api.bootstrapUserSession().catch(function () { /* logged in widget */ });

@@ -14,12 +14,12 @@ function q_bridge_rate_limit_defaults(): array
     return [
         'user_endpoints' => [
             '/api/messages' => 60,
-            '/api/responses' => 300,
+            '/api/responses' => 3600,
             '/api/history' => 120,
             // Session bootstrap runs on every admin page load (persistSession); 30/h blocked real users.
             '/api/user_session' => 600,
         ],
-        'user_max_requests' => 1200,
+        'user_max_requests' => 5000,
         'ip_endpoints' => [
             '/api/messages' => 50,
             '/api/responses' => 200,

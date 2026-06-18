@@ -60,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] 
         <div class="mb-3">
             <label class="form-label" for="rl_responses">Response polls per user / hour</label>
             <input class="form-control" type="number" min="1" max="100000" name="rl_responses" id="rl_responses"
-                value="<?= (int)($userEp['/api/responses'] ?? 300) ?>" required>
+                value="<?= (int)($userEp['/api/responses'] ?? 3600) ?>" required>
         </div>
         <div class="mb-3">
             <label class="form-label" for="rl_history">History fetches per user / hour</label>
@@ -70,12 +70,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] 
         <div class="mb-3">
             <label class="form-label" for="rl_user_session">Session lookups per user / hour</label>
             <input class="form-control" type="number" min="1" max="100000" name="rl_user_session" id="rl_user_session"
-                value="<?= (int)($userEp['/api/user_session'] ?? 30) ?>" required>
+                value="<?= (int)($userEp['/api/user_session'] ?? 600) ?>" required>
         </div>
         <div class="mb-3">
             <label class="form-label" for="rl_user_max">Overall cap per user / hour (all widget routes)</label>
             <input class="form-control" type="number" min="1" max="100000" name="rl_user_max" id="rl_user_max"
-                value="<?= (int)($cfg['user_max_requests'] ?? 600) ?>" required>
+                value="<?= (int)($cfg['user_max_requests'] ?? 5000) ?>" required>
         </div>
         <div class="mb-3">
             <label class="form-label" for="rl_ip_max">Overall cap per IP / hour (poll + legacy)</label>
