@@ -8,6 +8,8 @@ $askq_error = null;
 $askq_success = null;
 $cfg = q_bridge_get_rate_limit_config();
 $userEp = $cfg['user_endpoints'] ?? [];
+$rlDefaults = q_bridge_rate_limit_defaults();
+$rlUserEp = $rlDefaults['user_endpoints'] ?? [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] ?? '') === 'save_ask_q_limits') {
     requireCsrfToken();
@@ -37,8 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] 
 <div class="surface surface-pad">
     <div class="section-title"><i class="bi bi-chat-dots"></i> Ask Q rate limits</div>
     <p class="fine-print mb-3">
-        Per-user caps for the Ask Q webchat widget (1-hour rolling window). Broca poll routes
-        (<code>inbox</code> / <code>outbox</code>) stay per server IP unless changed in code defaults.
+        Per-user caps for the Ask Q webchat widget (1-hour rolling window). Defaults are tuned for
+        all-day internal use (open chat panel, admin navigation). Broca <code>inbox</code> /
+        <code>outbox</code> use separate per-server IP caps in code.
     </p>
 
     <?php if ($askq_error): ?>
@@ -55,32 +58,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] 
         <div class="mb-3">
             <label class="form-label" for="rl_messages">Messages sent per user / hour</label>
             <input class="form-control" type="number" min="1" max="100000" name="rl_messages" id="rl_messages"
-                value="<?= (int)($userEp['/api/messages'] ?? 60) ?>" required>
+                value="<?= (int)($userEp['/api/messages'] ?? $rlUserEp['/api/messages'] ?? 300) ?>" required>
         </div>
         <div class="mb-3">
             <label class="form-label" for="rl_responses">Response polls per user / hour</label>
             <input class="form-control" type="number" min="1" max="100000" name="rl_responses" id="rl_responses"
-                value="<?= (int)($userEp['/api/responses'] ?? 3600) ?>" required>
+                value="<?= (int)($userEp['/api/responses'] ?? $rlUserEp['/api/responses'] ?? 7200) ?>" required>
         </div>
         <div class="mb-3">
             <label class="form-label" for="rl_history">History fetches per user / hour</label>
             <input class="form-control" type="number" min="1" max="100000" name="rl_history" id="rl_history"
-                value="<?= (int)($userEp['/api/history'] ?? 120) ?>" required>
+                value="<?= (int)($userEp['/api/history'] ?? $rlUserEp['/api/history'] ?? 600) ?>" required>
         </div>
         <div class="mb-3">
             <label class="form-label" for="rl_user_session">Session lookups per user / hour</label>
             <input class="form-control" type="number" min="1" max="100000" name="rl_user_session" id="rl_user_session"
-                value="<?= (int)($userEp['/api/user_session'] ?? 600) ?>" required>
+                value="<?= (int)($userEp['/api/user_session'] ?? $rlUserEp['/api/user_session'] ?? 3000) ?>" required>
         </div>
         <div class="mb-3">
             <label class="form-label" for="rl_user_max">Overall cap per user / hour (all widget routes)</label>
             <input class="form-control" type="number" min="1" max="100000" name="rl_user_max" id="rl_user_max"
-                value="<?= (int)($cfg['user_max_requests'] ?? 5000) ?>" required>
+                value="<?= (int)($cfg['user_max_requests'] ?? $rlDefaults['user_max_requests'] ?? 20000) ?>" required>
         </div>
         <div class="mb-3">
             <label class="form-label" for="rl_ip_max">Overall cap per IP / hour (poll + legacy)</label>
             <input class="form-control" type="number" min="1" max="100000" name="rl_ip_max" id="rl_ip_max"
-                value="<?= (int)($cfg['ip_max_requests'] ?? 1000) ?>" required>
+                value="<?= (int)($cfg['ip_max_requests'] ?? $rlDefaults['ip_max_requests'] ?? 25000) ?>" required>
         </div>
 
         <button type="submit" class="btn btn-primary">Save Ask Q limits</button>

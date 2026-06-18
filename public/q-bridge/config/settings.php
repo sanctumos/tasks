@@ -7,10 +7,10 @@
 define('API_VERSION', '1.0.0');
 define('API_NAME', 'Web Chat Bridge API');
 
-// Rate Limiting Configuration
+// Rate Limiting Configuration (legacy fallbacks — canonical: rate_limit_config.php)
 define('RATE_LIMIT_WINDOW', 3600); // 1 hour in seconds
-define('RATE_LIMIT_MAX_REQUESTS', 1000); // Max requests per window per IP
-define('RATE_LIMIT_ENDPOINT_MAX', 100); // Max requests per window per endpoint per IP
+define('RATE_LIMIT_MAX_REQUESTS', 25000); // Overall per IP per hour
+define('RATE_LIMIT_ENDPOINT_MAX', 10000); // Per-endpoint IP fallback
 
 // Session-auth widget endpoints use per-Tasks-user keys (see auth.php).
 define('RATE_LIMIT_USER_ENDPOINTS', [
@@ -20,24 +20,23 @@ define('RATE_LIMIT_USER_ENDPOINTS', [
     '/api/user_session',
 ]);
 
-// Per-user caps (tasks_user_id) — proposed default pending Mark sign-off on #678
 $USER_ENDPOINT_RATE_LIMITS = [
-    '/api/messages' => 60,
-    '/api/responses' => 300,
-    '/api/history' => 120,
-    '/api/user_session' => 600,
+    '/api/messages' => 300,
+    '/api/responses' => 7200,
+    '/api/history' => 600,
+    '/api/user_session' => 3000,
 ];
-define('RATE_LIMIT_USER_MAX_REQUESTS', 1200);
+define('RATE_LIMIT_USER_MAX_REQUESTS', 20000);
 
 // Endpoint-specific rate limits (per IP — Broca poll + legacy)
 $ENDPOINT_RATE_LIMITS = [
-    '/api/messages' => 50,
-    '/api/responses' => 200,
-    '/api/history' => 120,
-    '/api/user_session' => 120,
-    '/api/inbox' => 120,
-    '/api/outbox' => 200,
-    '/api/sessions' => 20,
+    '/api/messages' => 500,
+    '/api/responses' => 7200,
+    '/api/history' => 600,
+    '/api/user_session' => 600,
+    '/api/inbox' => 10000,
+    '/api/outbox' => 5000,
+    '/api/sessions' => 200,
 ];
 
 // Authentication

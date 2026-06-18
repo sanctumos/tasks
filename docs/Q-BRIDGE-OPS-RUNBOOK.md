@@ -74,6 +74,8 @@ Runs bridge seed (on multihost when `Q_PROD_SMOKE_SSH=multihost`) + optional `as
 
 Per-user caps on widget routes: `messages`, `responses`, `history`, `user_session`. **Admins** tune limits at **Settings → Ask Q** (`/admin/settings.php?tab=ask-q`); stored in Tasks `app_settings` key `q_bridge.rate_limits`. File defaults in `q-bridge/includes/rate_limit_config.php`.
 
+**Recommended defaults (2026-06):** messages **300**/h, responses **7200**/h, history **600**/h, user_session **3000**/h, user overall **20000**/h. Broca inbox **10000**/h per server IP.
+
 Clear stuck counters (break-glass): backup `q_bridge_webchat.db`, then `DELETE FROM rate_limits WHERE ip_address LIKE 'user:%';`
 
 ---

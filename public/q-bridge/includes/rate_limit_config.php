@@ -1,6 +1,9 @@
 <?php
 /**
  * Ask Q / q-bridge rate limits — defaults with optional admin overrides (app_settings).
+ *
+ * Defaults target logged-in Tasks users (not anonymous internet). Caps are high enough
+ * that normal all-day admin + open chat panel never trips 429; still bounded for abuse.
  */
 declare(strict_types=1);
 
@@ -13,23 +16,22 @@ function q_bridge_rate_limit_defaults(): array
 {
     return [
         'user_endpoints' => [
-            '/api/messages' => 60,
-            '/api/responses' => 3600,
-            '/api/history' => 120,
-            // Session bootstrap runs on every admin page load (persistSession); 30/h blocked real users.
-            '/api/user_session' => 600,
+            '/api/messages' => 300,       // ~5/min sustained chat
+            '/api/responses' => 7200,   // 3s active poll ≈1200/h; 6× headroom
+            '/api/history' => 600,      // open panel / reload thread
+            '/api/user_session' => 3000, // persistSession on admin navigation
         ],
-        'user_max_requests' => 5000,
+        'user_max_requests' => 20000,
         'ip_endpoints' => [
-            '/api/messages' => 50,
-            '/api/responses' => 200,
-            '/api/history' => 120,
-            '/api/user_session' => 120,
-            '/api/inbox' => 120,
-            '/api/outbox' => 200,
-            '/api/sessions' => 20,
+            '/api/messages' => 500,
+            '/api/responses' => 7200,
+            '/api/history' => 600,
+            '/api/user_session' => 600,
+            '/api/inbox' => 10000,        // Broca ~720/h at 5s poll
+            '/api/outbox' => 5000,
+            '/api/sessions' => 200,
         ],
-        'ip_max_requests' => 1000,
+        'ip_max_requests' => 25000,
     ];
 }
 

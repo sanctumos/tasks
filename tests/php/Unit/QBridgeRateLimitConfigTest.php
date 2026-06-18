@@ -17,21 +17,24 @@ final class QBridgeRateLimitConfigTest extends TestCase
     public function testDefaultsMatchApprovedPolicy(): void
     {
         $cfg = q_bridge_rate_limit_defaults();
-        $this->assertSame(60, $cfg['user_endpoints']['/api/messages']);
-        $this->assertSame(3600, $cfg['user_endpoints']['/api/responses']);
-        $this->assertSame(600, $cfg['user_endpoints']['/api/user_session']);
-        $this->assertSame(5000, $cfg['user_max_requests']);
+        $this->assertSame(300, $cfg['user_endpoints']['/api/messages']);
+        $this->assertSame(7200, $cfg['user_endpoints']['/api/responses']);
+        $this->assertSame(600, $cfg['user_endpoints']['/api/history']);
+        $this->assertSame(3000, $cfg['user_endpoints']['/api/user_session']);
+        $this->assertSame(20000, $cfg['user_max_requests']);
+        $this->assertSame(10000, $cfg['ip_endpoints']['/api/inbox']);
+        $this->assertSame(25000, $cfg['ip_max_requests']);
     }
 
     public function testValidateRejectsOutOfRange(): void
     {
         $r = q_bridge_validate_rate_limit_input([
             'messages' => 0,
-            'responses' => 300,
-            'history' => 120,
-            'user_session' => 30,
-            'user_max_requests' => 600,
-            'ip_max_requests' => 1000,
+            'responses' => 7200,
+            'history' => 600,
+            'user_session' => 3000,
+            'user_max_requests' => 20000,
+            'ip_max_requests' => 25000,
         ]);
         $this->assertFalse($r['success']);
     }
@@ -43,6 +46,6 @@ final class QBridgeRateLimitConfigTest extends TestCase
             'user_endpoints' => ['/api/messages' => 99],
         ]);
         $this->assertSame(99, $merged['user_endpoints']['/api/messages']);
-        $this->assertSame(3600, $merged['user_endpoints']['/api/responses']);
+        $this->assertSame(7200, $merged['user_endpoints']['/api/responses']);
     }
 }
