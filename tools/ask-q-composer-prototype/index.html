@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ask Q Composer Prototype — large paste</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Ask Q composer prototype</h1>
+        <p>Phase 3 lab — large paste becomes a text attachment chip; full payload still sent to Q. Not production.</p>
+    </header>
+
+    <div class="layout">
+        <section class="panel">
+            <h2>Composer + thread</h2>
+            <div class="chat-shell">
+                <div class="chat-messages" id="messages" aria-live="polite"></div>
+                <form class="composer-wrap" id="composer-form">
+                    <div class="pending-attachments" id="pending-attachments"></div>
+                    <div class="composer-row">
+                        <textarea id="composer-input" rows="1" placeholder="Caption or short message… (paste large text to attach)"></textarea>
+                        <button type="submit" id="send-btn" disabled>Send</button>
+                    </div>
+                    <div class="composer-hint" id="composer-hint"></div>
+                </form>
+            </div>
+        </section>
+
+        <div>
+            <section class="panel">
+                <h2>Controls</h2>
+                <div class="controls">
+                    <label>
+                        Large-paste threshold (chars)
+                        <input type="number" id="threshold" min="50" max="50000" value="800">
+                    </label>
+                    <p style="margin:0;color:var(--muted);font-size:0.8rem;">
+                        Try pasting a log file, JSON export, or doc excerpt. Use
+                        <a href="sample-large.txt" download>sample-large.txt</a> or copy from any long page.
+                    </p>
+                </div>
+            </section>
+
+            <section class="panel" style="margin-top:1rem;">
+                <h2>Wire payload (proposed API)</h2>
+                <pre class="payload-pre" id="payload-preview">{}</pre>
+            </section>
+
+            <section class="panel" style="margin-top:1rem;">
+                <h2>Throughput demo (poll budget)</h2>
+                <div class="poll-demo" id="poll-demo">
+                    <p style="margin-top:0;">
+                        Prod today: panel open polls <strong>every 3s</strong> → ~1200/hour, but cap is
+                        <strong>300/hour</strong> on <code>/api/responses</code> → 429 after ~15 min.
+                    </p>
+                    <label>
+                        Poll interval (seconds)
+                        <input type="number" id="poll-interval" min="1" max="60" value="3" style="width:5rem;">
+                    </label>
+                    <label>
+                        Cap per hour
+                        <input type="number" id="poll-cap" min="60" max="10000" value="300" style="width:5rem;">
+                    </label>
+                    <button type="button" id="poll-start">Simulate 1 hour</button>
+                    <button type="button" id="poll-reset">Reset</button>
+                    <div class="bar" id="poll-bar"><span></span></div>
+                    <div id="poll-status">Idle.</div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+        <div class="modal">
+            <header>
+                <strong id="preview-title">Attachment preview</strong>
+                <button type="button" id="preview-close">Close</button>
+            </header>
+            <pre id="preview-body"></pre>
+        </div>
+    </div>
+
+    <script src="composer-paste.js"></script>
+    <script>
+        const messagesEl = document.getElementById('messages');
+        const form = document.getElementById('composer-form');
+        const input = document.getElementById('composer-input');
+        const sendBtn = document.getElementById('send-btn');
+        const payloadPre = document.getElementById('payload-preview');
+        const thresholdInput = document.getElementById('threshold');
+        const previewModal = document.getElementById('preview-modal');
+        const previewBody = document.getElementById('preview-body');
+        const previewTitle = document.getElementById('preview-title');
+
+        let lastPayload = null;
+        let previewMap = {};
+
+        const manager = new ComposerPasteManager({
+            textarea: input,
+            chipContainer: document.getElementById('pending-attachments'),
+            hintEl: document.getElementById('composer-hint'),
+            onChange: refreshSendState,
+        });
+        manager._refreshHint();
+
+        thresholdInput.addEventListener('change', function () {
+            manager.setThreshold(thresholdInput.value);
+        });
+
+        input.addEventListener('input', function () {
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+            refreshSendState();
+        });
+
+        function refreshSendState() {
+            sendBtn.disabled = !manager.canSend();
+            const draft = manager.buildPayload();
+            payloadPre.textContent = JSON.stringify({
+                session_id: 'session_tasks_1',
+                message: draft.message.slice(0, 200) + (draft.message.length > 200 ? '…' : ''),
+                caption: draft.caption,
+                attachments: draft.attachments.map(function (a) {
+                    return {
+                        id: a.id,
+                        filename: a.filename,
+                        size_bytes: a.size_bytes,
+                        text_preview: a.text.slice(0, 80) + (a.text.length > 80 ? '…' : ''),
+                    };
+                }),
+                message_bytes: draft.message_bytes,
+            }, null, 2);
+        }
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            if (!manager.canSend()) return;
+
+            const payload = manager.buildPayload();
+            lastPayload = payload;
+            previewMap = {};
+            payload.attachments.forEach(function (a) {
+                previewMap[a.id] = a.text;
+            });
+
+            appendUserMessage(payload);
+            appendBotStub(payload);
+
+            input.value = '';
+            input.style.height = 'auto';
+            manager.clear();
+            refreshSendState();
+        });
+
+        function appendUserMessage(payload) {
+            const wrap = document.createElement('div');
+            wrap.className = 'msg user';
+            wrap.innerHTML = '<div class="msg-avatar">M</div><div><div class="msg-bubble">'
+                + manager.renderBubbleHtml(payload)
+                + '</div><div class="msg-time">' + new Date().toLocaleTimeString() + '</div></div>';
+            messagesEl.appendChild(wrap);
+            wrap.querySelectorAll('[data-preview]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const id = btn.getAttribute('data-preview');
+                    openPreview(id);
+                });
+            });
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function appendBotStub(payload) {
+            const wrap = document.createElement('div');
+            wrap.className = 'msg';
+            const kb = (payload.message_bytes / 1024).toFixed(1);
+            wrap.innerHTML = '<div class="msg-avatar">Q</div><div><div class="msg-bubble">'
+                + '<p>Received <strong>' + payload.attachment_count + '</strong> text attachment(s) '
+                + '(' + kb + ' KB total in <code>message</code> field). In prod, Broca forwards full text to Letta.</p>'
+                + '</div><div class="msg-time">' + new Date().toLocaleTimeString() + '</div></div>';
+            messagesEl.appendChild(wrap);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function openPreview(id) {
+            const text = previewMap[id];
+            if (text == null) return;
+            const att = (lastPayload && lastPayload.attachments.find(function (a) { return a.id === id; })) || {};
+            previewTitle.textContent = att.filename || 'Attachment';
+            previewBody.textContent = text;
+            previewModal.classList.add('is-open');
+        }
+
+        document.getElementById('preview-close').addEventListener('click', function () {
+            previewModal.classList.remove('is-open');
+        });
+        previewModal.addEventListener('click', function (e) {
+            if (e.target === previewModal) previewModal.classList.remove('is-open');
+        });
+
+        // Poll budget simulator
+        const pollBar = document.querySelector('#poll-bar span');
+        const pollStatus = document.getElementById('poll-status');
+        let pollTimer = null;
+
+        document.getElementById('poll-start').addEventListener('click', function () {
+            if (pollTimer) clearInterval(pollTimer);
+            const interval = Math.max(1, parseInt(document.getElementById('poll-interval').value, 10) || 3);
+            const cap = Math.max(1, parseInt(document.getElementById('poll-cap').value, 10) || 300);
+            const perHour = Math.floor(3600 / interval);
+            let count = 0;
+            let sec = 0;
+            pollStatus.textContent = 'Running… 0s';
+            pollTimer = setInterval(function () {
+                sec += interval;
+                count += 1;
+                const pct = Math.min(100, (count / cap) * 100);
+                pollBar.style.width = pct + '%';
+                document.getElementById('poll-bar').classList.toggle('ok', count < cap);
+                if (count >= cap) {
+                    pollStatus.textContent = '429 at ' + sec + 's — ' + count + ' polls (cap ' + cap + '/h).';
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                } else if (sec >= 3600) {
+                    pollStatus.textContent = 'OK — ' + count + ' polls in 1h (cap ' + cap + ').';
+                    clearInterval(pollTimer);
+                    pollTimer = null;
+                } else {
+                    pollStatus.textContent = sec + 's — ' + count + ' polls (' + perHour + '/h at ' + interval + 's interval)';
+                }
+            }, interval * 1000);
+        });
+
+        document.getElementById('poll-reset').addEventListener('click', function () {
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = null;
+            pollBar.style.width = '0%';
+            pollStatus.textContent = 'Idle.';
+        });
+    </script>
+</body>
+</html>

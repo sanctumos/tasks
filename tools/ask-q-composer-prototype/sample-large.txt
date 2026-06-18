@@ -1,0 +1,20 @@
+Lorem ipsum is intentionally boring — replace by pasting your own large blob.
+
+This sample exists so you can open it, Select All, Copy, and paste into the composer prototype
+without hunting for a long document. Threshold default is 800 characters; this file is longer.
+
+--- sample log excerpt ---
+2026-06-06T12:00:01Z INFO  bootstrap session_tasks_1 user=admin
+2026-06-06T12:00:04Z DEBUG poll responses since=null
+2026-06-06T12:00:07Z DEBUG poll responses since=null
+2026-06-06T12:00:10Z WARN  rate limit approaching endpoint=/api/responses count=280 cap=300
+2026-06-06T12:00:13Z ERROR rate limit exceeded retry_after=3600
+
+Repeat block for paste testing:
+{"task_id":313,"title":"program tracker","notes":["Ask Q phase 3","large paste UX","throughput fix"]}
+{"task_id":313,"title":"program tracker","notes":["Ask Q phase 3","large paste UX","throughput fix"]}
+{"task_id":313,"title":"program tracker","notes":["Ask Q phase 3","large paste UX","throughput fix"]}
+{"task_id":313,"title":"program tracker","notes":["Ask Q phase 3","large paste UX","throughput fix"]}
+{"task_id":313,"title":"program tracker","notes":["Ask Q phase 3","large paste UX","throughput fix"]}
+
+End of sample.
