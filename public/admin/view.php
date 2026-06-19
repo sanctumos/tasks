@@ -298,7 +298,7 @@ require __DIR__ . '/_layout_top.php';
                 data-csrf="<?= htmlspecialchars(getCsrfToken(), ENT_QUOTES, 'UTF-8') ?>"
             >
                 <label class="st-image-upload__zone">
-                    <input type="file" class="js-task-image-file d-none" accept="image/png,image/jpeg,image/gif,image/webp">
+                    <input type="file" class="js-task-image-file d-none" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4">
                     <span class="st-image-upload__icon"><i class="bi bi-cloud-arrow-up"></i></span>
                     <span class="st-image-upload__title">Upload an image</span>
                     <span class="st-image-upload__hint"><?= 'PNG, JPEG, GIF, or WebP · up to ' . htmlspecialchars((string)$assetMaxMb) ?> MB · use <strong>Copy snippet</strong> below and paste into the description or a comment to show it inline.</span>

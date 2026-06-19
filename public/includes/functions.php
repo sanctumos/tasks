@@ -3226,6 +3226,7 @@ function allowedTaskAssetMimeTypes(): array {
         'image/jpeg',
         'image/gif',
         'image/webp',
+        'video/mp4',
     ];
 }
 
@@ -3274,6 +3275,7 @@ function buildTaskAssetStorageRelPath(int $taskId, string $mimeType): string {
         'image/jpeg' => 'jpg',
         'image/gif' => 'gif',
         'image/webp' => 'webp',
+        'video/mp4' => 'mp4',
     ];
     $ext = $extMap[strtolower($mimeType)] ?? 'bin';
     $random = bin2hex(random_bytes(16));
