@@ -7,7 +7,7 @@ from smcp_plugin.tasks import tool_profiles
 
 
 def test_chatter_profile_has_fifteen_commands():
-    assert len(tool_profiles.PROFILE_CHATTER) == 15
+    assert len(tool_profiles.PROFILE_CHATTER) == 16
 
 
 def test_filter_plugin_description_chatter():

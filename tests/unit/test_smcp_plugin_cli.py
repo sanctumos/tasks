@@ -153,7 +153,7 @@ def test_main_describe_profile_chatter(monkeypatch: pytest.MonkeyPatch, capsys: 
     assert exc.value.code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["profile"] == "chatter"
-    assert payload["command_count"] == 15
+    assert payload["command_count"] == 16
 
 
 def test_main_tool_help_without_api_key(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture):

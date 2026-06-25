@@ -37,6 +37,7 @@ CHATTER_TOOL_SUFFIXES = (
     "list-document-comments",
     "list-directory-projects",
     "list-todo-lists",
+    "search-users",
 )
 CHATTER_TOOL_NAMES = frozenset(f"{TOOL_PREFIX}{s}" for s in CHATTER_TOOL_SUFFIXES)
 

@@ -21,6 +21,7 @@ PROFILE_CHATTER: FrozenSet[str] = frozenset(
         "list-document-comments",
         "list-directory-projects",
         "list-todo-lists",
+        "search-users",
     }
 )
 
@@ -53,7 +54,6 @@ PROFILE_ADMIN_ONLY: FrozenSet[str] = frozenset(
         "revoke-api-key",
         "list-api-keys",
         "list-users",
-        "search-users",
         "list-audit-logs",
         "list-organizations",
         "create-directory-project",
@@ -116,6 +116,12 @@ TOOL_HELP_ROUTES: List[Dict[str, Any]] = [
         "tools": ["list-directory-projects", "list-todo-lists"],
         "required": ["project-id for list-todo-lists"],
         "anti": "guessing list_id",
+    },
+    {
+        "intent": "resolve assignee username to user id",
+        "tools": ["search-users"],
+        "required": ["q prefix for username search"],
+        "anti": "list-users (admin only); guessing assigned_to_user_id",
     },
     {
         "intent": "admin user or API key management",
