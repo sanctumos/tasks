@@ -119,7 +119,11 @@ def main() -> None:
             Path("/home/rizzn/sanctum/agents/athena/broca/.env"),
             Path("/root/.letta/.env"),
         ):
-            if not path.is_file():
+            try:
+                readable = path.is_file()
+            except OSError:
+                continue
+            if not readable:
                 continue
             for line in path.read_text(encoding="utf-8").splitlines():
                 if line.startswith("AGENT_API_KEY="):
