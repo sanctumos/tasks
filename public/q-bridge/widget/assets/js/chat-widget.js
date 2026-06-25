@@ -83,6 +83,7 @@
                 
                 <!-- Chat Input -->
                 <div class="sanctum-chat-input">
+                    <div class="sanctum-composer-chips sanctum-hidden" id="sanctum-composer-chips" aria-live="polite"></div>
                     <textarea 
                         id="sanctum-chat-input" 
                         placeholder="Type your message..."
@@ -403,19 +404,32 @@
             return base;
         },
 
-        async sendMessage(message) {
+        async sendMessage(payload) {
             await this.ensureActiveSession();
             if (!state.sessionId) {
                 throw new Error('No active session');
             }
-            var payload = {
-                session_id: state.sessionId,
-                message: message,
-                timestamp: new Date().toISOString(),
-                uid: state.uid,
-                page_context: this.collectPageContext()
-            };
-            return await this.request('messages', payload, 'POST');
+            var body;
+            if (typeof payload === 'string') {
+                body = {
+                    session_id: state.sessionId,
+                    message: payload,
+                    timestamp: new Date().toISOString(),
+                    uid: state.uid,
+                    page_context: this.collectPageContext()
+                };
+            } else {
+                body = Object.assign({
+                    session_id: state.sessionId,
+                    timestamp: new Date().toISOString(),
+                    uid: state.uid,
+                    page_context: this.collectPageContext()
+                }, payload || {});
+                if (!body.session_id) {
+                    body.session_id = state.sessionId;
+                }
+            }
+            return await this.request('messages', body, 'POST');
         },
 
         async getMessages(since) {
@@ -524,8 +538,20 @@
                 close: document.getElementById('sanctum-chat-close'),
                 title: document.getElementById('sanctum-chat-title'),
                 chatter: document.getElementById('sanctum-chat-chatter'),
-                notificationBadge: document.getElementById('sanctum-notification-badge')
+                notificationBadge: document.getElementById('sanctum-notification-badge'),
+                composerChips: document.getElementById('sanctum-composer-chips')
             };
+
+            if (typeof window.ComposerPasteManager !== 'undefined' && this.elements.input && this.elements.composerChips) {
+                state.composer = new window.ComposerPasteManager({
+                    textarea: this.elements.input,
+                    chipContainer: this.elements.composerChips,
+                    onChange: () => {
+                        this.updateSendButton();
+                        this.autoResizeTextarea();
+                    }
+                });
+            }
 
             this.applyChatterLabel();
 
@@ -604,6 +630,14 @@
             
             // Send button click
             this.elements.send.addEventListener('click', () => this.sendMessage());
+
+            this.elements.messages.addEventListener('click', (e) => {
+                const btn = e.target.closest('.sanctum-composer-preview-btn');
+                if (!btn) return;
+                const name = btn.getAttribute('data-preview-name') || 'attachment.txt';
+                const text = btn.getAttribute('data-preview-text') || '';
+                this.showAttachmentPreview(name, text);
+            });
             
             // Click outside to close
             document.addEventListener('click', (e) => this.handleOutsideClick(e));
@@ -703,6 +737,31 @@
             }
         },
 
+        showAttachmentPreview(filename, text) {
+            let modal = document.getElementById('sanctum-composer-preview-modal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'sanctum-composer-preview-modal';
+                modal.className = 'sanctum-composer-preview-modal';
+                modal.innerHTML = '<div class="sanctum-composer-preview-modal__panel">'
+                    + '<header class="sanctum-composer-preview-modal__head">'
+                    + '<strong id="sanctum-composer-preview-title"></strong>'
+                    + '<button type="button" id="sanctum-composer-preview-close" aria-label="Close">×</button>'
+                    + '</header>'
+                    + '<pre id="sanctum-composer-preview-body" class="sanctum-composer-preview-modal__body"></pre>'
+                    + '</div>';
+                document.body.appendChild(modal);
+                modal.addEventListener('click', (ev) => {
+                    if (ev.target === modal || ev.target.id === 'sanctum-composer-preview-close') {
+                        modal.classList.remove('open');
+                    }
+                });
+            }
+            document.getElementById('sanctum-composer-preview-title').textContent = filename;
+            document.getElementById('sanctum-composer-preview-body').textContent = text;
+            modal.classList.add('open');
+        },
+
         // Handle outside clicks
         handleOutsideClick(e) {
             if (state.isOpen && !this.elements.widget.contains(e.target)) {
@@ -768,32 +827,54 @@
 
         // Send message
         async sendMessage() {
-            const message = this.elements.input.value.trim();
-            if (!message) return;
+            let payload;
+            let displayPayload = null;
+
+            if (state.composer) {
+                if (!state.composer.canSend()) {
+                    return;
+                }
+                payload = state.composer.buildPayload();
+                displayPayload = {
+                    caption: payload.caption,
+                    attachments: payload.attachments.map(function (a) {
+                        return {
+                            id: a.id,
+                            kind: a.kind,
+                            filename: a.filename,
+                            mime_type: a.mime_type,
+                            size_bytes: a.size_bytes,
+                            text: a.text,
+                        };
+                    }),
+                };
+            } else {
+                const message = this.elements.input.value.trim();
+                if (!message) return;
+                payload = { message: message, caption: message, attachments: [] };
+            }
 
             try {
-                // Add user message to UI
-                this.addMessage(message, 'user');
-                
-                // Clear input
+                this.addMessage(payload.message, 'user', {
+                    display: displayPayload,
+                });
+
                 this.elements.input.value = '';
+                if (state.composer) {
+                    state.composer.clear();
+                }
                 this.autoResizeTextarea();
                 this.updateSendButton();
-                
-                // Send to API
-                await api.sendMessage(message);
-                
-                // Emit message event
-                this.emit('message', { message, type: 'user' });
-                
+
+                await api.sendMessage(payload);
+
+                this.emit('message', { message: payload.message, type: 'user' });
+
                 state.waitingForReply = true;
                 state.pollErrorShown = false;
-                // Show typing indicator
                 this.showTypingIndicator();
-                
-                // Poll for responses (aggressive while waiting)
                 this.schedulePoll(500);
-                
+
             } catch (error) {
                 console.error('Failed to send message:', error);
                 const detail = (error && error.message) ? error.message : 'Failed to send message. Please try again.';
@@ -850,11 +931,15 @@
                     items.forEach((item) => {
                         const role = item.role === 'user' ? 'user' : 'bot';
                         const ts = item.timestamp ? new Date(item.timestamp) : new Date();
-                        this.addMessage(item.text, role, {
+                        const opts = {
                             messageId: item.id,
                             timestamp: ts,
-                            skipSeenCheck: true
-                        });
+                            skipSeenCheck: true,
+                        };
+                        if (item.display && role === 'user') {
+                            opts.display = item.display;
+                        }
+                        this.addMessage(item.text, role, opts);
                     });
                 }
 
@@ -907,8 +992,18 @@
             const messageContent = document.createElement('div');
             messageContent.className = 'sanctum-message-content';
             const body = document.createElement('div');
-            body.className = 'sanctum-message-body sanctum-markdown';
-            body.innerHTML = utils.formatMessageHtml(content);
+            const hasComposerDisplay = type === 'user' && options.display
+                && (options.display.caption || (options.display.attachments && options.display.attachments.length));
+            if (hasComposerDisplay && state.composer) {
+                body.className = 'sanctum-message-body sanctum-composer-bubble';
+                body.innerHTML = state.composer.renderBubbleHtml(options.display);
+            } else if (hasComposerDisplay) {
+                body.className = 'sanctum-message-body sanctum-composer-bubble';
+                body.innerHTML = this.renderComposerDisplayFallback(options.display);
+            } else {
+                body.className = 'sanctum-message-body sanctum-markdown';
+                body.innerHTML = utils.formatMessageHtml(content);
+            }
             messageContent.appendChild(body);
 
             const time = document.createElement('div');
@@ -1015,10 +1110,35 @@
             }
         },
 
+        renderComposerDisplayFallback(display) {
+            const esc = (window.AskQComposerUtils && window.AskQComposerUtils.escapeHtml)
+                ? window.AskQComposerUtils.escapeHtml
+                : function (s) {
+                    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                };
+            const fmt = (window.AskQComposerUtils && window.AskQComposerUtils.formatBytes)
+                ? window.AskQComposerUtils.formatBytes
+                : function (n) { return n + ' B'; };
+            let html = '';
+            if (display.caption) {
+                html += '<div class="sanctum-composer-caption">' + esc(display.caption) + '</div>';
+            }
+            (display.attachments || []).forEach(function (a) {
+                html += '<div class="sanctum-composer-bubble-attach">'
+                    + '<span class="sanctum-composer-bubble-attach__icon">📄</span>'
+                    + '<span class="sanctum-composer-bubble-attach__label"><strong>'
+                    + esc(a.filename || 'attachment.txt') + '</strong> · '
+                    + fmt(a.size_bytes || 0) + '</span></div>';
+            });
+            return html;
+        },
+
         // Update send button state
         updateSendButton() {
-            const hasText = this.elements.input.value.trim().length > 0;
-            this.elements.send.disabled = !hasText;
+            const canSend = state.composer
+                ? state.composer.canSend()
+                : this.elements.input.value.trim().length > 0;
+            this.elements.send.disabled = !canSend;
         },
 
         // Auto-resize textarea

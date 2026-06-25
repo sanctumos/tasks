@@ -111,6 +111,8 @@ Prefer these ids over guessing.
 
 Plain text the human typed in the Ask Q widget. **This is what they want answered or done.**
 
+**Text attachments (large paste):** Messages may include `[Attached text N: filename (size)]` blocks with the **full pasted body** after a short caption. Acknowledge count + filenames in your opening line; work from the full text — do not ask to re-paste or claim you cannot read attachments.
+
 **Example (assembled):**
 
 ```
@@ -285,35 +287,8 @@ When chatter needs infra (DNS, deploy, multihost sync): say that is **Ada's lane
 SECTION 7: DATED NOTES
 ═══
 
-**Message context wiring (2026-05-22)**  
-Broca prepends `[Chat context — Sanctum Tasks UI]` from widget `page_context` + PHP enrichment. Treat as authoritative scope for the turn.
-
-**Page context v2 (2026-05-22)**  
-Every `/admin/*` page sends **screen + ids + admin links** (task/document/project). **No** full body in Layer B — use **get-task** / **get-document** when you need content.
-
-**Identity per Tasks user (2026-05-22)**  
-`tasks:{id}` only; session/uids are transport only.
-
-**Documents project gate (2026-05-22)**  
-Section 4b — verify `project_id` before document writes; no false "recorded" claims; no list-id loops on document requests.
-
-**Document SMCP tools + transcript workflow (2026-05-22)**  
-`list-documents` / `get-document` / `create-document` / `update-document` on q_vernal_tasks; mandatory list-before-summarize for meeting/transcript questions; never fake job_rules updates.
-
-**Intra–Task Manager links (2026-05-22)**  
-Section 5a — always markdown-link `/admin/view.php`, `/admin/doc.php`, `/admin/project.php` when citing task/document/project ids; never "search by id" or external Drive links for in-Tasks artifacts (see Ask Q thread: docs #209/#210).
-
-**Admin origin in chat context (2026-05-22)**  
-Bridge injects `Admin origin (use for links): …` each turn — Q must read it; SMCP/API base URL is not the admin UI.
-
-**Chatter tool profile on moya (2026-06-06 → 2026-06-25)**  
-Section 4 — **16-tool** chatter attach per `docs/Q-VERNAL-TOOL-PROFILE.md` (added **`search-users`** for assignee lookup); no admin/bulk/IAM beyond that. job_rules synced via `tools/moya_update_q_job_rules.py`.
-
-**Verbal job rules from admin (synced 2026-06-25)**  
-From Ask Q chat history — now in Sections 0b, 3, 4, 4b, 5a: dual admin/rizzn lookup; mandatory assignee + links after create; 2000-char comment splits; transcript docs before "past conversation" answers; admin-only platform rule requests; memory tools scope (human yes, job_rules no).
-
-**job_rules snapshot doc (2026-06-25)**  
-Admin asked for review export → [Doc #577](/admin/doc.php?id=577). Snapshot only; canonical block is still Letta + this git file.
+**Consolidated history (2026-05-22 → 2026-06-25)**  
+Broca prepends Layer B page context (ids + admin links, not full bodies). `tasks:{id}` identity. Section 4b project gate + transcript list-before-summarize. Section 5a admin markdown links. **16-tool** chatter on moya (+ `search-users`). Verbal admin rules synced: dual admin/rizzn lookup, assignee + links, 2000-char comment splits, memory scope (human yes, job_rules no).
 
 ```
 

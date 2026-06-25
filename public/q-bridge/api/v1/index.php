@@ -11,6 +11,7 @@ require_once '../../includes/auth.php';
 require_once '../../includes/utils.php';
 require_once '../../includes/tasks_session.php';
 require_once '../../includes/chatter.php';
+require_once '../../includes/composer_message.php';
 require_once '../../includes/page_context.php';
 require_once '../../config/database.php';
 
@@ -159,22 +160,23 @@ function handle_messages() {
     }
     
     $session_id = sanitize_input($input['session_id'] ?? '');
-    $message = sanitize_input($input['message'] ?? '');
     $timestamp = $input['timestamp'] ?? date('c');
-    
-    // Validate required fields
-    if (empty($session_id) || empty($message)) {
+
+    if (empty($session_id)) {
         send_error_response('Missing required fields', 400);
     }
-    
+
     if (!validate_session_id($session_id)) {
         send_error_response('Invalid session ID', 400);
     }
-    
-    if (!validate_message($message)) {
-        send_error_response('Invalid message', 400);
+
+    try {
+        $normalized = q_bridge_normalize_composer_payload($input);
+    } catch (InvalidArgumentException $e) {
+        send_error_response($e->getMessage(), 400);
     }
-    
+    $message = $normalized['message'];
+
     try {
         $tasksUserId = require_tasks_logged_in_user_id();
         apply_rate_limiting('/api/messages', $tasksUserId);
@@ -204,6 +206,9 @@ function handle_messages() {
             }
         }
         $messageMeta = $pageCtx !== [] ? ['page_context' => $pageCtx] : [];
+        if ($normalized['metadata'] !== []) {
+            $messageMeta = array_merge($messageMeta, $normalized['metadata']);
+        }
         $sessionMeta['last_page_context'] = $pageCtx;
         
         // Get or create UID for this session

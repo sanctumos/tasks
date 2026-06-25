@@ -5,6 +5,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/includes/functions.php';
+require_once __DIR__ . '/composer_message.php';
 
 /**
  * @return array{tasks_user_id:int,tasks_username:string,tasks_display_name:string}|null
@@ -191,7 +192,7 @@ function q_bridge_fetch_user_recent_history(int $tasksUserId, int $limit = 6): a
     $pdo = get_db_connection();
 
     $stmt = $pdo->prepare("
-        SELECT 'user' AS role, m.message AS text, m.timestamp, m.id, m.session_id
+        SELECT 'user' AS role, m.message AS text, m.timestamp, m.id, m.session_id, m.metadata
         FROM web_chat_messages m
         INNER JOIN web_chat_sessions s ON s.id = m.session_id
         WHERE CAST(json_extract(s.metadata, '$.tasks_user_id') AS INTEGER) = ?
@@ -229,6 +230,15 @@ function q_bridge_fetch_user_recent_history(int $tasksUserId, int $limit = 6): a
             'timestamp' => (string)($row['timestamp'] ?? ''),
             'id' => $prefix . '-' . $sid . '-' . (string)($row['id'] ?? ''),
         ];
+        if ($role === 'user' && !empty($row['metadata'])) {
+            $meta = json_decode((string)$row['metadata'], true);
+            if (is_array($meta)) {
+                $display = q_bridge_display_payload_from_metadata($meta);
+                if ($display !== null) {
+                    $out[count($out) - 1]['display'] = $display;
+                }
+            }
+        }
         if ($role === 'assistant' && !empty($row['timestamp'])) {
             $latestResponseAt = (string)$row['timestamp'];
         }

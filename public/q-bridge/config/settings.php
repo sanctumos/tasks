@@ -110,7 +110,7 @@ define('ERROR_CODES', [
 ]);
 
 // Message validation
-define('MAX_MESSAGE_LENGTH', 10000); // 10KB max message size
+define('MAX_MESSAGE_LENGTH', 1000000); // 1M — align with document body cap (Phase 3 composer)
 define('MAX_SESSION_ID_LENGTH', 64);
 define('MIN_MESSAGE_LENGTH', 1);
 

@@ -112,7 +112,7 @@ final class QBridgeSecurityHttpTest extends TestCase
         $client = new Client(['base_uri' => $this->server->baseUrl, 'http_errors' => false]);
 
         $statusCodes = [];
-        for ($i = 0; $i < 25; $i++) {
+        for ($i = 0; $i < 205; $i++) {
             $resp = $client->get('/q-bridge/api/v1/index.php', [
                 'headers' => ['Authorization' => 'Bearer admin_key_rate_test'],
                 'query' => ['action' => 'sessions'],
