@@ -23,6 +23,8 @@ function envBool(string $name, bool $default): bool {
 // Database configuration
 define('DB_PATH', envOrDefault('TASKS_DB_PATH', __DIR__ . '/../../db/tasks.db'));
 define('DB_TIMEOUT', (int)envOrDefault('TASKS_DB_TIMEOUT', 30));
+/** Min seconds between api_keys.last_used writes per key (reduces lock contention on read-heavy endpoints). */
+define('API_KEY_LAST_USED_THROTTLE_SECONDS', (int)envOrDefault('TASKS_API_KEY_LAST_USED_THROTTLE_SECONDS', 600));
 
 // Security settings
 define('SESSION_NAME', envOrDefault('TASKS_SESSION_NAME', 'sanctum_tasks'));
@@ -76,6 +78,8 @@ function getDbConnection() {
         $db = new SQLite3(DB_PATH);
         $db->enableExceptions(true);
         $db->busyTimeout(DB_TIMEOUT * 1000);
+        $db->exec('PRAGMA journal_mode=WAL;');
+        $db->exec('PRAGMA synchronous=NORMAL;');
         $db->exec('PRAGMA foreign_keys = ON;');
         return $db;
     } catch (Exception $e) {

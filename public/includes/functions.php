@@ -1241,6 +1241,7 @@ function validateApiKeyAndGetUser($apiKey): ?array {
         SELECT
             ak.id AS api_key_id,
             ak.user_id AS user_id,
+            ak.last_used AS last_used,
             u.username AS username,
             u.role AS role,
             u.is_active AS is_active,
@@ -1263,9 +1264,22 @@ function validateApiKeyAndGetUser($apiKey): ?array {
         return null;
     }
 
-    $update = $db->prepare("UPDATE api_keys SET last_used = CURRENT_TIMESTAMP WHERE id = :id");
-    $update->bindValue(':id', (int)$row['api_key_id'], SQLITE3_INTEGER);
-    $update->execute();
+    $throttleSeconds = defined('API_KEY_LAST_USED_THROTTLE_SECONDS')
+        ? (int)API_KEY_LAST_USED_THROTTLE_SECONDS
+        : 600;
+    $shouldTouchLastUsed = true;
+    $lastUsedRaw = $row['last_used'] ?? null;
+    if ($lastUsedRaw !== null && $lastUsedRaw !== '') {
+        $lastUsedTs = strtotime((string)$lastUsedRaw);
+        if ($lastUsedTs !== false && (time() - $lastUsedTs) < $throttleSeconds) {
+            $shouldTouchLastUsed = false;
+        }
+    }
+    if ($shouldTouchLastUsed) {
+        $update = $db->prepare("UPDATE api_keys SET last_used = CURRENT_TIMESTAMP WHERE id = :id");
+        $update->bindValue(':id', (int)$row['api_key_id'], SQLITE3_INTEGER);
+        $update->execute();
+    }
 
     $full = getUserById((int)$row['user_id'], false);
     if (!$full || (int)$full['is_active'] !== 1) {

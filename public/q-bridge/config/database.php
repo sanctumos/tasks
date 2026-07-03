@@ -20,6 +20,9 @@ function get_db_connection() {
         $pdo = new PDO('sqlite:' . Q_BRIDGE_DB_PATH);
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->setAttribute(PDO::ATTR_TIMEOUT, Q_BRIDGE_DB_TIMEOUT);
+        $pdo->exec('PRAGMA journal_mode=WAL;');
+        $pdo->exec('PRAGMA synchronous=NORMAL;');
+        $pdo->exec('PRAGMA foreign_keys = ON;');
         return $pdo;
     } catch (PDOException $e) {
         error_log('Database connection failed: ' . $e->getMessage());
