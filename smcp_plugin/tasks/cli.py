@@ -887,6 +887,7 @@ def get_plugin_description(parser: argparse.ArgumentParser) -> Dict[str, Any]:
                 }
             )
     return {
+        "contract_version": "1.0",
         "plugin": {
             "name": "tasks",
             "version": PLUGIN_VERSION,
