@@ -3034,6 +3034,58 @@ function createTodoList(int $userId, int $projectId, string $name): array {
     return ['success' => true, 'id' => $id];
 }
 
+/**
+ * Delete a todo list. Refuses if it still has tasks, or if it is the only list left on the project.
+ *
+ * @return array{success: bool, error?: string, deleted?: bool, id?: int, already_deleted?: bool}
+ */
+function deleteTodoList(int $userId, int $listId): array {
+    if ($listId <= 0) {
+        return ['success' => false, 'error' => 'Invalid list id'];
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare('SELECT id, project_id, name FROM todo_lists WHERE id = :i LIMIT 1');
+    $stmt->bindValue(':i', $listId, SQLITE3_INTEGER);
+    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        return ['success' => true, 'deleted' => true, 'already_deleted' => true, 'id' => $listId];
+    }
+    $projectId = (int)$row['project_id'];
+    $proj = getDirectoryProjectById($projectId);
+    $actor = getUserById($userId, false);
+    if (!$proj || !$actor || !userCanManageDirectoryProject($actor, $proj)) {
+        return ['success' => false, 'error' => 'Insufficient permission'];
+    }
+
+    $countStmt = $db->prepare('SELECT COUNT(*) AS c FROM todo_lists WHERE project_id = :p');
+    $countStmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $countRow = $countStmt->execute()->fetchArray(SQLITE3_ASSOC);
+    if ((int)($countRow['c'] ?? 0) <= 1) {
+        return ['success' => false, 'error' => 'Cannot delete the only todo list on a project'];
+    }
+
+    $taskStmt = $db->prepare('SELECT COUNT(*) AS c FROM tasks WHERE list_id = :i');
+    $taskStmt->bindValue(':i', $listId, SQLITE3_INTEGER);
+    $taskRow = $taskStmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $taskCount = (int)($taskRow['c'] ?? 0);
+    if ($taskCount > 0) {
+        return [
+            'success' => false,
+            'error' => 'Todo list still has tasks; move or delete them first',
+            'task_count' => $taskCount,
+        ];
+    }
+
+    $del = $db->prepare('DELETE FROM todo_lists WHERE id = :i');
+    $del->bindValue(':i', $listId, SQLITE3_INTEGER);
+    $del->execute();
+    createAuditLog($userId, 'todo_list.delete', 'todo_list', (string)$listId, [
+        'project_id' => $projectId,
+        'name' => (string)($row['name'] ?? ''),
+    ]);
+    return ['success' => true, 'deleted' => true, 'id' => $listId];
+}
+
 function listUserProjectPinsForUser(array $userRow, int $limit = 200): array {
     $uid = (int)$userRow['id'];
     if ($uid <= 0) {

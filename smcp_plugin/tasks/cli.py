@@ -698,6 +698,15 @@ def create_todo_list(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
     return _wrap(run)
 
 
+def delete_todo_list(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        data = client.delete_todo_list(list_id=int(args["id"]))
+        return _ok_from_api(data)
+
+    return _wrap(run)
+
+
 def upload_attachment(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
     def run() -> Dict[str, Any]:
         client = get_client(api_key)
@@ -855,6 +864,7 @@ def command_handlers() -> Dict[str, Callable[[Dict[str, Any], str], Dict[str, An
         "create-document-comment": create_document_comment,
         "list-todo-lists": list_todo_lists,
         "create-todo-list": create_todo_list,
+        "delete-todo-list": delete_todo_list,
         "upload-attachment": upload_attachment,
         "search-users": search_users,
         "get-directory-project": get_directory_project,
@@ -1203,6 +1213,10 @@ def build_parser() -> argparse.ArgumentParser:
     add_api_key(p)
     p.add_argument("--project-id", type=int, required=True, dest="project_id")
     p.add_argument("--name", required=True)
+
+    p = subparsers.add_parser("delete-todo-list", help="POST /api/delete-todo-list.php")
+    add_api_key(p)
+    p.add_argument("--id", type=int, required=True, help="todo_lists.id")
 
     p = subparsers.add_parser("upload-attachment", help="POST /api/upload-attachment.php (multipart)")
     add_api_key(p)

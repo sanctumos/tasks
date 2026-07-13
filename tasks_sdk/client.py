@@ -773,6 +773,10 @@ class TasksClient:
         response = self._request('POST', 'create-todo-list.php', data={'project_id': project_id, 'name': name})
         return response
 
+    def delete_todo_list(self, list_id: int) -> Dict[str, Any]:
+        response = self._request('POST', 'delete-todo-list.php', data={'id': list_id})
+        return response
+
     def list_project_doors(self, project_id: int) -> List[Dict[str, Any]]:
         response = self._request('GET', 'list-project-doors.php', params={'project_id': project_id})
         return response.get('project_doors', [])

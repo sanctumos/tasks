@@ -415,7 +415,7 @@ JSON: `project_id`, `user_id`.
 
 #### To-do lists, pins & doors
 
-See `list-todo-lists.php`, `create-todo-list.php`, `list-project-pins.php`, `set-project-pin.php`.
+See `list-todo-lists.php`, `create-todo-list.php`, `delete-todo-list.php`, `list-project-pins.php`, `set-project-pin.php`.
 
 #### `GET /api/list-project-doors.php`
 
