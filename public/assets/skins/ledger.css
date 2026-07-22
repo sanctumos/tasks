@@ -199,6 +199,16 @@ html[data-skin-comp="ledger"] .admin-nav .btn-outline-light:hover {
     border-bottom-color: var(--st-text-primary) !important;
 }
 
+html[data-skin-comp="ledger"] .admin-nav .navbar-toggler {
+    border-color: var(--st-text-primary);
+    color: var(--st-text-primary);
+}
+
+/* Same white-on-cream issue as hey — force dark hamburger bars */
+html[data-skin-comp="ledger"] .admin-nav .navbar-toggler-icon {
+    filter: brightness(0);
+}
+
 html[data-skin-comp="ledger"] .tabbar {
     border-bottom: 1px solid var(--st-border-strong);
     gap: 1.25rem;

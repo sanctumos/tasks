@@ -234,6 +234,12 @@ html[data-skin-comp="hey"] .admin-nav .btn-outline-light:hover {
 
 html[data-skin-comp="hey"] .admin-nav .navbar-toggler {
     border-color: #000;
+    color: #000;
+}
+
+/* navbar-dark ships a light toggler SVG — invisible on hey’s white bar */
+html[data-skin-comp="hey"] .admin-nav .navbar-toggler-icon {
+    filter: brightness(0);
 }
 
 html[data-skin-comp="hey"] .btn-primary {
