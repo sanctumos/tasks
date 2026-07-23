@@ -1743,6 +1743,13 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
     if (array_key_exists('project_id', $filters) && $filters['project_id'] !== null && $filters['project_id'] !== '') {
         $where[] = 't.project_id = :project_id';
         $params[':project_id'] = [(int)$filters['project_id'], SQLITE3_INTEGER];
+    } elseif (empty($filters['include_archived_projects'])) {
+        // Cross-project lists (Home "all tasks", search, schedule): hide tasks on archived/trashed boards.
+        // Explicit project_id (project workspace) still returns that board's tasks even when archived.
+        $where[] = "(t.project_id IS NULL OR EXISTS (
+            SELECT 1 FROM projects px
+            WHERE px.id = t.project_id AND px.status = 'active'
+        ))";
     }
 
     if (array_key_exists('list_id', $filters) && $filters['list_id'] !== null && $filters['list_id'] !== '') {

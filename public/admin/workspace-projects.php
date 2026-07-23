@@ -77,6 +77,12 @@ require __DIR__ . '/_layout_top.php';
     </div>
 </div>
 
+<?php if ($showArchived): ?>
+    <div class="alert alert-light border small mb-3">
+        Showing archived boards. Open one, then use the <strong>Archive downloads</strong> tab to generate or download a ZIP.
+    </div>
+<?php endif; ?>
+
 <?php if ($message): ?>
     <div class="alert alert-<?= htmlspecialchars($messageType) ?>"><?= htmlspecialchars($message) ?></div>
 <?php endif; ?>

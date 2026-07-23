@@ -115,8 +115,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'archive') {
         $result = updateDirectoryProject((int)$currentUser['id'], $id, ['status' => 'archived']);
         if ($result['success']) {
-            $message = 'Project archived. It is hidden from the default project list but still open here.';
+            $message = 'Project archived. It left the default project list. Use the Archive downloads tab to generate a ZIP snapshot.';
             $project = getDirectoryProjectById($id);
+            $tab = 'archives';
         } else {
             $message = $result['error'] ?? 'Could not archive project';
             $messageType = 'danger';
@@ -126,6 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result['success']) {
             $message = 'Project restored to active.';
             $project = getDirectoryProjectById($id);
+            $tab = 'lists';
         } else {
             $message = $result['error'] ?? 'Could not restore project';
             $messageType = 'danger';
@@ -372,27 +374,29 @@ require __DIR__ . '/_layout_top.php';
     </div>
     <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
         <?= st_doc_help('projects', 'Projects tabs lists docs and members') ?>
-        <?php if ($canManage && ($project['status'] ?? '') === 'active'): ?>
-            <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=<?= htmlspecialchars($tab) ?>" class="d-inline" onsubmit="return confirm('Archive this project? It will leave the default project list but stay readable.');">
-                <?= csrfInputField() ?>
-                <input type="hidden" name="action" value="archive">
-                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-archive me-1"></i>Archive</button>
-            </form>
-        <?php elseif ($canManage && ($project['status'] ?? '') === 'archived'): ?>
-            <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=<?= htmlspecialchars($tab) ?>" class="d-inline">
-                <?= csrfInputField() ?>
-                <input type="hidden" name="action" value="unarchive">
-                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise me-1"></i>Restore active</button>
-            </form>
-        <?php endif; ?>
         <?php if (in_array($tab, ['lists', 'tasks'], true)): ?>
             <?= st_assigned_to_me_button('/admin/project.php', ['id' => $id, 'tab' => $tab], $mineFilter) ?>
         <?php endif; ?>
-        <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#newTaskModal" <?= $canManage ? '' : 'disabled' ?>>
-            <i class="bi bi-plus-lg"></i> New task
-        </button>
+        <?php if (!$projectIsArchived): ?>
+            <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#newTaskModal" <?= $canManage ? '' : 'disabled' ?>>
+                <i class="bi bi-plus-lg"></i> New task
+            </button>
+        <?php endif; ?>
     </div>
 </div>
+
+<?php if ($projectIsArchived && $tab !== 'archives'): ?>
+    <div class="alert alert-secondary d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <strong>This board is archived.</strong>
+            Tasks stay on this project page only — they do not appear in Home / all tasks.
+            To download a ZIP snapshot, open <strong>Archive downloads</strong>.
+        </div>
+        <a class="btn btn-sm btn-primary" href="/admin/project.php?id=<?= (int)$id ?>&amp;tab=archives">
+            <i class="bi bi-download me-1"></i>Archive downloads
+        </a>
+    </div>
+<?php endif; ?>
 
 <?php if ($message): ?>
     <div class="alert alert-<?= htmlspecialchars($messageType) ?> alert-dismissible fade show"><?= htmlspecialchars($message) ?>
@@ -969,9 +973,12 @@ require __DIR__ . '/_layout_top.php';
     <?php endif; ?>
 
     <div class="surface surface-pad mb-3">
-        <div class="section-title"><i class="bi bi-archive"></i> Board archive ZIP</div>
+        <div class="section-title"><i class="bi bi-download"></i> Download a ZIP of this board</div>
+        <p class="text-muted small mb-2">
+            How you got here: <strong>Projects</strong> → <strong>Show archived</strong> → open this project → <strong>Archive downloads</strong>.
+        </p>
         <p class="text-muted small mb-3">
-            Generate a downloadable snapshot of this archived board (tasks, lists, docs, comments, and attachments).
+            Generate a downloadable snapshot (tasks, lists, docs, comments, and attachments).
             This is a file export — it does not restore the board to active.
         </p>
         <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=archives" class="d-inline">
@@ -1047,10 +1054,17 @@ require __DIR__ . '/_layout_top.php';
                 <div class="col-12 col-md-4">
                     <label class="form-label">Status</label>
                     <select class="form-select" name="status">
-                        <?php foreach (['active', 'archived', 'trashed'] as $st): ?>
+                        <?php
+                        // Keep Archive off this dropdown — use the deliberate lifecycle action below.
+                        $statusChoices = (($project['status'] ?? '') === 'archived')
+                            ? ['archived', 'active', 'trashed']
+                            : ['active', 'trashed'];
+                        foreach ($statusChoices as $st):
+                        ?>
                             <option value="<?= htmlspecialchars($st) ?>" <?= ($project['status'] ?? '') === $st ? 'selected' : '' ?>><?= htmlspecialchars($st) ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <div class="form-text">To archive, use <em>Archive this board…</em> below (not this menu).</div>
                 </div>
                 <div class="col-12">
                     <label class="form-label">Description</label>
@@ -1071,6 +1085,39 @@ require __DIR__ . '/_layout_top.php';
                 <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save settings</button>
             </div>
         </form>
+    </div>
+
+    <div class="surface surface-pad mt-3">
+        <div class="section-title text-muted"><i class="bi bi-archive"></i> Board lifecycle</div>
+        <?php if (($project['status'] ?? '') === 'active'): ?>
+            <p class="text-muted small mb-3">
+                Archiving hides this board from the default project list and removes its tasks from Home / all tasks.
+                You can still open it later (Projects → Show archived) and download a ZIP from <strong>Archive downloads</strong>.
+            </p>
+            <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=settings"
+                  onsubmit="return confirm('Archive this board?\n\nIt will leave the default project list and its tasks will leave Home / all tasks.\nYou can restore it later from Settings, or download a ZIP from Archive downloads.');">
+                <?= csrfInputField() ?>
+                <input type="hidden" name="action" value="archive">
+                <button type="submit" class="btn btn-link btn-sm text-muted text-decoration-none px-0">
+                    <i class="bi bi-archive me-1"></i>Archive this board…
+                </button>
+            </form>
+        <?php elseif (($project['status'] ?? '') === 'archived'): ?>
+            <p class="text-muted small mb-3">
+                This board is archived.
+                <a href="/admin/project.php?id=<?= (int)$id ?>&amp;tab=archives">Open Archive downloads</a>
+                to generate or download a ZIP snapshot.
+            </p>
+            <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=settings">
+                <?= csrfInputField() ?>
+                <input type="hidden" name="action" value="unarchive">
+                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Restore to active
+                </button>
+            </form>
+        <?php else: ?>
+            <p class="text-muted small mb-0">Status is <code><?= htmlspecialchars((string)($project['status'] ?? '')) ?></code>. Change it with Save settings above if needed.</p>
+        <?php endif; ?>
     </div>
 
 <?php endif; ?>

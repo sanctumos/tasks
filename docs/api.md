@@ -124,6 +124,7 @@ Convenience fields:
 | `priority` | `low` \| `normal` \| `high` \| `urgent` (invalid → `400` `validation.invalid_priority`) |
 | `assigned_to_user_id`, `created_by_user_id` | Filters |
 | `project`, `project_id`, `list_id` | Project / list filters |
+| `include_archived_projects` | `1` to include tasks whose directory project is archived/trashed. Default: omit those tasks on cross-project lists. Ignored when `project_id` is set (scoped board views always include that board). |
 | `q` | Search |
 | `due_before`, `due_after` | ISO-ish datetime strings |
 | `watcher_user_id` | Filter |

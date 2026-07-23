@@ -38,6 +38,9 @@ $filters = [
     'limit' => $limit,
     'offset' => $offset,
 ];
+if (isset($_GET['include_archived_projects']) && (string)$_GET['include_archived_projects'] === '1') {
+    $filters['include_archived_projects'] = true;
+}
 
 $result = listTasks($filters, true, $user);
 $tasks = $result['tasks'];
