@@ -1,8 +1,8 @@
 <?php
 /**
  * Settings — single page for account + workspace administration.
- * Tabs: Password · MFA · API keys · Audit
- *  (API keys / Audit are admin-only.)
+ * Tabs: Password · Appearance · MFA · Archived boards · API keys · Audit
+ *  (API keys / Audit / Ask Q are admin-only.)
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -21,6 +21,7 @@ $availableTabs = [
     'password' => ['label' => 'Password', 'icon' => 'bi-asterisk', 'admin' => false],
     'appearance' => ['label' => 'Appearance', 'icon' => 'bi-palette', 'admin' => false],
     'mfa' => ['label' => 'MFA', 'icon' => 'bi-shield-lock', 'admin' => false],
+    'archived-boards' => ['label' => 'Archived boards', 'icon' => 'bi-archive', 'admin' => false],
     'api-keys' => ['label' => 'API keys', 'icon' => 'bi-key', 'admin' => true],
     'audit' => ['label' => 'Audit log', 'icon' => 'bi-shield-check', 'admin' => true],
 ];
@@ -86,6 +87,9 @@ switch ($tab) {
         break;
     case 'mfa':
         require __DIR__ . '/_settings/mfa.php';
+        break;
+    case 'archived-boards':
+        require __DIR__ . '/_settings/archived_boards.php';
         break;
     case 'api-keys':
         if ($isAdmin) {
