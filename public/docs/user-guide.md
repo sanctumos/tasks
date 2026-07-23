@@ -1,135 +1,74 @@
-# Sanctum Tasks — user guide
+# Sanctum Tasks help
 
-This guide matches the current admin experience at a glance. For HTTP endpoints and JSON contracts, see `docs/api.md` and `docs/api-authorization-and-product-notes.md` in this repository.
+Tasks is not trying to be a cute little checklist app. It is the work ledger: the place where a client ask becomes a task, a build decision becomes a comment, a screenshot becomes proof, and an old board becomes an archive you can still defend six months later.
 
----
+The product has two faces:
 
-## Overview
+- The browser UI under `/admin/`, for humans doing and reviewing work.
+- The JSON API under `/api/`, for agents, scripts, SDKs, and integrations.
 
-**Sanctum Tasks** is a task system with a **browser admin UI** (`/admin/`) and a **JSON API** (`/api/`). Tasks live in **workspace projects** (directory projects). Each task belongs to a **project** and a **to-do list** inside that project. You can work from the **Home** page (projects first, then an all-project board), open a **single project**, or open an individual **task**.
+Use the browser when you are deciding, discussing, or checking the shape of the work. Use the API when a machine is doing repeatable work and you need the result to be auditable.
 
-Typical roles: **admin** (users, keys, audit), **member** / **manager** (day-to-day tasks), **api** (automation keys). Exact privileges depend on role and project membership—see **Users organizations and access** below.
+## Start here: what Tasks is
 
----
+The core model is deliberately boring:
 
-## Home and cross-project tasks
+- **Organization** — the boundary around people and projects.
+- **Project** — the board or workspace where a piece of work lives.
+- **To-do list** — a section inside a project.
+- **Task** — the actual thing someone owns.
+- **Comment** — the running record of decisions, proof, questions, and delivery notes.
+- **Document** — long-form project knowledge that should not be trapped inside a single task.
+- **Attachment** — a file or image tied to a task and served through Tasks permissions.
 
-**Home** (`/admin/`) has two stacked areas:
+That structure matters. A task without a project is a loose receipt in a junk drawer. A project without comments is a dashboard with no memory. A file outside Tasks might exist, but nobody knows whether it was the thing that shipped.
 
-1. **Your projects** — Cards for every workspace project you can access (same directory as **Projects** in the nav). Click a card to open that project (defaults to **Lists**).
+The operating rule is simple: if the work matters, leave a trail where the next person will actually look.
 
-2. **All tasks across projects** — The familiar **Board** and **List** views with filters. This is a **master** view: tasks from all projects you can see, not a single project.
+## The help map
 
-Use **Board** / **List** to switch layout. **New task** still picks a **project** and **to-do list** (tasks must belong to a list). Filters (status, assignee, priority, project name, search) apply to this combined set.
+This Help area is split into topic pages.
 
----
+| Page | Use it when |
+|------|-------------|
+| **Doing the work** | You are on Home, looking at all tasks, writing comments, using mentions, or opening a task. |
+| **Projects and archives** | You are creating projects, using lists, archiving a board, downloading a ZIP, or reading schedule/activity. |
+| **Docs and files** | You are writing project documents, uploading screenshots, embedding images, or sharing document links. |
+| **Access and settings** | You are managing users, project visibility, MFA, API keys, audit, archived-board shortcuts, or Ask Q limits. |
+| **Automation** | You are using the API, SDK, SMCP/MCP tools, or Q/agent workflows. |
 
-## Projects and workspace
+The little **?** icons in the app jump to the right page and section. If you find yourself explaining the same thing twice, the help section is missing something.
 
-**Projects** in the nav (`/admin/workspace-projects.php`) lists directory projects and lets you **create** a project. Each project has a **status** (`active`, `archived`, or `trashed`). **Archived** projects stay readable (tasks, docs, history) but drop off the default project list — use **Show archived** on the Projects page or **Archive** on a project header. **Trashed** is soft-delete (admin/settings). Optional flags: **client-visible**, **all-access**.
+## The daily loop
 
-Opening a project (`/admin/project.php?id=…`) gives you tabs:
+The normal flow looks like this:
 
-| Tab | Purpose |
-|-----|--------|
-| **Lists** | Basecamp-style **to-do lists** with tasks grouped under each list; add lists; add tasks inline; toggle done from the checkbox. |
-| **Tasks** | Alternate task views for the project (board/list-style task handling depending on implementation). |
-| **Docs** | Long-form **markdown documents** scoped to this project (not the same as this user guide). |
-| **Members** | Who belongs to the project. |
-| **Settings** | Project settings (if you have permission). |
+1. Open **Home** to see active projects and current tasks.
+2. Open the project that owns the work.
+3. Use **Lists** for the working plan.
+4. Open the task when the conversation needs detail, files, decisions, or proof.
+5. Use comments for status and decisions. Do not bury decisions in chat.
+6. Use **Docs** for long explanations, specs, research, onboarding notes, or client-facing writeups.
+7. Archive the board when it is no longer current, then download a ZIP when you need a durable handoff.
 
-Your default landing tab for a project is **Lists** so you can work list-by-task quickly.
+That last step is new and important. Archived projects are not deleted. They leave the default project list and they stop polluting all-tasks views, but they remain readable, downloadable, and auditable.
 
----
+## What changed recently
 
-## Lists and to-do lists
+The current build includes several features older help text did not cover:
 
-**To-do lists** belong to a project. **Every task must have a `list_id`**—there are no permanent “orphan” tasks in normal create flows.
+- **Archived boards** now have an **Archive downloads** tab.
+- **Settings → Archived boards** is a master list of archived projects with latest ZIP download shortcuts.
+- Archived-board tasks no longer show up on **Home / all tasks**.
+- The project **Archive** action moved into **Project settings → Board lifecycle** so it is not an accidental header click.
+- **Schedule** aggregates task due dates from visible projects.
+- **Doors** store external links on a project.
+- **Activity** gives project-level history.
+- **Appearance** lives under Settings.
+- **Ask Q** rate limits live under admin Settings when Q is enabled.
+- Uploaded task assets are served through Tasks permission checks, not guessed public paths.
+- Project documents can have public read links when enabled by someone with permission.
 
-On the **Lists** tab, add tasks with **Add a to-do…**, change status with the **checkbox** (done vs todo), and use **+ Add list** for a new list. Creating a task from the master **Home** flow still requires choosing **project** and **list** in the form.
+## When this guide disagrees with the app
 
----
-
-## Task detail page
-
-The task page (`/admin/view.php?id=…`) has:
-
-- **Title** and **description** (markdown).
-- **Discussion** (comments, markdown, **@mentions**—see below).
-- **Images & attachments** — upload images or copy **markdown snippets** into the description or comments.
-- **Right rail**: status, priority, assignee, due date, **project**, **list**, tags, rank, **recurrence** (RRULE builder modal), **watchers**.
-
-**Watch** subscribes you to the task. **Delete** removes the task (and locally stored image files for that task, when applicable).
-
----
-
-## Documents (per project)
-
-**Docs** (project tab → `docs.php` / document editor) are **markdown documents** attached to a **project**, separate from task bodies. Use them for specs, narratives, or long references. The API can create/update documents under a `project_id`; in the admin UI, open the project’s **Docs** tab to list and edit.
-
----
-
-## Images and attachments
-
-**Remote links:** Register a URL against a task via the API (`add-attachment`).
-
-**Uploads:** Image files (PNG, JPEG, GIF, WebP) can be stored on the server up to the configured size limit. After upload, use **Copy snippet** or **Paste into description** / **Paste into comment** so the image appears **inline** in markdown.
-
-Images are **not** public hotlinks by default: they are served through a **task-aware** asset URL so only people who may view the task can fetch the file.
-
----
-
-## Mentions and markdown
-
-Use **`@username`** in descriptions and comments. When you type `@`, a **suggest list** of users appears; pick one to insert. Rendered pages link mentions for visibility.
-
-Markdown (Parsedown, safe mode) applies to task **body**, **comments**, and **documents**. Password policy and other **admin** strings are plain text.
-
-**Diagrams:** Use a fenced code block with language **`mermaid`** (for example `flowchart`, `sequenceDiagram`, `graph TB`). The viewer renders it as a diagram instead of a plain code block. Other languages still show as syntax-highlighted preformatted code.
-
----
-
-## Search and filters
-
-On **Home**, the filter bar searches **titles and bodies**, and narrows by **status**, **priority**, **assignee**, and **project name** (string). **More** exposes sort order. Project-specific screens add their own controls (e.g. project-scoped lists).
-
----
-
-## Users organizations and access
-
-**Users** (`/admin/users.php`, admin-only): create users, disable/enable, set **organization** and multi-org membership where enabled, **reset password** (with password policy feedback), and scope **non-admin** users to assigned projects when **Limit to assigned projects** applies.
-
-**Organizations** (`/admin/organizations.php`) configure org boundaries when the deployment uses them.
-
-**Clients vs team:** **Person kind** (e.g. client) and **client-visible** projects affect what directory projects and tasks a user may see; details follow your deployment’s rules—see `docs/api-authorization-and-product-notes.md`.
-
----
-
-## Settings password MFA and API keys
-
-**Settings** (`/admin/settings.php`) tabs:
-
-- **Password** — Change your own password; policy requires minimum length and mixed character classes.
-- **MFA** — Optional TOTP for your account.
-- **API keys** — (Admin) Create and revoke keys for integrations.
-- **Audit** — (Admin) Review security-relevant events.
-
-Session versus API: the web UI uses **cookies**; automation uses **API keys** in headers—see **API SDK and integrations**.
-
----
-
-## API SDK and integrations
-
-- **API reference:** `docs/api.md` — routes, bodies, auth headers (`X-API-Key` / `Authorization: Bearer`).
-- **Auth product notes:** `docs/api-authorization-and-product-notes.md`.
-- **Python SDK:** `tasks_sdk/` (repository root).
-- **SMCP / MCP:** `smcp_plugin/tasks/` and `docs/integrations.md`.
-- **Workflows:** `docs/WORKFLOWS.md` for agent vs human patterns.
-
-Rate limits and error JSON schemas are documented in `docs/api.md`. Use **`/api/health.php`** only as documented for operators—there is no unauthenticated “ping” beyond that contract.
-
----
-
-## Document history
-
-This file is maintained with the product. If the UI and this guide diverge, prefer the shipped PHP and `docs/api.md` as source of truth for behavior; update this guide in the same change when possible.
+The shipped PHP is the source of truth for behavior. The API reference is `docs/api.md`. This guide is the human map. If the map gets stale, update it in the same change as the feature.
