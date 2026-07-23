@@ -315,6 +315,16 @@ Admin-only — creates a status (see PHP for body fields).
 | `POST` | `/api/watch-task.php` |
 | `POST` | `/api/unwatch-task.php` |
 
+#### Board archive ZIP (archived projects)
+
+Anyone with **project access** may request/list/download once the directory project `status` is **`archived`**. Jobs are async (`project_board_exports`); ZIP files live under `TASKS_BOARD_EXPORT_DIR` (outside `public/`).
+
+| Method | Path | Notes |
+| ------ | ---- | ----- |
+| `POST` | `/api/request-board-export.php` | JSON `project_id` — queues worker; returns `job_id` |
+| `GET` | `/api/list-board-exports.php` | `project_id` — recent jobs |
+| `GET` | `/api/download-board-export.php` | `id` job id — streams ZIP when `status=ready` (session or API key) |
+
 #### Notifications (per-user feed)
 
 Aggregated **for the authenticated API user only** (cookie session or API key). Rows are created when you are assigned to a task, `@mentioned` in a task body or comment (or document body/comment), when someone comments on a task you watch or are assigned to, or when someone comments on a document you created.
