@@ -133,6 +133,34 @@ function requestBoardExportJob(int $actorUserId, int $projectId): array
     return ['success' => true, 'id' => $jobId];
 }
 
+function boardExportPhpCliBinary(): string
+{
+    $candidates = [];
+    $bin = (string)(PHP_BINARY ?: '');
+    // Under php-fpm, PHP_BINARY is the FPM binary and cannot run CLI scripts.
+    if ($bin !== '' && stripos($bin, 'fpm') === false && stripos($bin, 'cgi') === false) {
+        $candidates[] = $bin;
+    }
+    foreach ([
+        '/usr/bin/php8.3',
+        '/usr/bin/php8.2',
+        '/usr/bin/php8.1',
+        '/usr/bin/php',
+        'php',
+    ] as $c) {
+        $candidates[] = $c;
+    }
+    foreach ($candidates as $c) {
+        if ($c === 'php') {
+            return 'php';
+        }
+        if (is_executable($c)) {
+            return $c;
+        }
+    }
+    return 'php';
+}
+
 function boardExportSpawnWorker(int $jobId): void
 {
     $candidates = [];
@@ -157,7 +185,7 @@ function boardExportSpawnWorker(int $jobId): void
         error_log('boardExportSpawnWorker: worker script missing; tried ' . implode(', ', $candidates));
         return;
     }
-    $php = PHP_BINARY ?: 'php';
+    $php = boardExportPhpCliBinary();
     $cmd = sprintf(
         'nohup %s %s %d >> %s 2>&1 &',
         escapeshellarg($php),
