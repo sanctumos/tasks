@@ -44,6 +44,9 @@ define('APP_DEBUG', envBool('TASKS_APP_DEBUG', false));
 // keep a legacy path (e.g. migrate blobs from storage/task-assets).
 define('TASKS_ASSET_STORAGE_DIR', envOrDefault('TASKS_ASSET_STORAGE_DIR', __DIR__ . '/../uploads/task-assets'));
 define('TASKS_ASSET_MAX_BYTES', (int)envOrDefault('TASKS_ASSET_MAX_BYTES', 8 * 1024 * 1024));
+/** Board ZIP snapshots — outside public/ (sibling of DB by default). */
+define('TASKS_BOARD_EXPORT_DIR', envOrDefault('TASKS_BOARD_EXPORT_DIR', dirname(DB_PATH) . '/board-exports'));
+define('TASKS_BOARD_EXPORT_MAX_BYTES', (int)envOrDefault('TASKS_BOARD_EXPORT_MAX_BYTES', 512 * 1024 * 1024));
 // Only use X-Forwarded-For / CF-Connecting-IP when behind a trusted proxy (H-02)
 define('TRUST_PROXY', envBool('TASKS_TRUST_PROXY', false));
 define('TRUSTED_PROXY_IPS', envOrDefault('TASKS_TRUSTED_PROXY_IPS', ''));
@@ -363,6 +366,36 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
             $db,
             'idx_api_keys_user_q_bridge_active',
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_user_q_bridge_active ON api_keys(user_id) WHERE key_kind = 'q_bridge' AND (revoked_at IS NULL OR revoked_at = '')"
+        );
+    }
+
+    // Async board ZIP exports for archived directory projects.
+    if (tableExists($db, 'projects') && tableExists($db, 'users')) {
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS project_board_exports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
+                requested_by_user_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                storage_rel_path TEXT DEFAULT NULL,
+                byte_size INTEGER DEFAULT NULL,
+                error_message TEXT DEFAULT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                started_at DATETIME DEFAULT NULL,
+                completed_at DATETIME DEFAULT NULL,
+                FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+                FOREIGN KEY(requested_by_user_id) REFERENCES users(id)
+            )
+        ");
+        ensureIndexExists(
+            $db,
+            'idx_project_board_exports_project_created',
+            'CREATE INDEX IF NOT EXISTS idx_project_board_exports_project_created ON project_board_exports(project_id, created_at DESC)'
+        );
+        ensureIndexExists(
+            $db,
+            'idx_project_board_exports_status',
+            'CREATE INDEX IF NOT EXISTS idx_project_board_exports_status ON project_board_exports(status)'
         );
     }
 }

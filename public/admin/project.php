@@ -41,18 +41,43 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
 }
 
 $canManage = userCanManageDirectoryProject($currentUser, $project);
+$projectIsArchived = (($project['status'] ?? '') === 'archived');
 $tab = (string)($_GET['tab'] ?? 'lists');
-if (!in_array($tab, ['tasks', 'lists', 'schedule', 'doors', 'activity', 'docs', 'members', 'settings'], true)) {
+$allowedTabs = ['tasks', 'lists', 'schedule', 'doors', 'activity', 'docs', 'members', 'settings'];
+if ($projectIsArchived) {
+    $allowedTabs[] = 'archives';
+}
+if (!in_array($tab, $allowedTabs, true)) {
+    $tab = 'lists';
+}
+if ($tab === 'settings' && !$canManage) {
+    $tab = 'lists';
+}
+if ($tab === 'archives' && !$projectIsArchived) {
     $tab = 'lists';
 }
 
 $message = null;
 $messageType = 'success';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManage) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     requireCsrfToken();
     $action = (string)($_POST['action'] ?? '');
-    if ($action === 'update') {
+    if ($action === 'request_board_export') {
+        $result = requestBoardExportJob((int)$currentUser['id'], $id);
+        $tab = 'archives';
+        if (!empty($result['success'])) {
+            $message = !empty($result['reused'])
+                ? 'An archive job is already in progress — check the list below.'
+                : 'Archive ZIP job queued. This page refreshes until the download is ready.';
+        } else {
+            $message = $result['error'] ?? 'Could not start archive export';
+            $messageType = 'danger';
+        }
+    } elseif (!$canManage) {
+        $message = 'You do not have permission to change this project.';
+        $messageType = 'danger';
+    } elseif ($action === 'update') {
         $fields = [
             'name' => (string)($_POST['name'] ?? ''),
             'description' => isset($_POST['description']) ? (string)$_POST['description'] : null,
@@ -155,10 +180,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canManage) {
             $tab = 'doors';
         }
     }
-} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    requireCsrfToken();
-    $message = 'You do not have permission to change this project.';
-    $messageType = 'danger';
+}
+
+// Refresh archive/access flags after POST mutations that may change status.
+$projectIsArchived = (($project['status'] ?? '') === 'archived');
+if ($projectIsArchived && !in_array('archives', $allowedTabs, true)) {
+    $allowedTabs[] = 'archives';
+}
+if ($tab === 'archives' && !$projectIsArchived) {
+    $tab = 'lists';
 }
 
 $members = listProjectMembers($id);
@@ -314,6 +344,7 @@ $tabHuman = [
     'docs' => 'Docs',
     'members' => 'Members',
     'settings' => 'Settings',
+    'archives' => 'Archive downloads',
 ][$tab] ?? ucfirst($tab);
 $adminBreadcrumbs = [
     ['href' => '/admin/', 'label' => 'Home'],
@@ -377,6 +408,9 @@ require __DIR__ . '/_layout_top.php';
     <?= st_tab_link('activity', $tab, 'Activity', 'bi-activity', null) ?>
     <?= st_tab_link('docs', $tab, 'Docs', 'bi-journals', $projectDocsCount) ?>
     <?= st_tab_link('members', $tab, 'Members', 'bi-people', count($members)) ?>
+    <?php if ($projectIsArchived): ?>
+        <?= st_tab_link('archives', $tab, 'Archive downloads', 'bi-download', null) ?>
+    <?php endif; ?>
     <?php if ($canManage): ?>
         <?= st_tab_link('settings', $tab, 'Settings', 'bi-gear', null) ?>
     <?php endif; ?>
@@ -918,6 +952,85 @@ require __DIR__ . '/_layout_top.php';
             </form>
         </div>
     <?php endif; ?>
+
+<?php elseif ($tab === 'archives' && $projectIsArchived): ?>
+    <?php
+    $exportJobs = listBoardExportJobsForProject($id, 50);
+    $exportPending = false;
+    foreach ($exportJobs as $ej) {
+        if (in_array((string)($ej['status'] ?? ''), ['pending', 'running'], true)) {
+            $exportPending = true;
+            break;
+        }
+    }
+    ?>
+    <?php if ($exportPending): ?>
+        <meta http-equiv="refresh" content="4;url=/admin/project.php?id=<?= (int)$id ?>&amp;tab=archives">
+    <?php endif; ?>
+
+    <div class="surface surface-pad mb-3">
+        <div class="section-title"><i class="bi bi-archive"></i> Board archive ZIP</div>
+        <p class="text-muted small mb-3">
+            Generate a downloadable snapshot of this archived board (tasks, lists, docs, comments, and attachments).
+            This is a file export — it does not restore the board to active.
+        </p>
+        <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=archives" class="d-inline">
+            <?= csrfInputField() ?>
+            <input type="hidden" name="action" value="request_board_export">
+            <button type="submit" class="btn btn-primary" <?= $exportPending ? 'disabled' : '' ?>>
+                <i class="bi bi-file-earmark-zip me-1"></i>Generate board archive
+            </button>
+        </form>
+        <?php if ($exportPending): ?>
+            <p class="text-muted small mt-2 mb-0"><i class="bi bi-hourglass-split me-1"></i>Building archive… this page refreshes automatically.</p>
+        <?php endif; ?>
+    </div>
+
+    <div class="surface mb-3">
+        <table class="task-table">
+            <thead>
+                <tr>
+                    <th>Requested</th>
+                    <th>By</th>
+                    <th>Status</th>
+                    <th>Size</th>
+                    <th style="text-align: right; width: 140px;">Download</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($exportJobs as $job): ?>
+                    <?php
+                    $st = (string)($job['status'] ?? '');
+                    $bytes = isset($job['byte_size']) && $job['byte_size'] !== null ? (int)$job['byte_size'] : null;
+                    $sizeLabel = $bytes === null ? '—' : (number_format($bytes / 1024, 1) . ' KB');
+                    ?>
+                    <tr>
+                        <td class="text-muted small"><?= htmlspecialchars((string)($job['created_at'] ?? '')) ?></td>
+                        <td><?= htmlspecialchars((string)($job['requested_by_username'] ?? '')) ?></td>
+                        <td>
+                            <span class="tag-chip"><?= htmlspecialchars($st) ?></span>
+                            <?php if ($st === 'failed' && !empty($job['error_message'])): ?>
+                                <div class="text-danger small mt-1"><?= htmlspecialchars((string)$job['error_message']) ?></div>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-muted small"><?= htmlspecialchars($sizeLabel) ?></td>
+                        <td class="task-actions" style="text-align: right;">
+                            <?php if ($st === 'ready'): ?>
+                                <a class="btn btn-sm btn-outline-primary" href="/api/download-board-export.php?id=<?= (int)$job['id'] ?>">
+                                    <i class="bi bi-download me-1"></i>Download
+                                </a>
+                            <?php else: ?>
+                                <span class="text-muted small">—</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$exportJobs): ?>
+                    <tr><td colspan="5" class="text-muted text-center py-4">No archive downloads yet.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
 
 <?php elseif ($tab === 'settings' && $canManage): ?>
 
