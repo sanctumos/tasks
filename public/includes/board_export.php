@@ -87,7 +87,176 @@ function listBoardExportJobsForProject(int $projectId, int $limit = 50): array
 }
 
 /**
- * @return array{success:bool,id?:int,error?:string}
+ * Fingerprint of board content that would land in a ZIP snapshot.
+ * Same hash ⇒ no need to build another archive file.
+ */
+function boardExportContentFingerprint(int $projectId): string
+{
+    $db = getDbConnection();
+    $parts = [];
+
+    $proj = $db->prepare('SELECT id, name, description, status, updated_at FROM projects WHERE id = :id LIMIT 1');
+    $proj->bindValue(':id', $projectId, SQLITE3_INTEGER);
+    $prow = $proj->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$prow) {
+        return hash('sha256', 'missing-project:' . $projectId);
+    }
+    $parts[] = 'project|' . implode('|', [
+        (string)$prow['id'],
+        (string)$prow['name'],
+        (string)($prow['description'] ?? ''),
+        (string)$prow['status'],
+        (string)($prow['updated_at'] ?? ''),
+    ]);
+
+    $lists = $db->prepare('SELECT id, name, sort_order, created_at FROM todo_lists WHERE project_id = :p ORDER BY id ASC');
+    $lists->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $lr = $lists->execute();
+    while ($row = $lr->fetchArray(SQLITE3_ASSOC)) {
+        $parts[] = 'list|' . implode('|', [
+            (string)$row['id'],
+            (string)$row['name'],
+            (string)$row['sort_order'],
+            (string)($row['created_at'] ?? ''),
+        ]);
+    }
+
+    $tasks = $db->prepare("
+        SELECT id, title, body, status, priority, due_at, list_id, assigned_to_user_id,
+               tags_json, rank, recurrence_rule, updated_at
+        FROM tasks
+        WHERE project_id = :p
+        ORDER BY id ASC
+    ");
+    $tasks->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $tr = $tasks->execute();
+    $taskIds = [];
+    while ($row = $tr->fetchArray(SQLITE3_ASSOC)) {
+        $taskIds[] = (int)$row['id'];
+        $parts[] = 'task|' . implode('|', [
+            (string)$row['id'],
+            (string)$row['title'],
+            (string)($row['body'] ?? ''),
+            (string)$row['status'],
+            (string)$row['priority'],
+            (string)($row['due_at'] ?? ''),
+            (string)($row['list_id'] ?? ''),
+            (string)($row['assigned_to_user_id'] ?? ''),
+            (string)($row['tags_json'] ?? ''),
+            (string)$row['rank'],
+            (string)($row['recurrence_rule'] ?? ''),
+            (string)($row['updated_at'] ?? ''),
+        ]);
+    }
+
+    if ($taskIds !== []) {
+        $in = implode(',', array_map('intval', $taskIds));
+        $cr = $db->query("
+            SELECT id, task_id, comment, created_at
+            FROM task_comments
+            WHERE task_id IN ({$in})
+            ORDER BY id ASC
+        ");
+        if ($cr) {
+            while ($row = $cr->fetchArray(SQLITE3_ASSOC)) {
+                $parts[] = 'tcomment|' . implode('|', [
+                    (string)$row['id'],
+                    (string)$row['task_id'],
+                    (string)$row['comment'],
+                    (string)($row['created_at'] ?? ''),
+                ]);
+            }
+        }
+        $ar = $db->query("
+            SELECT id, task_id, file_name, file_url, mime_type, size_bytes, storage_kind, storage_rel_path, created_at
+            FROM task_attachments
+            WHERE task_id IN ({$in})
+            ORDER BY id ASC
+        ");
+        if ($ar) {
+            while ($row = $ar->fetchArray(SQLITE3_ASSOC)) {
+                $parts[] = 'att|' . implode('|', [
+                    (string)$row['id'],
+                    (string)$row['task_id'],
+                    (string)$row['file_name'],
+                    (string)($row['file_url'] ?? ''),
+                    (string)($row['mime_type'] ?? ''),
+                    (string)($row['size_bytes'] ?? ''),
+                    (string)($row['storage_kind'] ?? ''),
+                    (string)($row['storage_rel_path'] ?? ''),
+                    (string)($row['created_at'] ?? ''),
+                ]);
+            }
+        }
+    }
+
+    $docs = $db->prepare("
+        SELECT id, title, body, status, directory_path, updated_at
+        FROM documents
+        WHERE project_id = :p AND status != 'trashed'
+        ORDER BY id ASC
+    ");
+    $docs->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $dr = $docs->execute();
+    $docIds = [];
+    while ($row = $dr->fetchArray(SQLITE3_ASSOC)) {
+        $docIds[] = (int)$row['id'];
+        $parts[] = 'doc|' . implode('|', [
+            (string)$row['id'],
+            (string)$row['title'],
+            (string)($row['body'] ?? ''),
+            (string)$row['status'],
+            (string)($row['directory_path'] ?? ''),
+            (string)($row['updated_at'] ?? ''),
+        ]);
+    }
+    if ($docIds !== []) {
+        $din = implode(',', array_map('intval', $docIds));
+        $dcr = $db->query("
+            SELECT id, document_id, comment, created_at
+            FROM document_comments
+            WHERE document_id IN ({$din})
+            ORDER BY id ASC
+        ");
+        if ($dcr) {
+            while ($row = $dcr->fetchArray(SQLITE3_ASSOC)) {
+                $parts[] = 'dcomment|' . implode('|', [
+                    (string)$row['id'],
+                    (string)$row['document_id'],
+                    (string)$row['comment'],
+                    (string)($row['created_at'] ?? ''),
+                ]);
+            }
+        }
+    }
+
+    return hash('sha256', implode("\n", $parts));
+}
+
+/**
+ * Latest ready export whose ZIP file still exists on disk.
+ */
+function getLatestReadyBoardExportWithFile(int $projectId): ?array
+{
+    $jobs = listBoardExportJobsForProject($projectId, 50);
+    foreach ($jobs as $job) {
+        if (($job['status'] ?? '') !== 'ready') {
+            continue;
+        }
+        $rel = (string)($job['storage_rel_path'] ?? '');
+        if ($rel === '') {
+            continue;
+        }
+        $abs = boardExportAbsolutePath($rel);
+        if ($abs !== null && is_file($abs)) {
+            return $job;
+        }
+    }
+    return null;
+}
+
+/**
+ * @return array{success:bool,id?:int,error?:string,reused?:bool,unchanged?:bool,status?:string}
  */
 function requestBoardExportJob(int $actorUserId, int $projectId): array
 {
@@ -104,7 +273,7 @@ function requestBoardExportJob(int $actorUserId, int $projectId): array
     // Avoid stacking identical pending/running jobs for the same requester.
     $db = getDbConnection();
     $chk = $db->prepare("
-        SELECT id FROM project_board_exports
+        SELECT id, status FROM project_board_exports
         WHERE project_id = :pid AND requested_by_user_id = :uid
           AND status IN ('pending', 'running')
         ORDER BY id DESC LIMIT 1
@@ -113,24 +282,50 @@ function requestBoardExportJob(int $actorUserId, int $projectId): array
     $chk->bindValue(':uid', $actorUserId, SQLITE3_INTEGER);
     $existing = $chk->execute()->fetchArray(SQLITE3_ASSOC);
     if ($existing) {
-        return ['success' => true, 'id' => (int)$existing['id'], 'reused' => true];
+        return [
+            'success' => true,
+            'id' => (int)$existing['id'],
+            'reused' => true,
+            'status' => (string)$existing['status'],
+        ];
+    }
+
+    $fingerprint = boardExportContentFingerprint($projectId);
+    $latestReady = getLatestReadyBoardExportWithFile($projectId);
+    if ($latestReady !== null) {
+        $prevHash = (string)($latestReady['content_hash'] ?? '');
+        if ($prevHash !== '' && hash_equals($prevHash, $fingerprint)) {
+            createAuditLog($actorUserId, 'project.board_export_reuse_unchanged', 'project_board_export', (string)$latestReady['id'], [
+                'project_id' => $projectId,
+                'content_hash' => $fingerprint,
+            ]);
+            return [
+                'success' => true,
+                'id' => (int)$latestReady['id'],
+                'reused' => true,
+                'unchanged' => true,
+                'status' => 'ready',
+            ];
+        }
     }
 
     $ins = $db->prepare("
-        INSERT INTO project_board_exports (project_id, requested_by_user_id, status, created_at)
-        VALUES (:pid, :uid, 'pending', CURRENT_TIMESTAMP)
+        INSERT INTO project_board_exports (project_id, requested_by_user_id, status, content_hash, created_at)
+        VALUES (:pid, :uid, 'pending', :hash, CURRENT_TIMESTAMP)
     ");
     $ins->bindValue(':pid', $projectId, SQLITE3_INTEGER);
     $ins->bindValue(':uid', $actorUserId, SQLITE3_INTEGER);
+    $ins->bindValue(':hash', $fingerprint, SQLITE3_TEXT);
     $ins->execute();
     $jobId = (int)$db->lastInsertRowID();
     createAuditLog($actorUserId, 'project.board_export_request', 'project_board_export', (string)$jobId, [
         'project_id' => $projectId,
+        'content_hash' => $fingerprint,
     ]);
 
     boardExportSpawnWorker($jobId);
 
-    return ['success' => true, 'id' => $jobId];
+    return ['success' => true, 'id' => $jobId, 'status' => 'pending'];
 }
 
 function boardExportPhpCliBinary(): string
@@ -246,17 +441,23 @@ function processBoardExportJob(int $jobId): array
         }
 
         $built = boardExportBuildZipArchive($project, $jobId);
+        $hash = (string)($job['content_hash'] ?? '');
+        if ($hash === '') {
+            $hash = boardExportContentFingerprint($projectId);
+        }
         $upd = $db->prepare("
             UPDATE project_board_exports
             SET status = 'ready',
                 storage_rel_path = :rel,
                 byte_size = :sz,
+                content_hash = :hash,
                 completed_at = CURRENT_TIMESTAMP,
                 error_message = NULL
             WHERE id = :id
         ");
         $upd->bindValue(':rel', $built['rel'], SQLITE3_TEXT);
         $upd->bindValue(':sz', $built['bytes'], SQLITE3_INTEGER);
+        $upd->bindValue(':hash', $hash, SQLITE3_TEXT);
         $upd->bindValue(':id', $jobId, SQLITE3_INTEGER);
         $upd->execute();
         return ['success' => true];

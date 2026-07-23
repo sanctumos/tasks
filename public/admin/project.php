@@ -67,9 +67,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = requestBoardExportJob((int)$currentUser['id'], $id);
         $tab = 'archives';
         if (!empty($result['success'])) {
-            $message = !empty($result['reused'])
-                ? 'An archive job is already in progress — check the list below.'
-                : 'Archive ZIP job queued. This page refreshes until the download is ready.';
+            if (!empty($result['unchanged'])) {
+                $message = 'Board has not changed since the last archive — using the existing ZIP (no duplicate file).';
+            } elseif (!empty($result['reused'])) {
+                $message = 'An archive job is already in progress — check the list below.';
+            } else {
+                $message = 'Archive ZIP job queued. This page refreshes until the download is ready.';
+            }
         } else {
             $message = $result['error'] ?? 'Could not start archive export';
             $messageType = 'danger';

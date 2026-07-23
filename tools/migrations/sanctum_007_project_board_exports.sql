@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS project_board_exports (
     status TEXT NOT NULL DEFAULT 'pending',
     storage_rel_path TEXT DEFAULT NULL,
     byte_size INTEGER DEFAULT NULL,
+    content_hash TEXT DEFAULT NULL,
     error_message TEXT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     started_at DATETIME DEFAULT NULL,

@@ -379,6 +379,7 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
                 status TEXT NOT NULL DEFAULT 'pending',
                 storage_rel_path TEXT DEFAULT NULL,
                 byte_size INTEGER DEFAULT NULL,
+                content_hash TEXT DEFAULT NULL,
                 error_message TEXT DEFAULT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 started_at DATETIME DEFAULT NULL,
@@ -396,6 +397,12 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
             $db,
             'idx_project_board_exports_status',
             'CREATE INDEX IF NOT EXISTS idx_project_board_exports_status ON project_board_exports(status)'
+        );
+        ensureColumnExists($db, 'project_board_exports', 'content_hash', 'TEXT DEFAULT NULL');
+        ensureIndexExists(
+            $db,
+            'idx_project_board_exports_project_hash',
+            'CREATE INDEX IF NOT EXISTS idx_project_board_exports_project_hash ON project_board_exports(project_id, content_hash)'
         );
     }
 }

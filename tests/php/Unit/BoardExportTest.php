@@ -152,21 +152,45 @@ final class BoardExportTest extends TestCase
             }
         }
         $this->assertTrue($foundAsset, 'ZIP should include attachment bytes under assets/');
+        $this->assertNotEmpty($job['content_hash'] ?? null, 'ready export should store content fingerprint');
 
-        // Second export creates a new job row
-        $ins2 = $db->prepare("
-            INSERT INTO project_board_exports (project_id, requested_by_user_id, status, created_at)
-            VALUES (:pid, :uid, 'pending', CURRENT_TIMESTAMP)
-        ");
-        $ins2->bindValue(':pid', $pid, SQLITE3_INTEGER);
-        $ins2->bindValue(':uid', $uid, SQLITE3_INTEGER);
-        $ins2->execute();
-        $jobId2 = (int)$db->lastInsertRowID();
+        // Unchanged board: request reuses the ready ZIP (no new job / no duplicate file).
+        $reuse = requestBoardExportJob($uid, $pid);
+        $this->assertTrue($reuse['success']);
+        $this->assertTrue(!empty($reuse['unchanged']));
+        $this->assertSame($jobId, (int)$reuse['id']);
+        $this->assertSame(1, count(listBoardExportJobsForProject($pid, 10)));
+
+        // Change content → new export job.
+        $bump = $db->prepare('UPDATE tasks SET body = :b, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
+        $bump->bindValue(':b', "Changed body for {$suffix}", SQLITE3_TEXT);
+        $bump->bindValue(':id', $tid, SQLITE3_INTEGER);
+        $bump->execute();
+
+        $req2 = requestBoardExportJob($uid, $pid);
+        $this->assertTrue($req2['success']);
+        $this->assertEmpty($req2['unchanged'] ?? null);
+        $jobId2 = (int)$req2['id'];
         $this->assertNotSame($jobId, $jobId2);
-        $proc2 = processBoardExportJob($jobId2);
-        $this->assertTrue($proc2['success'], (string)($proc2['error'] ?? ''));
-        $listed = listBoardExportJobsForProject($pid, 10);
-        $this->assertGreaterThanOrEqual(2, count($listed));
+
+        // Spawn may claim the row; reset to pending if needed so this test finishes the build.
+        $row2 = getBoardExportJobById($jobId2);
+        $this->assertNotNull($row2);
+        if (($row2['status'] ?? '') !== 'ready') {
+            if (($row2['status'] ?? '') !== 'pending') {
+                $db->exec(
+                    'UPDATE project_board_exports SET status = \'pending\', started_at = NULL, completed_at = NULL, error_message = NULL WHERE id = '
+                    . (int)$jobId2
+                );
+            }
+            $proc2 = processBoardExportJob($jobId2);
+            $this->assertTrue($proc2['success'], (string)($proc2['error'] ?? ''));
+        }
+
+        $ready2 = getBoardExportJobById($jobId2);
+        $this->assertSame('ready', $ready2['status'] ?? null);
+        $this->assertNotSame((string)$job['content_hash'], (string)$ready2['content_hash']);
+        $this->assertGreaterThanOrEqual(2, count(listBoardExportJobsForProject($pid, 10)));
     }
 }
 

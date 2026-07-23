@@ -30,5 +30,6 @@ if (empty($result['success'])) {
 apiSuccess([
     'job_id' => (int)$result['id'],
     'reused' => !empty($result['reused']),
-    'status' => 'pending',
-], [], 201);
+    'unchanged' => !empty($result['unchanged']),
+    'status' => (string)($result['status'] ?? (!empty($result['unchanged']) ? 'ready' : 'pending')),
+], [], !empty($result['unchanged']) || !empty($result['reused']) ? 200 : 201);

@@ -322,7 +322,7 @@ Anyone with **project access** may request/list/download once the directory proj
 
 | Method | Path | Notes |
 | ------ | ---- | ----- |
-| `POST` | `/api/request-board-export.php` | JSON `project_id` — queues worker; returns `job_id` |
+| `POST` | `/api/request-board-export.php` | JSON `project_id` — queues worker; returns `job_id`. If a ready ZIP already matches the current board content fingerprint, reuses that job (`unchanged: true`, HTTP 200) instead of writing a duplicate file. |
 | `GET` | `/api/list-board-exports.php` | `project_id` — recent jobs |
 | `GET` | `/api/download-board-export.php` | `id` job id — streams ZIP when `status=ready` (session or API key) |
 

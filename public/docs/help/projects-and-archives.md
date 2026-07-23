@@ -72,7 +72,7 @@ The path is:
 
 From there:
 
-1. Click **Generate board archive**.
+1. Click **Generate board archive**. If the board has not changed since the last ready ZIP, Tasks reuses that file instead of writing a duplicate.
 2. Wait for the job to turn **ready**.
 3. Click **Download**.
 
