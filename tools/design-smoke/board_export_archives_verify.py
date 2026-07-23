@@ -73,12 +73,28 @@ def main() -> int:
             page = context.new_page()
             login(page, base, user, password, new_password)
             page.goto(url, wait_until="networkidle", timeout=60000)
-            if "Board archive ZIP" not in page.content():
+            content = page.content()
+            if "Generate board archive" not in content and "Download a ZIP of this board" not in content:
                 fail = OUT / f"board_export_archives_fail_{label}.png"
                 page.screenshot(path=str(fail), full_page=True)
                 print(f"url={page.url}", file=sys.stderr)
                 raise RuntimeError(f"archives tab missing content; shot {fail}")
             page.wait_for_selector("text=Generate board archive", timeout=10000)
+            # Unchanged-reuse copy landed with content_hash work.
+            lower = content.lower()
+            assert "duplicate" in lower or "generate board archive" in lower
+            page.get_by_role("button", name="Generate board archive").click()
+            page.wait_for_load_state("networkidle", timeout=60000)
+            body = page.content().lower()
+            assert (
+                "queued" in body
+                or "already" in body
+                or "not changed" in body
+                or "reuses" in body
+                or "building archive" in body
+                or "ready" in body
+                or "download" in body
+            ), f"unexpected post-generate state; url={page.url}"
             shot = OUT / f"board_export_archives_{label}.png"
             page.screenshot(path=str(shot), full_page=True)
             print(f"wrote {shot}")

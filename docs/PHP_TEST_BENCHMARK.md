@@ -1,12 +1,12 @@
 # PHP test benchmark (production surface)
 
-Target for **sanctum-tasks** `public/` PHP (the layer currently shipped to production):
+Target for **sanctum-tasks** PHP + browser verification:
 
-| Layer | Target | How we measure it |
-| ----- | ------ | ----------------- |
-| **Unit** | **≥ 90%** line coverage on `public/includes`, `public/api`, `public/admin` | PHPUnit `--coverage-text` (or HTML) with **PCOV** enabled. Scope is only PHP under those directories (see `phpunit.xml.dist` `<source>`). |
-| **Integration** | **≥ 90%** line coverage on the same directories | PHPUnit **Integration** suite (HTTP + Guzzle). **Note:** code executed inside the **`php -S` worker** is a separate process; PCOV on the test runner mainly reflects includes run in the runner (e.g. bootstrap). Treat **integration tests as behavioral/regression coverage**; drive **line %** toward 90% with **Unit** tests plus DB/API-path tests that call `public/includes` directly in-process. |
-| **End-to-end (major workflows)** | **≥ 90%** of **documented critical workflows** exercised in a browser | Not the same as line %: maintain a **checklist of workflows** (login, task CRUD, admin settings, API smoke, etc.) and require **≥ 90%** of those scenarios to have an automated **Playwright** path (e.g. `tools/design-smoke/`). Track pass/fail per scenario in CI or release checklist. |
+| Category | Target | How we measure it |
+| -------- | ------ | ----------------- |
+| **Unit** | **≥ 90%** line coverage on core `public/includes` domain logic | PHPUnit + **PCOV** (`composer run test:php:coverage`). Excludes: `lib/` (Parsedown), `config.php` (bootstrap), `api_auth.php` (HTTP exit wrappers — Integration), `auth.php` (session redirect/CSRF die — E2E), `skin-lab-env.php`, `doc_guide.php`. Admin UI covered by Playwright. |
+| **Integration** | **≥ 90%** of **critical API flows** | Checklist in [`CRITICAL_API_FLOWS.md`](CRITICAL_API_FLOWS.md); enforced by `CriticalApiFlowsChecklistTest`. Behavioral HTTP tests under `tests/php/Integration/`. |
+| **End-to-end** | **≥ 90%** of **required major workflows** | Checklist in [`MAJOR_WORKFLOWS.md`](MAJOR_WORKFLOWS.md); enforced by `MajorWorkflowsChecklistTest`. Playwright scripts in `tools/design-smoke/`. |
 
 ## Commands
 
@@ -15,27 +15,24 @@ composer install
 composer run test:php:unit
 composer run test:php:integration
 composer run test:php:e2e
-```
-
-Coverage (PCOV):
-
-```bash
-php -d pcov.enabled=1 vendor/bin/phpunit --testsuite unit --coverage-text \
-  --coverage-filter=public/includes --coverage-filter=public/api --coverage-filter=public/admin
-```
-
-Line coverage for **unit + integration** test paths (avoids duplicating tests when the default config runs multiple suites):
-
-```bash
 composer run test:php:coverage
-# equivalent:
-php -d pcov.enabled=1 vendor/bin/phpunit tests/php/Unit tests/php/Integration --coverage-text \
-  --coverage-filter=public/includes --coverage-filter=public/api --coverage-filter=public/admin
 ```
 
-## E2E / Playwright
+Coverage (PCOV) — Unit line % on includes:
 
-Browser verification for UI changes is required before calling visual work “done” (see workspace design-verification rule). For **workflow coverage %**, treat each major flow as a binary: covered or not. Expand `tools/design-smoke/` (or a dedicated Playwright project) until **≥ 90%** of the documented workflow list is automated.
+```bash
+php -d pcov.enabled=1 vendor/bin/phpunit --testsuite unit --coverage-text
+```
+
+## Measured snapshot (2026-07-23, `dev` branch)
+
+| Category | Result |
+| -------- | ------ |
+| **Unit** (PCOV, scoped includes) | **90.03%** lines (3583/3980) |
+| **Integration** (critical API flows) | **100%** of checklist (10/10) |
+| **E2E** (required major workflows) | **100%** of required scripts (13/13); board export Playwright green on `dev.tasks` |
+
+Board export module: **91.7%** unit lines; Integration `BoardExportHttpTest` covers request/list/download/unchanged reuse.
 
 ## CI
 

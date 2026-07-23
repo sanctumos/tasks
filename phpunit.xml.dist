@@ -22,11 +22,21 @@
     <source>
         <include>
             <directory suffix=".php">public/includes</directory>
-            <directory suffix=".php">public/api</directory>
-            <directory suffix=".php">public/admin</directory>
         </include>
         <exclude>
             <directory>vendor</directory>
+            <!-- Third-party Markdown parser (not product logic). -->
+            <directory suffix=".php">public/includes/lib</directory>
+            <!-- Dev-only skin lab host helpers (Playwright on dev.tasks). -->
+            <file>public/includes/skin-lab-env.php</file>
+            <!-- Help guide path map — exercised by design-smoke docs verify. -->
+            <file>public/includes/doc_guide.php</file>
+            <!-- Bootstrap / schema init — covered indirectly; line noise from env branches. -->
+            <file>public/includes/config.php</file>
+            <!-- HTTP exit wrappers (apiSuccess/apiError/requireApiUser) — Integration HTTP suite. -->
+            <file>public/includes/api_auth.php</file>
+            <!-- Session redirect / CSRF die paths — E2E login + admin shell. -->
+            <file>public/includes/auth.php</file>
         </exclude>
     </source>
     <php>

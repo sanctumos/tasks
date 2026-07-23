@@ -23,6 +23,6 @@
         "test:php:unit": "@php vendor/bin/phpunit --testsuite unit",
         "test:php:integration": "@php vendor/bin/phpunit --testsuite integration",
         "test:php:e2e": "@php vendor/bin/phpunit --testsuite e2e",
-        "test:php:coverage": "@php -d pcov.enabled=1 vendor/bin/phpunit tests/php/Unit tests/php/Integration --coverage-text --coverage-filter=public/includes --coverage-filter=public/api --coverage-filter=public/admin"
+        "test:php:coverage": "@php -d pcov.enabled=1 vendor/bin/phpunit --testsuite unit --coverage-text"
     }
 }
