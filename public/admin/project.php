@@ -984,6 +984,7 @@ require __DIR__ . '/_layout_top.php';
         <p class="text-muted small mb-3">
             Generate a downloadable snapshot (tasks, lists, docs, comments, and attachments).
             This is a file export — it does not restore the board to active.
+            If nothing on the board has changed since the last ready ZIP, Tasks reuses that file instead of writing a duplicate.
         </p>
         <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=archives" class="d-inline">
             <?= csrfInputField() ?>
