@@ -3300,6 +3300,16 @@ function allowedTaskAssetMimeTypes(): array {
         'image/gif',
         'image/webp',
         'video/mp4',
+        'application/pdf',
+        'text/plain',
+        'text/csv',
+        'text/markdown',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/zip',
+        'application/x-zip-compressed',
     ];
 }
 
@@ -3349,6 +3359,16 @@ function buildTaskAssetStorageRelPath(int $taskId, string $mimeType): string {
         'image/gif' => 'gif',
         'image/webp' => 'webp',
         'video/mp4' => 'mp4',
+        'application/pdf' => 'pdf',
+        'text/plain' => 'txt',
+        'text/csv' => 'csv',
+        'text/markdown' => 'md',
+        'application/msword' => 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+        'application/vnd.ms-excel' => 'xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+        'application/zip' => 'zip',
+        'application/x-zip-compressed' => 'zip',
     ];
     $ext = $extMap[strtolower($mimeType)] ?? 'bin';
     $random = bin2hex(random_bytes(16));
@@ -3378,9 +3398,26 @@ function persistTaskAssetUpload(int $taskId, string $tmpPath, string $mimeType):
     return ['success' => true, 'storage_rel_path' => $rel];
 }
 
-function taskAttachmentMarkdownSnippet(string $fileName, string $fileUrl): string {
+/**
+ * Markdown for pasting into a task body/comment.
+ * Images use ![](url); other types (PDF, docs, zip, …) use a plain link.
+ */
+function taskAttachmentMarkdownSnippet(string $fileName, string $fileUrl, ?string $mimeType = null): string {
     $alt = str_replace(['[', ']'], '', trim($fileName));
-    return '![' . $alt . '](' . trim($fileUrl) . ')';
+    if ($alt === '') {
+        $alt = 'attachment';
+    }
+    $url = trim($fileUrl);
+    $mime = strtolower(trim((string)$mimeType));
+    $inlineImage = $mime !== '' && str_starts_with($mime, 'image/');
+    if (!$inlineImage && $mime === '') {
+        $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+        $inlineImage = in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'webp'], true);
+    }
+    if ($inlineImage) {
+        return '![' . $alt . '](' . $url . ')';
+    }
+    return '[' . $alt . '](' . $url . ')';
 }
 
 function deleteLocalTaskAttachmentFile(array $attachment): void {

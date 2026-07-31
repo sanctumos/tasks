@@ -588,7 +588,7 @@
                     toast(msg, "error");
                     return;
                 }
-                toast("Image attached");
+                toast("File attached");
                 setStatus("");
                 window.location.reload();
             } catch (err) {

@@ -286,13 +286,13 @@ Admin-only — creates a status (see PHP for body fields).
 
 **Response `201`:** Minimal payload: `task_id`, `attachment_id` (plus standard `success` / `data`).
 
-**Upload mode (`POST /api/upload-attachment.php`):** authenticated multipart upload for images stored by Tasks.
+**Upload mode (`POST /api/upload-attachment.php`):** authenticated multipart upload for files stored by Tasks (images, PDF, office docs, and a few other types).
 
 - Content-Type: `multipart/form-data`
 - Fields:
   - `task_id` (required)
   - `file` (required upload field)
-- Allowed MIME types: `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `video/mp4`
+- Allowed MIME types: `image/png`, `image/jpeg`, `image/gif`, `image/webp`, `video/mp4`, `application/pdf`, `text/plain`, `text/csv`, `text/markdown`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.ms-excel`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `application/zip`, `application/x-zip-compressed`
 - Max size: `TASKS_ASSET_MAX_BYTES` (default 8 MiB)
 - **Disk layout:** default `TASKS_ASSET_STORAGE_DIR` is **`public/uploads/task-assets/`** (under the web docroot’s `uploads/` tree). That matches standard multihost **`deploy.sh`** behavior: `public/` is mirrored with `--delete`, but **`public/uploads/` is preserved**. Bytes are still served **only** through `GET /api/get-asset.php` (task ACL), not as public hotlinks. Override `TASKS_ASSET_STORAGE_DIR` only for legacy installs (e.g. older `storage/task-assets` paths).
 

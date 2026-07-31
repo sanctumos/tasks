@@ -60,21 +60,23 @@ Uploaded images can be embedded directly in task bodies and comments. The UI giv
 
 Screenshots are not decoration. They answer the question, "What did the user actually see?" If a task ships a visual change, attach the proof where the stakeholders will look: on the task.
 
-## How images are served
+## How files are served
 
-Tasks does not treat uploaded task images as public hotlinks.
+Tasks does not treat uploaded task files as public hotlinks.
 
-The canonical image URL is:
+The canonical file URL is:
 
 `/api/get-asset.php?id=...`
 
-That endpoint checks whether the viewer can see the task. If they cannot see the task, they should not be able to fetch the image.
+That endpoint checks whether the viewer can see the task. If they cannot see the task, they should not be able to fetch the file.
 
 This is why you should not hand-build `/uploads/...` URLs. The file may exist there, but the permission boundary lives at `get-asset.php`.
 
-## Inline markdown images
+Uploads accept images, PDF, Word/Excel, CSV/text, Markdown, ZIP, and MP4 (see API docs for the full MIME list).
 
-Use markdown image syntax when you want the file to show in the body:
+## Inline markdown
+
+**Images** use markdown image syntax so they show in the body:
 
 ```md
 ![short description](/api/get-asset.php?id=123)
@@ -85,6 +87,12 @@ The short description should say what the image is, not "image." Good examples:
 - `![mobile archive downloads tab](/api/get-asset.php?id=123)`
 - `![invoice settings after save](/api/get-asset.php?id=124)`
 - `![warehouse scan error](/api/get-asset.php?id=125)`
+
+**PDFs and other non-image files** get a normal markdown link when you use **Copy snippet** (so the page does not try to render them as an image):
+
+```md
+[spec-v2.pdf](/api/get-asset.php?id=126)
+```
 
 ## Attachments in archived board ZIPs
 

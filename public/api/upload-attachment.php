@@ -79,7 +79,7 @@ if ($sizeBytes > TASKS_ASSET_MAX_BYTES) {
 $finfo = new finfo(FILEINFO_MIME_TYPE);
 $mimeType = strtolower((string)$finfo->file($tmpName));
 if (!isAllowedTaskAssetMimeType($mimeType)) {
-    apiError('validation.unsupported_mime', 'Unsupported MIME type for task image upload', 400, [
+    apiError('validation.unsupported_mime', 'Unsupported MIME type for task file upload', 400, [
         'mime_type' => $mimeType,
         'allowed' => allowedTaskAssetMimeTypes(),
     ]);
@@ -125,7 +125,7 @@ $upd->bindValue(':file_url', $canonicalUrl, SQLITE3_TEXT);
 $upd->bindValue(':id', $attachmentId, SQLITE3_INTEGER);
 $upd->execute();
 
-$markdown = taskAttachmentMarkdownSnippet($originalName, $canonicalUrl);
+$markdown = taskAttachmentMarkdownSnippet($originalName, $canonicalUrl, $mimeType);
 
 apiSuccess([
     'task_id' => $taskId,

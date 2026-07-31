@@ -285,23 +285,23 @@ require __DIR__ . '/_layout_top.php';
         <div class="surface surface-pad mb-3" id="attachments">
             <div class="section-title-row section-title-row--with-help">
                 <div class="section-title">
-                    <i class="bi bi-image"></i> Images &amp; attachments
+                    <i class="bi bi-paperclip"></i> Files &amp; attachments
                     <span class="count"><?= (int)$attachmentCount ?></span>
                 </div>
-                <?= st_doc_help('images-attachments', 'Upload and inline images') ?>
+                <?= st_doc_help('images-attachments', 'Upload images, PDFs, and other files') ?>
             </div>
             <div
                 class="js-task-image-upload st-image-upload mb-3"
                 role="group"
-                aria-label="Upload task image"
+                aria-label="Upload task file"
                 data-task-id="<?= (int)$task['id'] ?>"
                 data-csrf="<?= htmlspecialchars(getCsrfToken(), ENT_QUOTES, 'UTF-8') ?>"
             >
                 <label class="st-image-upload__zone">
-                    <input type="file" class="js-task-image-file d-none" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4">
+                    <input type="file" class="js-task-image-file d-none" accept="image/png,image/jpeg,image/gif,image/webp,video/mp4,application/pdf,.pdf,text/plain,.txt,text/csv,.csv,.doc,.docx,.xls,.xlsx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,.zip">
                     <span class="st-image-upload__icon"><i class="bi bi-cloud-arrow-up"></i></span>
-                    <span class="st-image-upload__title">Upload an image</span>
-                    <span class="st-image-upload__hint"><?= 'PNG, JPEG, GIF, or WebP · up to ' . htmlspecialchars((string)$assetMaxMb) ?> MB · use <strong>Copy snippet</strong> below and paste into the description or a comment to show it inline.</span>
+                    <span class="st-image-upload__title">Upload a file</span>
+                    <span class="st-image-upload__hint"><?= 'Images, PDF, Word, Excel, CSV, text, or ZIP · up to ' . htmlspecialchars((string)$assetMaxMb) ?> MB · use <strong>Copy snippet</strong> below and paste into the description or a comment (images render inline; other files become links).</span>
                 </label>
                 <div class="js-task-image-status st-image-upload__status d-none" aria-live="polite"></div>
             </div>
@@ -312,7 +312,7 @@ require __DIR__ . '/_layout_top.php';
                         $name = (string)$a['file_name'];
                         $mime = (string)($a['mime_type'] ?? '');
                         $isImg = ($mime !== '' && str_starts_with($mime, 'image/'));
-                        $mdSnippet = taskAttachmentMarkdownSnippet($name, $url);
+                        $mdSnippet = taskAttachmentMarkdownSnippet($name, $url, $mime !== '' ? $mime : null);
                     ?>
                         <li class="attachment-list__row">
                             <?php if ($isImg): ?>
@@ -341,7 +341,7 @@ require __DIR__ . '/_layout_top.php';
                     <?php endforeach; ?>
                 </ul>
             <?php else: ?>
-                <p class="text-muted small mb-0">No files yet. Upload above, then use <strong>Copy snippet</strong> and paste into the description or discussion so the image renders inline.</p>
+                <p class="text-muted small mb-0">No files yet. Upload above, then use <strong>Copy snippet</strong> and paste into the description or discussion (images render inline; PDFs and other files become links).</p>
             <?php endif; ?>
             <p class="fine-print mb-0 mt-2">Remote links can still be registered via <code>POST /api/add-attachment.php</code>; uploads use <code>POST /api/upload-attachment.php</code> (same from the admin UI).</p>
         </div>
