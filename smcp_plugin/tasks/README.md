@@ -22,11 +22,22 @@ SMCP plugin for interacting with the Sanctum Tasks API. This plugin provides MCP
 
 ## Configuration
 
-The plugin is configured with:
-- **Base URL**: Hard-coded to `https://tasks.example.com` (set to your Sanctum Tasks server)
-- **API Key**: Must be provided as `--api-key` argument for all commands
+The plugin reads:
+
+- **Base URL**: `TASKS_API_BASE_URL` or `TASKS_DSC_BASE_URL` (fallback `https://tasks.example.com`)
+- **API Key**: `--api-key`, else `TASKS_API_KEY` / `TASKS_DSC_OTTOVERNAL_API_KEY`
 
 ## Available Commands
+
+Documents and todo lists are first-class MCP tools (parity with the PHP `/api/*` surface):
+
+| Command | HTTP |
+|---------|------|
+| `list-documents` / `get-document` / `create-document` / `update-document` / `delete-document` | `/api/*-document*.php` |
+| `list-document-comments` / `create-document-comment` | document discussion |
+| `list-todo-lists` / `create-todo-list` | `/api/list-todo-lists.php`, `/api/create-todo-list.php` |
+
+`update-document` accepts optional `--expected-updated-at` for optimistic concurrency (HTTP **409** on stale).
 
 ### create-task
 
@@ -105,10 +116,11 @@ Get a single task by ID.
 
 **Parameters:**
 - `--task-id` (required): Task ID
+- `--include-relations` (optional, boolean, default `true`): Pass `false` to omit comments/watchers/etc.
 
 **Example:**
 ```bash
-python cli.py get-task --api-key "YOUR_API_KEY" --task-id 123
+python cli.py get-task --api-key "YOUR_API_KEY" --task-id 123 --include-relations false
 ```
 
 ### delete-task

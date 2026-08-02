@@ -26,11 +26,20 @@ if ($priorityFilter !== null && trim((string)$priorityFilter) !== '') {
     }
 }
 
+$projectIdFilter = null;
+if (isset($_GET['project_id']) && trim((string)$_GET['project_id']) !== '') {
+    $projectIdFilter = (int)$_GET['project_id'];
+    if ($projectIdFilter <= 0) {
+        apiError('validation.invalid_project_id', 'Invalid project_id filter', 400, ['field' => 'project_id']);
+    }
+}
+
 $filters = [
     'q' => $q,
     'status' => $statusFilter,
     'priority' => $priorityFilter,
     'assigned_to_user_id' => $_GET['assigned_to_user_id'] ?? null,
+    'project_id' => $projectIdFilter,
     'sort_by' => $_GET['sort_by'] ?? 'updated_at',
     'sort_dir' => $_GET['sort_dir'] ?? 'DESC',
     'limit' => $limit,
@@ -39,7 +48,7 @@ $filters = [
 
 $result = listTasks($filters, true, $apiUser);
 $baseQueryParams = [];
-foreach (['q', 'status', 'priority', 'assigned_to_user_id', 'sort_by', 'sort_dir'] as $k) {
+foreach (['q', 'status', 'priority', 'assigned_to_user_id', 'project_id', 'sort_by', 'sort_dir'] as $k) {
     if (isset($_GET[$k]) && trim((string)$_GET[$k]) !== '') {
         $baseQueryParams[$k] = (string)$_GET[$k];
     }

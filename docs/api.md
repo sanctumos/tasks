@@ -607,6 +607,8 @@ curl -sS -H "X-API-Key: $TASKS_API_KEY" \
 
 ### Bulk update (check partial results)
 
+**HTTP contract:** body must be an object with an **`updates`** array — not a bare JSON array. (CLI/MCP `--json` still accepts a bare array and wraps it via the SDK.)
+
 ```bash
 curl -sS -X POST \
   -H "X-API-Key: $TASKS_API_KEY" \
@@ -616,6 +618,15 @@ curl -sS -X POST \
 ```
 
 Inspect JSON: **`data.success === false`** means at least one row failed (top-level `success` may still be `true`). Use **`data.results[]`** for per-item errors.
+
+### Search tasks (optional project filter)
+
+`GET /api/search-tasks.php?q=…` accepts the same filters as list where applicable, including **`project_id`**.
+
+### Documents — optimistic concurrency + busy reads
+
+- **`POST /api/update-document.php`**: optional **`expected_updated_at`** (string matching the document’s current `updated_at`). On mismatch → HTTP **409**, code **`document.conflict`**, details include `current_updated_at`. Omit the field for classic last-writer-wins full-body replace.
+- **`GET /api/get-document.php`**: under SQLite lock contention may return **503** **`db.busy`** with `retryable: true` — clients should retry idempotent GETs.
 
 ### Create user + API key in one call
 

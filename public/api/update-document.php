@@ -34,12 +34,41 @@ foreach (['title', 'body', 'status', 'project_id', 'directory_path'] as $k) {
         $fields[$k] = $body[$k];
     }
 }
+if (array_key_exists('expected_updated_at', $body) && $body['expected_updated_at'] !== null && $body['expected_updated_at'] !== '') {
+    $fields['expected_updated_at'] = (string)$body['expected_updated_at'];
+}
 
 $res = ['success' => true];
 if ($fields !== []) {
-    $res = updateDocument($id, $fields, (int)$user['id']);
+    try {
+        $res = updateDocument($id, $fields, (int)$user['id']);
+    } catch (Exception $e) {
+        $msg = $e->getMessage();
+        $busy = (stripos($msg, 'database is locked') !== false)
+            || (stripos($msg, 'SQLITE_BUSY') !== false)
+            || (stripos($msg, 'locked') !== false);
+        if ($busy) {
+            apiError(
+                'db.busy',
+                'Database busy while updating document; retry shortly',
+                503,
+                ['document_id' => $id, 'retryable' => true]
+            );
+        }
+        error_log('update-document.php document_id=' . $id . ' exception=' . get_class($e) . ' message=' . $msg);
+        apiError(
+            'document.update_failed',
+            APP_DEBUG ? ('Update failed: ' . $msg) : 'Update failed',
+            500,
+            ['document_id' => $id]
+        );
+    }
     if (!$res['success']) {
-        apiError('document.update_failed', $res['error'] ?? 'Update failed', 400);
+        $code = ($res['error_code'] ?? '') === 'document.conflict'
+            ? 'document.conflict'
+            : 'document.update_failed';
+        $status = ($code === 'document.conflict') ? 409 : 400;
+        apiError($code, $res['error'] ?? 'Update failed', $status, $res['details'] ?? []);
     }
 } elseif (!$hasShareMutation) {
     apiError('validation.no_fields', 'No fields to update', 400);

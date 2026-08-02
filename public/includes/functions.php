@@ -4135,14 +4135,40 @@ function updateDocument(int $id, array $fields, ?int $actorUserId = null): array
     if (!$sets) return ['success' => false, 'error' => 'No fields to update'];
     $sets[] = 'updated_at = CURRENT_TIMESTAMP';
 
+    $expectedUpdatedAt = null;
+    if (array_key_exists('expected_updated_at', $fields) && $fields['expected_updated_at'] !== null && $fields['expected_updated_at'] !== '') {
+        $expectedUpdatedAt = trim((string)$fields['expected_updated_at']);
+    }
+
     $db = getDbConnection();
     $sql = 'UPDATE documents SET ' . implode(', ', $sets) . ' WHERE id = :id';
+    if ($expectedUpdatedAt !== null) {
+        // Optimistic concurrency: reject stale full-body rewrites (multi-agent lost-update risk).
+        $sql .= ' AND updated_at = :expected_updated_at';
+        $params[':expected_updated_at'] = [$expectedUpdatedAt, SQLITE3_TEXT];
+    }
     $stmt = $db->prepare($sql);
     foreach ($params as $k => $v) {
         $stmt->bindValue($k, $v[0], $v[1]);
     }
     $stmt->execute();
-    createAuditLog(null, 'document.update', 'document', (string)$id, ['updated_fields' => array_keys($fields)]);
+    if ($expectedUpdatedAt !== null && $db->changes() === 0) {
+        $fresh = getDocumentById($id, false);
+        return [
+            'success' => false,
+            'error_code' => 'document.conflict',
+            'error' => 'Document was modified; expected_updated_at does not match current updated_at',
+            'details' => [
+                'document_id' => $id,
+                'expected_updated_at' => $expectedUpdatedAt,
+                'current_updated_at' => $fresh['updated_at'] ?? null,
+            ],
+        ];
+    }
+    $auditFields = array_values(array_filter(array_keys($fields), static function ($k) {
+        return $k !== 'expected_updated_at';
+    }));
+    createAuditLog(null, 'document.update', 'document', (string)$id, ['updated_fields' => $auditFields]);
     if (array_key_exists('body', $fields)) {
         $freshDoc = getDocumentById($id, false);
         if ($freshDoc) {

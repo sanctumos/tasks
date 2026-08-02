@@ -4,12 +4,16 @@
 
 ### Added
 
+- **SMCP plugin v0.5.0 — MCP compliance + document concurrency** — `--describe` emits `action: store_true|store_false` for flag-style booleans (GitHub #51). `get-task` exposes positive `--include-relations` (GitHub #48). `search-tasks` accepts `project_id` (GitHub #49). `bulk-update-tasks` help documents CLI array vs HTTP `{"updates":[...]}` (GitHub #50). `update-document` supports `--expected-updated-at` / API `expected_updated_at` with **409** `document.conflict` (GitHub #53). Document GET/update map SQLite busy to structured **503** `db.busy` (GitHub #52). Completes document/todo-list MCP parity ask (GitHub #54) on top of v0.4.0 workflow routes.
+
 - **Q Vernal prod on moya (223)** — Migrated from lettatest per Monday migration runbook: `.af` import (**257** messages), SMCP **49** tools, broca-q cutover, E2E smoke **"Q Vernal online."** Scripts under `tools/q_moya_migration/`, `moya-install-q-smcp.sh`, `moya_attach_q_smcp.py`, `moya-start-q-broca.sh`. Target agent **`agent-64e52a67-537a-4def-8402-d4bdccc47395`**.
 
 - **SMCP plugin v0.4.0 — full Tasks workflow routes** — `smcp_plugin/tasks/cli.py` now exposes **49** commands (was 35): **`list-todo-lists`**, **`create-todo-list`**, **`list-document-comments`**, **`create-document-comment`**, **`delete-document`**, **`upload-attachment`**, **`search-users`**, **`get-directory-project`**, **`update-directory-project`**, **`list-project-members`**, **`add-project-member`**, **`remove-project-member`**, **`list-project-pins`**, **`set-project-pin`**. SDK: `delete_document`, `list_document_comments`, `create_document_comment`, `search_users`. Fixes Otto/Cursor falling back to raw `curl` for ProSpike-style board + document work. Redeploy Q: `tools/lettatest-install-q-smcp.sh` + `tools/lettatest_attach_q_smcp.py`.
 
 ### Fixed
 
+- **`GET /api/get-document.php`** — catch SQLite busy/lock exceptions and return structured **503** `db.busy` (retryable) instead of opaque **500** (GitHub #52). Same busy mapping on document update.
+- **`POST /api/bulk-update-tasks.php`** — bare JSON array bodies return a clear **400** with wrapper hint (GitHub #50).
 - **Ask Q could not save documents (lettatest)** — SMCP plugin on lettatest was a pre–document-tools snapshot; Q had no `q_vernal_tasks__create-document` (etc.) and fell back to `tasks__add-attachment` / `tasks__create-task` with invalid `api-key`. Deploy: `tools/lettatest-install-q-smcp.sh`; reconcile: `tools/lettatest_reconcile_q_tools.py` (detach stray tools, recreate MCP server, attach all `q_vernal_tasks__*`); disable bare `tasks` / `demo_*` plugins so only key-injected tools are visible. Smoke: document **#317** on project 4.
 
 ### Fixed

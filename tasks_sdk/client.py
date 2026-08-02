@@ -508,6 +508,7 @@ class TasksClient:
         api_key_name: str = 'default',
         org_id: Optional[int] = None,
         person_kind: Optional[str] = None,
+        limited_project_access: Optional[bool] = None,
     ) -> Dict[str, Any]:
         """
         Admin: create a user. Mirrors POST /api/create-user.php.
@@ -532,6 +533,8 @@ class TasksClient:
             payload['org_id'] = org_id
         if person_kind is not None:
             payload['person_kind'] = person_kind
+        if limited_project_access is not None:
+            payload['limited_project_access'] = limited_project_access
         return self._request('POST', 'create-user.php', data=payload)
 
     def disable_user(self, user_id: int, is_active: bool = False) -> Dict[str, Any]:
@@ -862,6 +865,7 @@ class TasksClient:
         project_id: Optional[int] = None,
         directory_path: Optional[str] = None,
         status: Optional[str] = None,
+        expected_updated_at: Optional[str] = None,
     ) -> Dict[str, Any]:
         payload: Dict[str, Any] = {'id': document_id}
         if title is not None:
@@ -874,6 +878,8 @@ class TasksClient:
             payload['directory_path'] = directory_path
         if status is not None:
             payload['status'] = status
+        if expected_updated_at is not None:
+            payload['expected_updated_at'] = expected_updated_at
         response = self._request('POST', 'update-document.php', data=payload)
         return response.get('document', response)
 

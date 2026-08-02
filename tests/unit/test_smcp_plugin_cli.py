@@ -143,7 +143,7 @@ def test_main_describe_outputs_valid_json(monkeypatch: pytest.MonkeyPatch, capsy
     stdout = capsys.readouterr().out
     payload = json.loads(stdout)
     assert payload["plugin"]["name"] == "tasks"
-    assert payload["plugin"]["version"] == "0.4.0"
+    assert payload["plugin"]["version"] == "0.5.0"
 
 
 def test_main_describe_profile_chatter(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture):
@@ -240,7 +240,20 @@ def test_get_plugin_description_tracks_parser_arguments():
     assert {"task-id", "clear-body", "unassign", "priority", "project"}.issubset(update_params)
     assert {"q", "sort-by", "sort-dir", "priority", "project", "limit", "offset"}.issubset(list_params)
     assert "created-by-user-id" in list_params
-    assert "no-include-relations" in {p["name"] for p in commands["get-task"]["parameters"]}
+    get_task_params = {p["name"]: p for p in commands["get-task"]["parameters"]}
+    assert "include-relations" in get_task_params
+    assert get_task_params["include-relations"]["type"] == "boolean"
+    assert "no-include-relations" not in get_task_params
+    assert "project-id" in {p["name"] for p in commands["search-tasks"]["parameters"]}
+    assert "list-documents" in commands
+    assert "list-todo-lists" in commands
+    client_visible = next(
+        param
+        for param in commands["create-directory-project"]["parameters"]
+        if param["name"] == "client-visible"
+    )
+    assert client_visible["type"] == "boolean"
+    assert client_visible.get("action") == "store_true"
 
     api_key_param = next(
         param for param in commands["create-task"]["parameters"] if param["name"] == "api-key"
@@ -515,8 +528,17 @@ def test_main_missing_api_key_emits_validation_error(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture,
 ):
+    monkeypatch.delenv("TASKS_API_KEY", raising=False)
+    monkeypatch.delenv("TASKS_DSC_OTTOVERNAL_API_KEY", raising=False)
+    monkeypatch.delenv("TASKS_SMCP_API_KEY", raising=False)
     parser = cli.build_parser()
-    namespace = argparse.Namespace(command="list-tasks", describe=False, debug=False, api_key=None)
+    namespace = argparse.Namespace(
+        command="list-tasks",
+        describe=False,
+        describe_profile=None,
+        debug=False,
+        api_key=None,
+    )
     monkeypatch.setattr(parser, "parse_args", lambda: namespace)
     monkeypatch.setattr(cli, "build_parser", lambda: parser)
 

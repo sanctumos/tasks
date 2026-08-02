@@ -15,7 +15,9 @@ import traceback
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, cast
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+_PLUGIN_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_PLUGIN_DIR))
+sys.path.insert(0, str(_PLUGIN_DIR.parent.parent))
 try:
     from tasks_sdk import (
         TasksClient,
@@ -25,7 +27,7 @@ try:
         ValidationError,
     )
 except ImportError:  # pragma: no cover
-    sys.path.insert(0, str(Path(__file__).parent.parent.parent / "tasks_sdk"))
+    sys.path.insert(0, str(_PLUGIN_DIR.parent.parent / "tasks_sdk"))
     from client import TasksClient
     from exceptions import APIError, AuthenticationError, NotFoundError, ValidationError
 
@@ -36,7 +38,7 @@ BASE_URL = os.environ.get(
 try:
     from smcp_plugin.tasks import __version__ as PLUGIN_VERSION
 except ImportError:  # pragma: no cover
-    PLUGIN_VERSION = "0.3.0"
+    PLUGIN_VERSION = "0.5.0"
 DEBUG_TRACEBACKS = False
 
 
@@ -68,8 +70,20 @@ def _ok_from_api(body: Dict[str, Any]) -> Dict[str, Any]:
     return out
 
 
+def _cli_bool(value: str) -> bool:
+    """Parse explicit true/false for MCP value-style booleans (SMCP passes `--flag true`)."""
+    s = str(value).strip().lower()
+    if s in ("1", "true", "yes", "on"):
+        return True
+    if s in ("0", "false", "no", "off"):
+        return False
+    raise argparse.ArgumentTypeError(f"expected boolean, got {value!r}")
+
+
 def _arg_type_name(action: argparse.Action) -> str:
-    if isinstance(action, argparse._StoreTrueAction):
+    if isinstance(action, (argparse._StoreTrueAction, argparse._StoreFalseAction)):
+        return "boolean"
+    if action.type is _cli_bool or action.type is bool:
         return "boolean"
     if action.type is int:
         return "integer"
@@ -114,13 +128,19 @@ def _describe_action(action: argparse.Action) -> Optional[Dict[str, Any]]:
             (description + " ").strip()
             + "Optional when TASKS_SMCP_API_KEY (or TASKS_DSC_OTTOVERNAL_API_KEY) is set in the server environment."
         ).strip()
-    return {
+    described: Dict[str, Any] = {
         "name": _canonical_option_name(action),
         "type": _arg_type_name(action),
         "description": description,
         "required": required,
         "default": default_value,
     }
+    # SMCP uses action=store_true|store_false to emit bare flags instead of `--flag true`.
+    if isinstance(action, argparse._StoreTrueAction):
+        described["action"] = "store_true"
+    elif isinstance(action, argparse._StoreFalseAction):
+        described["action"] = "store_false"
+    return described
 
 
 def _get_subparsers_action(parser: argparse.ArgumentParser) -> Optional[argparse._SubParsersAction]:
@@ -263,9 +283,17 @@ def list_tasks(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
 def get_task(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
     def run() -> Dict[str, Any]:
         client = get_client(api_key)
-        inc = args.get("include-relations", True)
+        if "include-relations" in args:
+            inc = args.get("include-relations")
+        elif "no-include-relations" in args:
+            legacy = args.get("no-include-relations")
+            if isinstance(legacy, str):
+                legacy = legacy.lower() not in ("0", "false", "no", "off")
+            inc = not bool(legacy)
+        else:
+            inc = True
         if isinstance(inc, str):
-            inc = inc.lower() not in ("0", "false", "no")
+            inc = inc.lower() not in ("0", "false", "no", "off")
         task = client.get_task(task_id=args.get("task-id"), include_relations=bool(inc))
         return _success(task=task)
 
@@ -300,6 +328,8 @@ def search_tasks(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
             kwargs["priority"] = args["priority"]
         if args.get("assigned-to-user-id") is not None:
             kwargs["assigned_to_user_id"] = args["assigned-to-user-id"]
+        if args.get("project-id") is not None:
+            kwargs["project_id"] = args["project-id"]
         if args.get("sort-by"):
             kwargs["sort_by"] = args["sort-by"]
         if args.get("sort-dir"):
@@ -637,6 +667,7 @@ def update_document(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
             project_id=args.get("project-id"),
             directory_path=args.get("directory-path"),
             status=args.get("status"),
+            expected_updated_at=args.get("expected-updated-at"),
         )
         return _success(document=doc)
 
@@ -1009,12 +1040,12 @@ def build_parser() -> argparse.ArgumentParser:
     add_api_key(p)
     p.add_argument("--task-id", type=int, required=True, dest="task_id")
     p.add_argument(
-        "--no-include-relations",
-        action="store_false",
+        "--include-relations",
+        type=_cli_bool,
+        default=True,
         dest="include_relations",
-        help="Omit related entities (comments, etc.)",
+        help="Include related entities (comments, etc.). Default true; pass false to omit.",
     )
-    p.set_defaults(include_relations=True)
 
     p = subparsers.add_parser("delete-task", help="POST /api/delete-task.php")
     add_api_key(p)
@@ -1026,6 +1057,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--status")
     priority_arg(p)
     p.add_argument("--assigned-to-user-id", type=int, dest="assigned_to_user_id")
+    p.add_argument("--project-id", type=int, dest="project_id", help="Filter by directory project id")
     p.add_argument("--sort-by", dest="sort_by", default="updated_at")
     p.add_argument("--sort-dir", dest="sort_dir", default="DESC")
     p.add_argument("--limit", type=int, default=50)
@@ -1037,7 +1069,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = subparsers.add_parser("bulk-update-tasks", help="POST /api/bulk-update-tasks.php")
     add_api_key(p)
-    p.add_argument("--json", required=True, help="JSON array of update objects")
+    p.add_argument(
+        "--json",
+        required=True,
+        help=(
+            "CLI/MCP: JSON array of update objects, e.g. [{\"id\":1,\"status\":\"done\"}]. "
+            "Raw HTTP POST /api/bulk-update-tasks.php expects {\"updates\":[...]}; see docs/api.md."
+        ),
+    )
 
     p = subparsers.add_parser("list-statuses", help="GET /api/list-statuses.php")
     add_api_key(p)
@@ -1189,6 +1228,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--project-id", type=int, dest="project_id")
     p.add_argument("--directory-path", dest="directory_path")
     p.add_argument("--status")
+    p.add_argument(
+        "--expected-updated-at",
+        dest="expected_updated_at",
+        help="Optimistic concurrency: document.updated_at must match or API returns 409",
+    )
 
     p = subparsers.add_parser("delete-document", help="POST /api/delete-document.php")
     add_api_key(p)
