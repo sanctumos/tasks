@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -75,16 +76,21 @@ def test_error_state(page, base: str) -> None:
     login_admin(page, base)
 
     def fail_messages(route, request):
-        if "action=messages" in request.url and request.method == "POST":
+        url = request.url
+        if "action=messages" in url and request.method == "POST":
             route.fulfill(status=500, content_type="application/json", body='{"error":"boom"}')
         else:
             route.continue_()
 
-    page.route("**/q-bridge/api/v1/**", fail_messages)
+    # Match `/q-bridge/api/v1/?action=messages` (query string, no extra path segment).
+    page.route(re.compile(r"q-bridge/api/v1"), fail_messages)
     open_chat(page)
     send_message(page, "trigger error please")
     page.wait_for_function(
-        "() => document.querySelector('#sanctum-chat-messages')?.innerText?.includes('Failed to send')",
+        """() => {
+            const t = document.querySelector('#sanctum-chat-messages')?.innerText || '';
+            return t.includes('boom') || t.includes('Failed to send') || t.includes('Request failed');
+        }""",
         timeout=10000,
     )
     page.screenshot(path=str(OUT / "ask_q_error_state.png"), full_page=False)

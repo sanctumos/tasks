@@ -47,6 +47,35 @@ if ($tab === 'password') {
     $adminBreadcrumbs[] = ['href' => '/admin/settings.php', 'label' => 'Settings'];
     $adminBreadcrumbs[] = ['label' => $availableTabs[$tab]['label']];
 }
+
+// Password POST can redirect to a stashed return URL. Handle it before any HTML
+// so header() is not attempted after _layout_top.php has already sent output.
+$pwd_error = null;
+$pwd_success = null;
+if ($tab === 'password' && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] ?? '') === 'change_password') {
+    requireCsrfToken();
+    $currentPassword = (string)($_POST['current_password'] ?? '');
+    $newPassword = (string)($_POST['new_password'] ?? '');
+    $confirmPassword = (string)($_POST['confirm_password'] ?? '');
+
+    if ($newPassword !== $confirmPassword) {
+        $pwd_error = 'New password and confirmation do not match.';
+    } else {
+        $result = changePassword((int)$currentUser['id'], $currentPassword, $newPassword);
+        if ($result['success']) {
+            $pwd_success = 'Password changed successfully.';
+            $_SESSION['must_change_password'] = 0;
+            $intended = auth_take_intended_url();
+            if ($intended !== null) {
+                header('Location: ' . $intended);
+                exit;
+            }
+        } else {
+            $pwd_error = $result['error'] ?? 'Failed to change password.';
+        }
+    }
+}
+
 require __DIR__ . '/_layout_top.php';
 
 function st_settings_tab_link(string $tab, string $active, array $availableTabs, bool $isAdmin): string {

@@ -9,7 +9,7 @@
 
 | Profile | Commands exposed | Typical harness |
 |---------|------------------|-----------------|
-| **`chatter`** | 15 daily board verbs | Q Vernal Ask Q, Otto Cursor default |
+| **`chatter`** | 16 daily board verbs | Q Vernal Ask Q, Otto Cursor default |
 | **`admin`** | chatter + bulk, attachments, watchers, pins, tags, statuses | Otto power-user / internal ops |
 | **`full`** | All API-key routes minus `health` noise | Dev / migration / attach-all rehearsal |
 
@@ -17,7 +17,7 @@ Source of truth in code: `smcp_plugin/tasks/tool_profiles.py` (`PROFILES`).
 
 ---
 
-## `chatter` (15)
+## `chatter` (16)
 
 | Command | API route |
 |---------|-----------|
@@ -36,6 +36,7 @@ Source of truth in code: `smcp_plugin/tasks/tool_profiles.py` (`PROFILES`).
 | `list-document-comments` | `GET /api/list-document-comments.php` |
 | `list-directory-projects` | `GET /api/list-directory-projects.php` |
 | `list-todo-lists` | `GET /api/list-todo-lists.php` |
+| `search-users` | `GET /api/search-users.php` |
 
 ---
 

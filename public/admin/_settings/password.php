@@ -2,34 +2,11 @@
 /**
  * Settings tab: change password (self).
  * Expects: $currentUser already loaded, _layout_top.php already included.
- * Sets: $pwd_error, $pwd_success.
+ * POST is processed in settings.php (before layout) so a return-URL redirect
+ * can still send Location headers. This file only renders $pwd_error / $pwd_success.
  */
-
-$pwd_error = null;
-$pwd_success = null;
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] ?? '') === 'change_password') {
-    requireCsrfToken();
-    $currentPassword = (string)($_POST['current_password'] ?? '');
-    $newPassword = (string)($_POST['new_password'] ?? '');
-    $confirmPassword = (string)($_POST['confirm_password'] ?? '');
-
-    if ($newPassword !== $confirmPassword) {
-        $pwd_error = 'New password and confirmation do not match.';
-    } else {
-        $result = changePassword((int)$currentUser['id'], $currentPassword, $newPassword);
-        if ($result['success']) {
-            $pwd_success = 'Password changed successfully.';
-            $_SESSION['must_change_password'] = 0;
-            $intended = auth_take_intended_url();
-            if ($intended !== null) {
-                header('Location: ' . $intended);
-                exit;
-            }
-        } else {
-            $pwd_error = $result['error'] ?? 'Failed to change password.';
-        }
-    }
-}
+$pwd_error = $pwd_error ?? null;
+$pwd_success = $pwd_success ?? null;
 ?>
 
 <div class="surface surface-pad">

@@ -83,5 +83,5 @@ jobs:
         run: |
           set -euo pipefail
           export PYTHONPATH="${GITHUB_WORKSPACE}/smcp_plugin:${GITHUB_WORKSPACE}"
-          python3 smcp_plugin/tasks/cli.py --describe --describe-profile chatter | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('profile')=='chatter'; assert d.get('command_count')==15"
+          python3 smcp_plugin/tasks/cli.py --describe --describe-profile chatter | python3 -c "import json,sys; d=json.load(sys.stdin); names={c.get('name') for c in d.get('commands') or []}; assert d.get('profile')=='chatter'; assert d.get('command_count')==16; assert 'search-users' in names; assert 'create-document' in names"
           python3 smcp_plugin/tasks/cli.py tool-help document --profile chatter | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['status']=='success' and d['matches']"

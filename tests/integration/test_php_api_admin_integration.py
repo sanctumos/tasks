@@ -19,6 +19,18 @@ def _api_url(base_url: str, path: str) -> str:
     return f"{base_url}{path}"
 
 
+def _assert_password_change_ok(resp) -> None:
+    """Password POST succeeds as 200 (banner) or 302 to a stashed /admin return URL."""
+    if resp.status_code in (301, 302):
+        loc = resp.headers.get("Location", "")
+        assert "/admin" in loc, loc
+        assert "Warning" not in (resp.text or "")
+        return
+    assert resp.status_code == 200, resp.text[:2000]
+    assert "Password changed successfully" in resp.text
+    assert "headers already sent" not in resp.text.lower()
+
+
 def _auth_headers(api_key: str) -> dict:
     return {
         "X-API-Key": api_key,
@@ -724,10 +736,12 @@ def test_session_admin_csrf_password_mfa_and_logout_flows(php_server):
             "new_password": new_password,
             "confirm_password": new_password,
         },
+        allow_redirects=False,
         timeout=5,
     )
-    assert change_password_resp.status_code == 200
-    assert "Password changed successfully" in change_password_resp.text
+    # Forced password rotation stashes a return URL; success then 302s to /admin.
+    # Later changes (no stash) stay on the settings page with a success banner.
+    _assert_password_change_ok(change_password_resp)
 
     # CSRF protection should reject admin POSTs without token.
     csrf_failure = session.post(
@@ -827,10 +841,10 @@ def test_session_admin_csrf_password_mfa_and_logout_flows(php_server):
             "new_password": php_server.admin_password,
             "confirm_password": php_server.admin_password,
         },
+        allow_redirects=False,
         timeout=5,
     )
-    assert restore_password.status_code == 200
-    assert "Password changed successfully" in restore_password.text
+    _assert_password_change_ok(restore_password)
 
 
 def test_lockout_after_repeated_failed_logins(php_lockout_server):
