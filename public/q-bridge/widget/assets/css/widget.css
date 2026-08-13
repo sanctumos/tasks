@@ -227,6 +227,7 @@
 /* Chat messages area */
 .sanctum-chat-messages {
     flex: 1;
+    min-height: 0;
     padding: var(--widget-padding);
     overflow-y: auto;
     background: var(--widget-bg);

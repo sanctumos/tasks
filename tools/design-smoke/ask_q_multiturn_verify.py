@@ -104,11 +104,15 @@ def test_long_scroll(page, base: str) -> None:
         """() => {
             const pane = document.getElementById('sanctum-chat-messages');
             if (!pane) throw new Error('message pane missing');
-            pane.style.maxHeight = '180px';
-            pane.style.overflowY = 'auto';
+            pane.style.setProperty('min-height', '0', 'important');
+            pane.style.setProperty('height', '140px', 'important');
+            pane.style.setProperty('max-height', '140px', 'important');
+            pane.style.setProperty('overflow-y', 'scroll', 'important');
             for (let i = 0; i < 24; i++) {
                 const div = document.createElement('div');
                 div.className = 'sanctum-message';
+                div.style.minHeight = '28px';
+                div.style.flex = '0 0 auto';
                 div.textContent = 'Line ' + i + ' padding for scroll test.';
                 pane.appendChild(div);
             }

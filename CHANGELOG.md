@@ -13,6 +13,7 @@
 ### Fixed
 
 - **Forced password change could not redirect after success** — `settings.php` now handles the change-password POST **before** `_layout_top.php` prints HTML, so `header(Location: …)` to the stashed return URL works. Previously PHP warned “headers already sent” and the success banner never appeared (CI `test_session_admin_csrf_password_mfa_and_logout_flows`).
+- **Ask Q message list did not scroll inside the flex panel** — `.sanctum-chat-messages` now has `min-height: 0` so long threads scroll inside the 500px window instead of stretching and getting clipped.
 - **`GET /api/get-document.php`** — catch SQLite busy/lock exceptions and return structured **503** `db.busy` (retryable) instead of opaque **500** (GitHub #52). Same busy mapping on document update.
 - **`POST /api/bulk-update-tasks.php`** — bare JSON array bodies return a clear **400** with wrapper hint (GitHub #50).
 - **Ask Q could not save documents (lettatest)** — SMCP plugin on lettatest was a pre–document-tools snapshot; Q had no `q_vernal_tasks__create-document` (etc.) and fell back to `tasks__add-attachment` / `tasks__create-task` with invalid `api-key`. Deploy: `tools/lettatest-install-q-smcp.sh`; reconcile: `tools/lettatest_reconcile_q_tools.py` (detach stray tools, recreate MCP server, attach all `q_vernal_tasks__*`); disable bare `tasks` / `demo_*` plugins so only key-injected tools are visible. Smoke: document **#317** on project 4.
