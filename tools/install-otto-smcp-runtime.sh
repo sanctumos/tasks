@@ -43,6 +43,8 @@ fi
 if [ -f "$TASKS_ROOT/smcp_plugin/tasks/requirements.txt" ]; then
   "$RUNTIME/.venv/bin/pip" install -q -r "$TASKS_ROOT/smcp_plugin/tasks/requirements.txt"
 fi
+# SMCP master requires mcp 2.x (sanctumos/smcp#57)
+"$RUNTIME/.venv/bin/pip" install -q 'mcp>=2.0.0,<3'
 
 # Non-secret runtime paths (key loaded at launch from pass file, not stored here).
 cat > "$RUNTIME/env.paths" <<ENV

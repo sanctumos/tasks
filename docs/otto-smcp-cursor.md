@@ -83,3 +83,17 @@ MCP does not replace **`sanctum-tasks-dsc.mdc`**: assignees, `project_id` / `lis
 ## Portable bundle (optional)
 
 To sync runtime paths across machines, add `env.paths` + wrapper script to **otto-portable**; keep pass files out of the bundle.
+
+## Troubleshooting
+
+### Wrong `mcp` major in the Otto runtime
+
+SMCP **requires MCP Python SDK 2.x** (`mcp>=2.0.0,<3`) — see sanctumos/smcp [#57](https://github.com/sanctumos/smcp/issues/57). If the runtime still has 1.x (or a broken mix), reinstall:
+
+```bash
+bash ~/projects/sanctum-tasks/tools/install-otto-smcp-runtime.sh
+# or:
+~/.otto-local/smcp-runtime/.venv/bin/pip install -U 'mcp>=2.0.0,<3'
+```
+
+Then reload Cursor MCP / restart the agent chat so `tools/list` refreshes.
