@@ -2583,6 +2583,17 @@ function userCanManageDirectoryProject(array $userRow, array $project): bool {
 }
 
 /**
+ * Create a task on a project the viewer can already open.
+ * Team members yes; clients no. Distinct from manage (lead/admin) — New task must not require lead.
+ */
+function userCanCreateTaskOnProject(array $userRow, array $project): bool {
+    if (!userCanAccessDirectoryProject($userRow, $project)) {
+        return false;
+    }
+    return normalizePersonKind($userRow['person_kind'] ?? 'team_member') !== 'client';
+}
+
+/**
  * Resolve optional project_id for task create/update: must be in user's org and visible in directory.
  *
  * @return array{success:bool, project_id:?int, project:?string, error?:string}

@@ -49,6 +49,8 @@ Use project membership when:
 
 Project access is what makes project-scoped work readable. If a user cannot open a project, the problem is usually not the task. It is membership, all-access, client-visible, organization, or role.
 
+**Create vs manage:** a team **member** on a board can create tasks (New task / Add a to-do). They do **not** need to be project **lead**. Lead (or org admin) is only required to change Settings, members, lists, and doors. Clients stay read-only.
+
 ## Why Settings matters
 
 Open **Settings** from the top nav.

@@ -2,7 +2,7 @@
 
 Companion to [`BASECAMP3_DOMAIN_PLAN.md`](BASECAMP3_DOMAIN_PLAN.md) §Phase 3 and [`api-authorization-and-product-notes.md`](api-authorization-and-product-notes.md).
 
-**Implementation:** `public/includes/functions.php` — `userCanAccessDirectoryProject`, `userHasUnrestrictedOrgDirectoryAccess`, `listDirectoryProjectsForUser`, `listTasks`, `userCanAccessDocument`, `userCanManageDocument`, `userCanManageDirectoryProject`.
+**Implementation:** `public/includes/functions.php` — `userCanAccessDirectoryProject`, `userHasUnrestrictedOrgDirectoryAccess`, `userCanCreateTaskOnProject`, `listDirectoryProjectsForUser`, `listTasks`, `userCanAccessDocument`, `userCanManageDocument`, `userCanManageDirectoryProject`.
 
 **Seed fixtures:** `tools/e2e/q_acl_fixture_lib.php` (`bootstrapQAclE2eFixtures()`).
 
@@ -65,7 +65,7 @@ Users: `e2e_q_member` (`team_member`), `e2e_q_client` (`client`).
 | Action | Client | Team member | Lead | Admin / unrestricted manager |
 |--------|--------|-------------|------|------------------------------|
 | View tasks/docs in accessible project | Yes | Yes | Yes | Yes |
-| Create task | **No** | Yes (if project access) | Yes | Yes |
+| Create task | **No** | Yes (if project access) — `userCanCreateTaskOnProject`; UI New task / Add a to-do | Yes | Yes |
 | Create document | **No** | Yes (if project access) | Yes | Yes |
 | Edit/delete task (not creator) | No | No* | Yes (project lead) | Yes |
 | Edit/delete document (not creator) | No | No* | Yes (project lead) | Yes |

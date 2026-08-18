@@ -41,6 +41,7 @@ function st_tab_link(string $tab, string $active, string $label, string $icon, ?
 }
 
 $canManage = userCanManageDirectoryProject($currentUser, $project);
+$canCreateTask = userCanCreateTaskOnProject($currentUser, $project);
 $projectIsArchived = (($project['status'] ?? '') === 'archived');
 $tab = (string)($_GET['tab'] ?? 'lists');
 $allowedTabs = ['tasks', 'lists', 'schedule', 'doors', 'activity', 'docs', 'members', 'settings'];
@@ -381,8 +382,8 @@ require __DIR__ . '/_layout_top.php';
         <?php if (in_array($tab, ['lists', 'tasks'], true)): ?>
             <?= st_assigned_to_me_button('/admin/project.php', ['id' => $id, 'tab' => $tab], $mineFilter) ?>
         <?php endif; ?>
-        <?php if (!$projectIsArchived): ?>
-            <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#newTaskModal" <?= $canManage ? '' : 'disabled' ?>>
+        <?php if (!$projectIsArchived && $canCreateTask): ?>
+            <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#newTaskModal">
                 <i class="bi bi-plus-lg"></i> New task
             </button>
         <?php endif; ?>
@@ -434,9 +435,11 @@ require __DIR__ . '/_layout_top.php';
             <?php if ($mineFilter): ?>
                 <?= st_assigned_to_me_button('/admin/project.php', ['id' => $id, 'tab' => 'tasks'], true) ?>
             <?php endif; ?>
-            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newTaskModal" <?= $canManage ? '' : 'disabled' ?>>
+            <?php if ($canCreateTask && !$projectIsArchived): ?>
+            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#newTaskModal">
                 <i class="bi bi-plus-lg me-1"></i>New task
             </button>
+            <?php endif; ?>
         </div>
     <?php else: ?>
         <div class="board">
@@ -524,10 +527,11 @@ require __DIR__ . '/_layout_top.php';
     <?php endif; ?>
 
     <?php
-    $renderTodoRow = function (array $t) use ($listsRedirect, $doneStatusSlug, $defaultStatusSlug, $canManage) {
+    $renderTodoRow = function (array $t) use ($listsRedirect, $doneStatusSlug, $defaultStatusSlug, $currentUser) {
         $isDone = (int)($t['status_is_done'] ?? 0) === 1;
         $rowCls = 'todo-row' . ($isDone ? ' todo-row--done' : '');
         $nextStatus = $isDone ? $defaultStatusSlug : $doneStatusSlug;
+        $canToggle = userCanManageTaskForViewer($currentUser, $t);
         ob_start();
         ?>
         <li class="<?= $rowCls ?>">
@@ -539,7 +543,7 @@ require __DIR__ . '/_layout_top.php';
                 <button type="submit"
                         class="todo-checkbox<?= $isDone ? ' todo-checkbox--done' : '' ?>"
                         aria-label="<?= $isDone ? 'Mark as not done' : 'Mark as done' ?>"
-                        <?= $canManage ? '' : 'disabled' ?>>
+                        <?= $canToggle ? '' : 'disabled' ?>>
                     <?php if ($isDone): ?><i class="bi bi-check-lg"></i><?php endif; ?>
                 </button>
             </form>
@@ -602,7 +606,7 @@ require __DIR__ . '/_layout_top.php';
                 </ol>
             <?php endif; ?>
 
-            <?php if ($canManage): ?>
+            <?php if ($canCreateTask && !$projectIsArchived): ?>
                 <form method="post" action="/admin/create.php" class="todo-list__add">
                     <?= csrfInputField() ?>
                     <input type="hidden" name="project" value="<?= htmlspecialchars((string)$project['name']) ?>">
@@ -1127,6 +1131,7 @@ require __DIR__ . '/_layout_top.php';
 
 <?php endif; ?>
 
+<?php if ($canCreateTask && !$projectIsArchived): ?>
 <?php /* New task modal — pre-fills the project */ ?>
 <div class="modal fade" id="newTaskModal" tabindex="-1" aria-labelledby="newTaskModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -1200,5 +1205,6 @@ require __DIR__ . '/_layout_top.php';
         </div>
     </div>
 </div>
+<?php endif; ?>
 
 <?php require __DIR__ . '/_layout_bottom.php'; ?>

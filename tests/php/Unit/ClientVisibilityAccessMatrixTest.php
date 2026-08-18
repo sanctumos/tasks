@@ -76,6 +76,27 @@ final class ClientVisibilityAccessMatrixTest extends TestCase
 
         $this->assertFalse(userCanAccessDirectoryProject($client, $proj));
         $this->assertFalse(userCanManageDirectoryProject($client, $proj));
+        $this->assertFalse(userCanCreateTaskOnProject($client, $proj));
+    }
+
+    public function test_team_member_can_create_task_without_being_lead(): void
+    {
+        $boot = bootstrapQAclE2eFixtures();
+        $m = $boot['manifest'];
+        $member = getUserById((int)$m['users']['member']['id'], false);
+        $this->assertIsArray($member);
+        $proj = getDirectoryProjectById((int)$m['projects']['member_visible']['id']);
+        $this->assertIsArray($proj);
+
+        $this->assertTrue(userCanAccessDirectoryProject($member, $proj));
+        $this->assertFalse(userCanManageDirectoryProject($member, $proj));
+        $this->assertTrue(userCanCreateTaskOnProject($member, $proj));
+
+        $taskRes = createTask('Member create without lead', 'todo', (int)$member['id'], null, null, [
+            'project_id' => (int)$proj['id'],
+            'list_id' => (int)$m['projects']['member_visible']['list_id'],
+        ]);
+        $this->assertTrue($taskRes['success'], (string)($taskRes['error'] ?? ''));
     }
 
     public function test_all_access_internal_visible_to_team_not_client(): void
