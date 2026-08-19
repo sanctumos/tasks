@@ -46,13 +46,11 @@ $filters = [
     'q' => $q ?: null,
     'sort_by' => $sortBy,
     'sort_dir' => $sortDir,
-    'limit' => 250,
-    'offset' => 0,
 ];
 if ($projectIdFilter > 0) {
     $filters['project_id'] = $projectIdFilter;
 }
-$tasksResult = listTasks($filters, true, null, $currentUser);
+$tasksResult = listAllTasks($filters, null, $currentUser);
 $tasks = $tasksResult['tasks'];
 $total = (int)$tasksResult['total'];
 
@@ -180,7 +178,7 @@ function st_render_task_assignee_html(array $t): string {
     <div class="page-header">
         <div class="page-header__title">
             <h2 id="st-home-master-heading" class="h4 mb-1">All tasks <span class="text-muted fw-normal">across projects</span></h2>
-            <div class="subtitle"><?= count($tasks) ?> shown · <?= $total ?> total — board and list mirror every project you can reach.</div>
+            <div class="subtitle"><?= $total ?> task<?= $total === 1 ? '' : 's' ?> across every project you can reach.</div>
         </div>
         <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
             <div class="btn-group" role="group" aria-label="View">

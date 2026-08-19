@@ -142,8 +142,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = createTodoList((int)$currentUser['id'], $id, $name);
         if ($result['success']) {
             $message = 'To-do list created.';
+            $tab = 'lists';
         } else {
             $message = $result['error'] ?? 'Could not create list';
+            $messageType = 'danger';
+        }
+    } elseif ($action === 'archive_list') {
+        $lid = (int)($_POST['list_id'] ?? 0);
+        $result = archiveTodoList((int)$currentUser['id'], $lid);
+        $tab = 'lists';
+        if ($result['success']) {
+            $message = 'List archived — hidden from the main Lists view. Restore it from Archived lists below.';
+        } else {
+            $message = $result['error'] ?? 'Could not archive list';
+            $messageType = 'danger';
+        }
+    } elseif ($action === 'unarchive_list') {
+        $lid = (int)($_POST['list_id'] ?? 0);
+        $result = unarchiveTodoList((int)$currentUser['id'], $lid);
+        $tab = 'lists';
+        if ($result['success']) {
+            $message = 'List restored to the main Lists view.';
+        } else {
+            $message = $result['error'] ?? 'Could not restore list';
             $messageType = 'danger';
         }
     } elseif ($action === 'create_door') {
@@ -199,7 +220,13 @@ if ($tab === 'archives' && !$projectIsArchived) {
 }
 
 $members = listProjectMembers($id);
-$lists = listTodoListsForProject($currentUser, $id);
+$allProjectLists = listTodoListsForProject($currentUser, $id, true);
+$lists = array_values(array_filter($allProjectLists, static function (array $row): bool {
+    return empty($row['archived_at']);
+}));
+$archivedLists = array_values(array_filter($allProjectLists, static function (array $row): bool {
+    return !empty($row['archived_at']);
+}));
 if (empty($lists) && $canManage) {
     $seedList = createTodoList((int)$currentUser['id'], $id, 'General');
     if (!empty($seedList['success'])) {
@@ -253,15 +280,13 @@ $projectTaskFilters = [
     'project_id' => $id,
     'sort_by' => 'rank',
     'sort_dir' => 'ASC',
-    'limit' => 250,
-    'offset' => 0,
 ];
 if ($mineFilter) {
     $projectTaskFilters['assigned_to_user_id'] = $mineUserId;
 }
 
 // Tasks belonging to this project (by project_id) — for the Tasks tab
-$projectTasksResult = listTasks($projectTaskFilters, true, null, $currentUser);
+$projectTasksResult = listAllTasks($projectTaskFilters, null, $currentUser);
 $projectTasks = $projectTasksResult['tasks'];
 
 // Also catch tasks linked by legacy text-name (project name match)
@@ -269,13 +294,11 @@ $legacyTaskFilters = [
     'project' => $project['name'],
     'sort_by' => 'rank',
     'sort_dir' => 'ASC',
-    'limit' => 250,
-    'offset' => 0,
 ];
 if ($mineFilter) {
     $legacyTaskFilters['assigned_to_user_id'] = $mineUserId;
 }
-$legacyTasksResult = listTasks($legacyTaskFilters, true, null, $currentUser);
+$legacyTasksResult = listAllTasks($legacyTaskFilters, null, $currentUser);
 foreach ($legacyTasksResult['tasks'] as $lt) {
     if ((int)($lt['project_id'] ?? 0) !== $id) {
         $projectTasks[] = $lt;
@@ -570,21 +593,47 @@ require __DIR__ . '/_layout_top.php';
     };
     ?>
 
-    <?php foreach ($lists as $tl):
+    <?php
+    $renderTodoListSection = function (
+        array $tl,
+        array $rows,
+        bool $isArchivedShelf = false
+    ) use (
+        $renderTodoRow,
+        $canCreateTask,
+        $canManage,
+        $project,
+        $id,
+        $listsRedirect,
+        $defaultStatusSlug,
+        $projectIsArchived
+    ) {
         $listId = (int)$tl['id'];
-        $rows = $tasksByList[$listId] ?? [];
         $totalRows = count($rows);
         $doneRows = 0;
         foreach ($rows as $r) {
-            if ((int)($r['status_is_done'] ?? 0) === 1) $doneRows++;
+            if ((int)($r['status_is_done'] ?? 0) === 1) {
+                $doneRows++;
+            }
         }
         $remaining = max(0, $totalRows - $doneRows);
-    ?>
-        <section class="todo-list" id="list-<?= $listId ?>">
+        $allDone = $totalRows > 0 && $remaining === 0;
+        $useCollapse = !$isArchivedShelf && $allDone;
+        $tag = $useCollapse ? 'details' : 'section';
+        $sectionClass = 'todo-list' . ($isArchivedShelf ? ' todo-list--archived' : '') . ($allDone ? ' todo-list--all-done' : '');
+        ?>
+        <<?= $tag ?> class="<?= $sectionClass ?>" id="list-<?= $listId ?>"<?= $useCollapse ? '' : '' ?>>
+            <?php if ($useCollapse): ?>
+            <summary class="todo-list__header todo-list__header--summary">
+            <?php else: ?>
             <header class="todo-list__header">
+            <?php endif; ?>
                 <div class="todo-list__title">
                     <i class="bi bi-card-checklist"></i>
                     <h2 class="h5 mb-0"><?= htmlspecialchars((string)$tl['name']) ?></h2>
+                    <?php if ($allDone && !$isArchivedShelf): ?>
+                        <span class="badge text-bg-success ms-1">All done</span>
+                    <?php endif; ?>
                 </div>
                 <div class="todo-list__progress">
                     <?php if ($totalRows === 0): ?>
@@ -595,8 +644,29 @@ require __DIR__ . '/_layout_top.php';
                             <span class="text-muted small"><?= $remaining ?> remaining</span>
                         <?php endif; ?>
                     <?php endif; ?>
+                    <?php if ($canManage && !$projectIsArchived): ?>
+                        <?php if ($isArchivedShelf): ?>
+                            <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=lists" class="d-inline ms-1">
+                                <?= csrfInputField() ?>
+                                <input type="hidden" name="action" value="unarchive_list">
+                                <input type="hidden" name="list_id" value="<?= $listId ?>">
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Restore list</button>
+                            </form>
+                        <?php else: ?>
+                            <form method="post" action="/admin/project.php?id=<?= (int)$id ?>&amp;tab=lists" class="d-inline ms-1" onsubmit="return confirm('Archive this list? It will be hidden from the main view. Tasks stay on the board — restore anytime from Archived lists.');">
+                                <?= csrfInputField() ?>
+                                <input type="hidden" name="action" value="archive_list">
+                                <input type="hidden" name="list_id" value="<?= $listId ?>">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">Archive list</button>
+                            </form>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </div>
+            <?php if ($useCollapse): ?>
+            </summary>
+            <?php else: ?>
             </header>
+            <?php endif; ?>
 
             <?php if ($totalRows === 0): ?>
                 <p class="todo-list__empty text-muted small">No to-dos in this list yet.</p>
@@ -606,7 +676,7 @@ require __DIR__ . '/_layout_top.php';
                 </ol>
             <?php endif; ?>
 
-            <?php if ($canCreateTask && !$projectIsArchived): ?>
+            <?php if ($canCreateTask && !$projectIsArchived && !$isArchivedShelf): ?>
                 <form method="post" action="/admin/create.php" class="todo-list__add">
                     <?= csrfInputField() ?>
                     <input type="hidden" name="project" value="<?= htmlspecialchars((string)$project['name']) ?>">
@@ -620,8 +690,32 @@ require __DIR__ . '/_layout_top.php';
                     <button type="submit" class="btn btn-sm btn-outline-primary">Add</button>
                 </form>
             <?php endif; ?>
-        </section>
-    <?php endforeach; ?>
+        </<?= $tag ?>>
+        <?php
+    };
+    ?>
+
+    <?php foreach ($lists as $tl):
+        $listId = (int)$tl['id'];
+        $rows = $tasksByList[$listId] ?? [];
+        $renderTodoListSection($tl, $rows, false);
+    endforeach; ?>
+
+    <?php if (!empty($archivedLists)): ?>
+        <details class="todo-list-archived-shelf surface surface-pad mt-2">
+            <summary class="todo-list-archived-shelf__summary">
+                <i class="bi bi-archive me-2"></i>
+                Archived lists
+                <span class="count"><?= count($archivedLists) ?></span>
+            </summary>
+            <p class="text-muted small mb-3">Hidden from the main Lists view. Tasks are unchanged — restore a list when you need it again.</p>
+            <?php foreach ($archivedLists as $tl):
+                $listId = (int)$tl['id'];
+                $rows = $tasksByList[$listId] ?? [];
+                $renderTodoListSection($tl, $rows, true);
+            endforeach; ?>
+        </details>
+    <?php endif; ?>
 
     <?php if (!empty($tasksUnfiled)):
         $totalRows = count($tasksUnfiled);

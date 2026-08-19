@@ -215,6 +215,9 @@ function applySanctumSchemaMigrations(SQLite3 $db): void {
         )
     ");
     ensureIndexExists($db, 'idx_todo_lists_project', 'CREATE INDEX idx_todo_lists_project ON todo_lists(project_id)');
+    if (tableExists($db, 'todo_lists')) {
+        ensureColumnExists($db, 'todo_lists', 'archived_at', 'DATETIME DEFAULT NULL');
+    }
     $db->exec("
         CREATE TABLE IF NOT EXISTS project_doors (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

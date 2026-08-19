@@ -1911,6 +1911,31 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
     ];
 }
 
+/**
+ * Admin UI helper: fetch every matching task by paging through listTasks internally.
+ * Avoids silent truncation when a board has more rows than one SQL LIMIT page.
+ *
+ * @return array{tasks: array<int, array>, total: int}
+ */
+function listAllTasks(array $filters, ?array $apiUser = null, ?array $directoryScopeUser = null): array {
+    $all = [];
+    $offset = 0;
+    $pageSize = 500;
+    $total = 0;
+    do {
+        $pageFilters = $filters;
+        $pageFilters['limit'] = $pageSize;
+        $pageFilters['offset'] = $offset;
+        $result = listTasks($pageFilters, true, $apiUser, $directoryScopeUser);
+        $total = (int)$result['total'];
+        foreach ($result['tasks'] as $row) {
+            $all[] = $row;
+        }
+        $offset += $pageSize;
+    } while ($offset < $total);
+    return ['tasks' => $all, 'total' => $total];
+}
+
 function updateTask($id, $fields = [], ?int $actorUserId = null): array {
     $id = (int)$id;
     if ($id <= 0) {
@@ -3005,7 +3030,7 @@ function getFirstTodoListIdForProject(SQLite3 $db, int $projectId): ?int {
 }
 
 /** To-do lists under a directory project (requires directory access). */
-function listTodoListsForProject(array $userRow, int $projectId): array {
+function listTodoListsForProject(array $userRow, int $projectId, bool $includeArchived = false): array {
     if ($projectId <= 0) {
         return [];
     }
@@ -3014,7 +3039,13 @@ function listTodoListsForProject(array $userRow, int $projectId): array {
         return [];
     }
     $db = getDbConnection();
-    $stmt = $db->prepare('SELECT id, project_id, name, sort_order, created_at FROM todo_lists WHERE project_id = :p ORDER BY sort_order ASC, name COLLATE NOCASE ASC');
+    $archivedClause = $includeArchived ? '' : ' AND archived_at IS NULL';
+    $stmt = $db->prepare(
+        'SELECT id, project_id, name, sort_order, created_at, archived_at
+         FROM todo_lists
+         WHERE project_id = :p' . $archivedClause . '
+         ORDER BY sort_order ASC, name COLLATE NOCASE ASC'
+    );
     $stmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
     $res = $stmt->execute();
     $rows = [];
@@ -3022,6 +3053,9 @@ function listTodoListsForProject(array $userRow, int $projectId): array {
         $row['id'] = (int)$row['id'];
         $row['project_id'] = (int)$row['project_id'];
         $row['sort_order'] = (int)$row['sort_order'];
+        $row['archived_at'] = isset($row['archived_at']) && $row['archived_at'] !== null && $row['archived_at'] !== ''
+            ? (string)$row['archived_at']
+            : null;
         $rows[] = $row;
     }
     return $rows;
@@ -3050,6 +3084,73 @@ function createTodoList(int $userId, int $projectId, string $name): array {
     $id = (int)$db->lastInsertRowID();
     createAuditLog($userId, 'todo_list.create', 'todo_list', (string)$id, ['project_id' => $projectId, 'name' => $name]);
     return ['success' => true, 'id' => $id];
+}
+
+/**
+ * Hide a to-do list from the default Lists view (tasks remain; list is restorable).
+ *
+ * @return array{success: bool, error?: string, id?: int}
+ */
+function archiveTodoList(int $userId, int $listId): array {
+    if ($listId <= 0) {
+        return ['success' => false, 'error' => 'Invalid list id'];
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare('SELECT id, project_id, name, archived_at FROM todo_lists WHERE id = :i LIMIT 1');
+    $stmt->bindValue(':i', $listId, SQLITE3_INTEGER);
+    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        return ['success' => false, 'error' => 'List not found'];
+    }
+    $projectId = (int)$row['project_id'];
+    $proj = getDirectoryProjectById($projectId);
+    $actor = getUserById($userId, false);
+    if (!$proj || !$actor || !userCanManageDirectoryProject($actor, $proj)) {
+        return ['success' => false, 'error' => 'Insufficient permission'];
+    }
+    if (!empty($row['archived_at'])) {
+        return ['success' => true, 'id' => $listId];
+    }
+    $up = $db->prepare('UPDATE todo_lists SET archived_at = CURRENT_TIMESTAMP WHERE id = :i');
+    $up->bindValue(':i', $listId, SQLITE3_INTEGER);
+    $up->execute();
+    createAuditLog($userId, 'todo_list.archive', 'todo_list', (string)$listId, [
+        'project_id' => $projectId,
+        'name' => (string)($row['name'] ?? ''),
+    ]);
+    return ['success' => true, 'id' => $listId];
+}
+
+/**
+ * Restore an archived to-do list to the default Lists view.
+ *
+ * @return array{success: bool, error?: string, id?: int}
+ */
+function unarchiveTodoList(int $userId, int $listId): array {
+    if ($listId <= 0) {
+        return ['success' => false, 'error' => 'Invalid list id'];
+    }
+    $db = getDbConnection();
+    $stmt = $db->prepare('SELECT id, project_id, name FROM todo_lists WHERE id = :i LIMIT 1');
+    $stmt->bindValue(':i', $listId, SQLITE3_INTEGER);
+    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        return ['success' => false, 'error' => 'List not found'];
+    }
+    $projectId = (int)$row['project_id'];
+    $proj = getDirectoryProjectById($projectId);
+    $actor = getUserById($userId, false);
+    if (!$proj || !$actor || !userCanManageDirectoryProject($actor, $proj)) {
+        return ['success' => false, 'error' => 'Insufficient permission'];
+    }
+    $up = $db->prepare('UPDATE todo_lists SET archived_at = NULL WHERE id = :i');
+    $up->bindValue(':i', $listId, SQLITE3_INTEGER);
+    $up->execute();
+    createAuditLog($userId, 'todo_list.unarchive', 'todo_list', (string)$listId, [
+        'project_id' => $projectId,
+        'name' => (string)($row['name'] ?? ''),
+    ]);
+    return ['success' => true, 'id' => $listId];
 }
 
 /**

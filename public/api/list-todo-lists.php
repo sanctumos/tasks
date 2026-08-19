@@ -8,5 +8,6 @@ if ($projectId <= 0) {
     apiError('validation.invalid_project_id', 'Missing or invalid project_id', 400);
 }
 
-$lists = listTodoListsForProject($user, $projectId);
+$includeArchived = isset($_GET['include_archived']) && in_array(strtolower((string)$_GET['include_archived']), ['1', 'true', 'yes'], true);
+$lists = listTodoListsForProject($user, $projectId, $includeArchived);
 apiSuccess(['todo_lists' => $lists]);
