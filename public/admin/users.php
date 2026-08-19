@@ -114,6 +114,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $tgt = getUserById($userId, false);
                 $wantLimited = isset($_POST['limited_project_access']) && $tgt && (string)($tgt['role'] ?? '') !== 'admin';
                 setUserLimitedProjectAccess((int)$currentUser['id'], $userId, $wantLimited);
+                if (isset($_POST['person_kind'])) {
+                    $pkRes = setUserPersonKind((int)$currentUser['id'], $userId, (string)$_POST['person_kind']);
+                    if (empty($pkRes['success'])) {
+                        $message = $pkRes['error'] ?? 'Organization saved; person kind could not be updated';
+                        $messageType = 'warning';
+                    }
+                }
                 if ($tgt && userQualifiesForMultiOrganizationMemberships($tgt)) {
                     $extra = [];
                     if (isset($_POST['extra_org_ids']) && is_array($_POST['extra_org_ids'])) {
@@ -238,6 +245,11 @@ require __DIR__ . '/_layout_top.php';
                                 <?php else: ?>
                                     <span class="text-muted small">Admin sees all org projects</span>
                                 <?php endif; ?>
+                                <label class="small text-muted mb-0" for="pk_<?= (int)$u['id'] ?>">Person kind</label>
+                                <select class="form-select form-select-sm" name="person_kind" id="pk_<?= (int)$u['id'] ?>" aria-label="Person kind for <?= htmlspecialchars($u['username']) ?>">
+                                    <option value="team_member" <?= normalizePersonKind($u['person_kind'] ?? 'team_member') === 'team_member' ? 'selected' : '' ?>>team_member</option>
+                                    <option value="client" <?= normalizePersonKind($u['person_kind'] ?? '') === 'client' ? 'selected' : '' ?>>client</option>
+                                </select>
                                 <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
                             </form>
                         <?php else: ?>

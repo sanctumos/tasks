@@ -480,6 +480,21 @@ Creates a user and optionally mints an API key in the same request.
 
 **Response `201`:** Always includes `user`. If `create_api_key` was true, includes **`api_key`** — the **plaintext secret** (only returned at creation time).
 
+#### `POST /api/update-user.php`
+
+Admin partial update for an existing user.
+
+**Body (JSON):**
+
+| Field | Required | Notes |
+| ----- | -------- | ----- |
+| `user_id` (or `id`) | Yes | Target user id |
+| `person_kind` | No | `team_member` \| `client` — clients cannot create tasks/docs |
+| `limited_project_access` | No | boolean |
+| `org_id` | No | Primary organization id |
+
+Provide at least one updatable field. Response includes `user` and `updated`.
+
 #### `POST /api/disable-user.php`
 
 **Not only disable:** sets active flag from JSON.

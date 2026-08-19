@@ -2405,6 +2405,31 @@ function setUserLimitedProjectAccess(int $actorUserId, int $targetUserId, bool $
     return ['success' => true];
 }
 
+/**
+ * Admin: set users.person_kind (team_member | client).
+ * Clients are read-only for create-task / create-document; flip to team_member for collaborators who should file work.
+ */
+function setUserPersonKind(int $actorUserId, int $targetUserId, string $personKind): array {
+    if ($targetUserId <= 0) {
+        return ['success' => false, 'error' => 'Invalid user'];
+    }
+    $tgt = getUserById($targetUserId, false);
+    if (!$tgt) {
+        return ['success' => false, 'error' => 'User not found'];
+    }
+    $pk = normalizePersonKind($personKind);
+    $db = getDbConnection();
+    $stmt = $db->prepare('UPDATE users SET person_kind = :pk WHERE id = :id');
+    $stmt->bindValue(':pk', $pk, SQLITE3_TEXT);
+    $stmt->bindValue(':id', $targetUserId, SQLITE3_INTEGER);
+    $stmt->execute();
+    createAuditLog($actorUserId, 'user.person_kind_set', 'user', (string)$targetUserId, [
+        'person_kind' => $pk,
+        'previous' => normalizePersonKind($tgt['person_kind'] ?? 'team_member'),
+    ]);
+    return ['success' => true, 'person_kind' => $pk];
+}
+
 /** All directory projects in an organization (non-trashed), sorted by name. For admin UX / membership bulk edit. */
 function listAllDirectoryProjectsInOrganization(int $orgId, int $limit = 500): array {
     if ($orgId <= 0) {
