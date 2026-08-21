@@ -70,9 +70,13 @@ Runs bridge seed (on multihost when `Q_PROD_SMOKE_SSH=multihost`) + optional `as
 
 ---
 
-## 5. Rate limits
+## 5. Rate limits + connection settings
 
-Per-user caps on widget routes: `messages`, `responses`, `history`, `user_session`. **Admins** tune limits at **Settings → Ask Q** (`/admin/settings.php?tab=ask-q`); stored in Tasks `app_settings` key `q_bridge.rate_limits`. File defaults in `q-bridge/includes/rate_limit_config.php`.
+**Connection (admins):** **Settings → Ask Q** — enable/disable the bubble, Sanctum URL, Letta agent id, display name. Stored in `app_settings` key `q_bridge.connection` (`public/q-bridge/includes/connection_config.php`). Env `TASKS_Q_BRIDGE_ENABLED=0` remains a hard kill-switch. Bubble gate: `q_bridge_is_ui_enabled()`.
+
+Each Tasks host has its own queue; Broca must poll **that** host’s `/q-bridge/` with **that** host’s poll key. Client installs (e.g. `tasks.soletigre.com`) should leave Ask Q **disabled** until their own Sanctum agent is provisioned — do not point them at DSC’s Q.
+
+**Rate limits:** Per-user caps on widget routes: `messages`, `responses`, `history`, `user_session`. Same Settings tab; stored in `app_settings` key `q_bridge.rate_limits`. File defaults in `q-bridge/includes/rate_limit_config.php`.
 
 **Recommended defaults (2026-06):** messages **300**/h, responses **7200**/h, history **600**/h, user_session **3000**/h, user overall **20000**/h. Broca inbox **10000**/h per server IP.
 

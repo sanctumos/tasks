@@ -1,13 +1,19 @@
 <?php
 /**
- * Ask Q Vernal — floating webchat bubble (logged-in admin only).
+ * Ask Q — floating webchat bubble (logged-in users; gated by Settings → Ask Q).
  */
-if (!isLoggedIn() || !defined('TASKS_Q_BRIDGE_ENABLED') || !TASKS_Q_BRIDGE_ENABLED) {
+require_once dirname(__DIR__) . '/q-bridge/includes/connection_config.php';
+
+if (!isLoggedIn() || !q_bridge_is_ui_enabled()) {
     return;
 }
+
 require_once dirname(__DIR__) . '/q-bridge/includes/page_context.php';
 
-$qTitle = 'Q. Vernal';
+$conn = q_bridge_get_connection_config();
+$qTitle = trim((string)($conn['agent_label'] ?? '')) !== ''
+    ? (string)$conn['agent_label']
+    : 'Q. Vernal';
 $qColor = '#4a5568';
 $qChatterUsername = trim((string)($_SESSION['username'] ?? ''));
 $askQPageContext = [];
@@ -18,6 +24,7 @@ if ($layoutUser) {
         $layoutUser
     );
 }
+$qGreeting = 'Hi — I\'m ' . $qTitle . '. Ask me anything about your tasks.';
 ?>
 <link rel="stylesheet" href="/q-bridge/widget/assets/css/widget.css?v=6">
 <script src="/q-bridge/widget/assets/js/markdown-lite.js?v=1"></script>
@@ -39,7 +46,7 @@ document.addEventListener('DOMContentLoaded', function () {
             title: <?= json_encode($qTitle, JSON_UNESCAPED_UNICODE) ?>,
             chatterUsername: <?= json_encode($qChatterUsername, JSON_UNESCAPED_UNICODE) ?>,
             primaryColor: <?= json_encode($qColor) ?>,
-            greeting: 'Hi — I\'m Q. Ask me anything about your tasks.',
+            greeting: <?= json_encode($qGreeting, JSON_UNESCAPED_UNICODE) ?>,
             persistSession: true,
             historyLimit: 6,
             autoOpen: false,

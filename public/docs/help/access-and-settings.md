@@ -126,9 +126,20 @@ Audit is not a replacement for task comments. Audit tells you the system event. 
 
 ## Ask Q settings
 
-When Ask Q is enabled, admins get **Settings → Ask Q**.
+Admins always get **Settings → Ask Q**.
 
-That page controls rate limits for the webchat widget:
+**Connection**
+
+- Enable or disable Ask Q for this Tasks install (controls the chat bubble).
+- Sanctum URL — the Sanctum / Broca host that owns the agent (not this Tasks URL).
+- Agent ID — Letta agent id Broca should use for this instance.
+- Agent display name — bubble title (default `Q. Vernal`).
+
+Each Tasks hostname has its own q-bridge queue. Broca must poll **this** host’s `/q-bridge/` with **this** instance’s poll key. Turning Ask Q on here does not connect you to another company’s Q.
+
+**Rate limits**
+
+When Ask Q is in use, the same tab also controls widget rate limits:
 
 - Messages sent per user per hour.
 - Response polling.

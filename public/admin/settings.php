@@ -24,10 +24,10 @@ $availableTabs = [
     'archived-boards' => ['label' => 'Archived boards', 'icon' => 'bi-archive', 'admin' => false],
     'api-keys' => ['label' => 'API keys', 'icon' => 'bi-key', 'admin' => true],
     'audit' => ['label' => 'Audit log', 'icon' => 'bi-shield-check', 'admin' => true],
+    // Always available to admins so they can enable/disable and set Sanctum target
+    // even when the bubble is currently off.
+    'ask-q' => ['label' => 'Ask Q', 'icon' => 'bi-chat-dots', 'admin' => true],
 ];
-if (defined('TASKS_Q_BRIDGE_ENABLED') && TASKS_Q_BRIDGE_ENABLED) {
-    $availableTabs['ask-q'] = ['label' => 'Ask Q', 'icon' => 'bi-chat-dots', 'admin' => true];
-}
 
 $tab = (string)($_GET['tab'] ?? 'password');
 if (!isset($availableTabs[$tab])) {
