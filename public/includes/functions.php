@@ -2325,6 +2325,7 @@ function homeWidgetDefaults(): array {
     return [
         'pulse_kpis' => true,
         'my_work' => true,
+        'pinned_boards' => true,
         'board_health' => true,
         'inbox_peek' => true,
         'schedule_peek' => false,

@@ -14,6 +14,7 @@ final class HomeWidgetsTest extends TestCase
         $this->assertFalse($d['cross_project_board']);
         $this->assertTrue($d['pulse_kpis']);
         $this->assertTrue($d['my_work']);
+        $this->assertTrue($d['pinned_boards']);
     }
 
     public function testUpdateAndReadHomeWidgets(): void

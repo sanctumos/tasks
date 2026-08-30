@@ -145,6 +145,28 @@ body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-t
 .st-pri--normal { background: var(--st-pri-normal-soft); color: var(--st-pri-normal); }
 .st-peek .st-peek__li:first-child { border-top: 0 !important; }
 
+.st-pin-nav { gap: 0.5rem; }
+.st-pin-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid var(--st-border-subtle);
+    background: var(--st-bg-surface);
+    color: var(--st-text-primary);
+    text-decoration: none;
+    font-weight: 550;
+    font-size: 0.88rem;
+    box-shadow: var(--st-shadow-sm);
+}
+.st-pin-chip:hover {
+    border-color: var(--st-accent);
+    color: var(--st-accent);
+}
+.st-pin-chip .bi { color: var(--st-accent); font-size: 0.85rem; }
+.st-home-project-card .stretched-link::after { z-index: 1; }
+
 /* ---- UI Skin Lab comp bar (dev host) ---- */
 :root { --comp-h: 0px; }
 .st-skin-lab-active .admin-nav { top: var(--comp-h); }

@@ -402,6 +402,21 @@ require __DIR__ . '/_layout_top.php';
     </div>
     <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
         <?= st_doc_help('projects', 'Projects tabs lists docs and members') ?>
+        <?php
+        $projectPinned = false;
+        foreach (listUserProjectPinsForUser($currentUser, 200) as $pp) {
+            if ((int)$pp['project_id'] === (int)$id) {
+                $projectPinned = true;
+                break;
+            }
+        }
+        echo st_project_pin_form_html(
+            (int)$id,
+            $projectPinned,
+            '/admin/project.php?id=' . (int)$id . '&tab=' . rawurlencode((string)$tab),
+            'btn btn-sm ' . ($projectPinned ? 'btn-primary' : 'btn-outline-secondary')
+        );
+        ?>
         <?php if (in_array($tab, ['lists', 'tasks'], true)): ?>
             <?= st_assigned_to_me_button('/admin/project.php', ['id' => $id, 'tab' => $tab], $mineFilter) ?>
         <?php endif; ?>

@@ -17,7 +17,7 @@ $stSkinSlugs = skinLabAvailableSlugs();
     <title><?= htmlspecialchars($pageTitle) ?> · <?= htmlspecialchars($stAppName) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/assets/admin.css?v=19" rel="stylesheet">
+    <link href="/assets/admin.css?v=20" rel="stylesheet">
     <?php if ($stShowSkinCompBar): ?>
         <?php /* Comp bar toggles data-skin-comp client-side — load every skin sheet so switches paint. */ ?>
         <?php foreach ($stSkinSlugs as $slug): ?>
@@ -63,13 +63,35 @@ window.__ST_SKIN_LAB__ = {
                 <?php
                 $layoutUser = getCurrentUser();
                 $stNotifUnread = $layoutUser !== null ? countUnreadNotifications((int)$layoutUser['id']) : 0;
+                $stNavPins = ($layoutUser !== null) ? listUserProjectPinsForUser($layoutUser, 40) : [];
                 ?>
                 <div class="d-flex flex-column flex-lg-row flex-wrap gap-2 ms-lg-auto align-items-stretch align-items-lg-center py-3 py-lg-0">
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/" title="Your projects &amp; all tasks"><i class="bi bi-house-door me-1"></i>Home</a>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-light text-center text-lg-start dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Pinned boards and all projects">
+                            <i class="bi bi-pin-angle me-1"></i>Boards<?php if ($stNavPins !== []): ?><span class="badge text-bg-light text-dark ms-1"><?= count($stNavPins) ?></span><?php endif; ?>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" style="max-height: 22rem; overflow-y: auto;">
+                            <?php if ($stNavPins === []): ?>
+                                <li><span class="dropdown-item-text text-muted small">No pinned boards yet. Open a board and pin it.</span></li>
+                            <?php else: ?>
+                                <li><h6 class="dropdown-header">Pinned</h6></li>
+                                <?php foreach ($stNavPins as $pin): ?>
+                                    <li>
+                                        <a class="dropdown-item" href="/admin/project.php?id=<?= (int)$pin['project_id'] ?>">
+                                            <i class="bi bi-pin-fill me-2 text-muted"></i><?= htmlspecialchars((string)$pin['name']) ?>
+                                        </a>
+                                    </li>
+                                <?php endforeach; ?>
+                                <li><hr class="dropdown-divider"></li>
+                            <?php endif; ?>
+                            <li><a class="dropdown-item" href="/admin/workspace-projects.php"><i class="bi bi-grid-3x3-gap me-2"></i>All projects</a></li>
+                            <li><a class="dropdown-item" href="/admin/"><i class="bi bi-house-door me-2"></i>Home</a></li>
+                        </ul>
+                    </div>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/docs.php"><i class="bi bi-journals me-1"></i>Docs</a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/schedule.php"><i class="bi bi-calendar3 me-1"></i>Schedule</a>
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/activity.php"><i class="bi bi-activity me-1"></i>Activity</a>
-                    <a class="btn btn-outline-light text-center text-lg-start" href="/admin/workspace-projects.php"><i class="bi bi-kanban me-1"></i>Projects</a>
                     <div class="dropdown">
                         <button class="btn btn-outline-light text-center text-lg-start dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="bi bi-gear me-1"></i>Settings

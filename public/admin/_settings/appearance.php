@@ -18,10 +18,11 @@ $homeWidgets = getHomeWidgetsForUser($currentUser);
 $homeWidgetLabels = [
     'pulse_kpis' => ['Pulse KPIs', 'COUNT strip at the top of Home'],
     'my_work' => ['My Work', 'Limited list of your open tasks'],
+    'pinned_boards' => ['Pinned boards', 'Your shortlist for jumping between boards'],
     'board_health' => ['Board health', 'Per-project attention cards'],
     'inbox_peek' => ['Inbox peek', 'Recent unread notifications'],
     'schedule_peek' => ['Schedule peek', 'Next few schedule items'],
-    'projects_hub' => ['Projects hub', 'Grid of boards you can access'],
+    'projects_hub' => ['All boards grid', 'Full grid of boards you can access'],
     'cross_project_board' => ['Cross-project board', 'Loads all reachable tasks — slow'],
     'recent_activity' => ['Recent activity', 'Last 10 events across projects'],
 ];

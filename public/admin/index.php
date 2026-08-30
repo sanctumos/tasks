@@ -117,6 +117,15 @@ $homeActivityFeed = !empty($homeWidgets['recent_activity'])
     ? listAccessibleProjectsActivityForViewer($currentUser, 10, null)
     : [];
 
+$homePins = [];
+$homePinnedIds = [];
+if (!empty($homeWidgets['pinned_boards']) || !empty($homeWidgets['projects_hub'])) {
+    $homePins = listUserProjectPinsForUser($currentUser, 80);
+    foreach ($homePins as $hp) {
+        $homePinnedIds[(int)$hp['project_id']] = true;
+    }
+}
+
 $pageTitle = 'Home';
 $adminBreadcrumbs = [['label' => 'Home']];
 require __DIR__ . '/_layout_top.php';
@@ -134,7 +143,7 @@ function st_render_task_assignee_html(array $t): string {
 <div class="page-header mb-4">
     <div class="page-header__title">
         <h1><i class="bi bi-house-door me-2 text-muted"></i>Home</h1>
-        <div class="subtitle">Your pulse, work queue, and projects — without loading every task by default.</div>
+        <div class="subtitle">Jump boards fast — pin the ones you live in. Pulse and My Work stay light.</div>
     </div>
     <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
         <span class="d-inline-flex align-items-center" title="Documentation"><?= st_doc_help('home') ?></span>
@@ -152,6 +161,30 @@ function st_render_task_assignee_html(array $t): string {
     <div class="alert alert-success alert-dismissible fade show" role="alert"><?= htmlspecialchars($flashSuccess) ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
+<?php endif; ?>
+
+<?php if (!empty($homeWidgets['pinned_boards'])): ?>
+<section class="st-home-pins mb-4" aria-labelledby="st-home-pins-heading">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <h2 id="st-home-pins-heading" class="h5 mb-0"><i class="bi bi-pin-angle me-2 text-muted"></i>Pinned boards</h2>
+        <span class="text-muted small"><?= count($homePins) ?> pinned · also in the Boards menu</span>
+    </div>
+    <?php if ($homePins === []): ?>
+        <div class="surface surface-pad text-muted small">
+            No pins yet. Open a board you use a lot and hit <strong>Pin</strong> — or pin from the grid below.
+            That shortlist also appears under <strong>Boards</strong> in the top nav.
+        </div>
+    <?php else: ?>
+        <div class="st-pin-nav d-flex flex-wrap gap-2">
+            <?php foreach ($homePins as $pin): ?>
+                <a class="st-pin-chip" href="/admin/project.php?id=<?= (int)$pin['project_id'] ?>">
+                    <i class="bi bi-pin-fill"></i>
+                    <span><?= htmlspecialchars((string)$pin['name']) ?></span>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</section>
 <?php endif; ?>
 
 <?php if ($pulseKpis !== null): ?>
@@ -273,15 +306,22 @@ function st_render_task_assignee_html(array $t): string {
     <?php else: ?>
         <div class="st-home-project-grid board" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));">
             <?php foreach ($directoryProjects as $dp): ?>
-                <a class="task-card st-home-project-card" href="/admin/project.php?id=<?= (int)$dp['id'] ?>">
-                    <div class="d-flex align-items-center justify-content-between gap-2">
-                        <span class="task-card__title mb-0 text-truncate" title="<?= htmlspecialchars($dp['name']) ?>"><?= htmlspecialchars($dp['name']) ?></span>
-                        <span class="status-pill status-pill--<?= $dp['status'] === 'active' ? 'doing' : ($dp['status'] === 'archived' ? 'todo' : 'blocked') ?>"><?= htmlspecialchars($dp['status']) ?></span>
+                <?php $dpId = (int)$dp['id']; $dpPinned = !empty($homePinnedIds[$dpId]); ?>
+                <div class="task-card st-home-project-card position-relative">
+                    <div class="d-flex align-items-start justify-content-between gap-2">
+                        <a class="task-card__title mb-0 text-truncate text-decoration-none stretched-link" href="/admin/project.php?id=<?= $dpId ?>" title="<?= htmlspecialchars($dp['name']) ?>"><?= htmlspecialchars($dp['name']) ?></a>
+                        <div class="d-flex align-items-center gap-1 position-relative" style="z-index:3;">
+                            <?= st_project_pin_form_html($dpId, $dpPinned, '/admin/', 'btn btn-sm ' . ($dpPinned ? 'btn-primary' : 'btn-outline-secondary')) ?>
+                            <span class="status-pill status-pill--<?= $dp['status'] === 'active' ? 'doing' : ($dp['status'] === 'archived' ? 'todo' : 'blocked') ?>"><?= htmlspecialchars($dp['status']) ?></span>
+                        </div>
                     </div>
                     <?php if (!empty($dp['description'])): ?>
                         <div class="text-muted small st-home-project-card__desc"><?= htmlspecialchars($dp['description']) ?></div>
                     <?php endif; ?>
                     <div class="task-card__meta mb-0">
+                        <?php if ($dpPinned): ?>
+                            <span><i class="bi bi-pin-fill"></i> pinned</span>
+                        <?php endif; ?>
                         <?php if (!empty($dp['all_access'])): ?>
                             <span><i class="bi bi-globe"></i> all-access</span>
                         <?php endif; ?>
@@ -291,9 +331,9 @@ function st_render_task_assignee_html(array $t): string {
                     </div>
                     <div class="task-card__footer mt-auto pt-2">
                         <span class="text-muted small">Updated <?= st_relative_time($dp['updated_at'] ?? null) ?></span>
-                        <span class="small" style="color: var(--st-accent);">Open project <i class="bi bi-arrow-right-short"></i></span>
+                        <span class="small" style="color: var(--st-accent);">Open <i class="bi bi-arrow-right-short"></i></span>
                     </div>
-                </a>
+                </div>
             <?php endforeach; ?>
         </div>
     <?php endif; ?>

@@ -449,4 +449,24 @@ if (!function_exists('st_assigned_to_me_button')) {
     }
 }
 
+if (!function_exists('st_project_pin_form_html')) {
+    /**
+     * Compact pin/unpin POST form for board navigation.
+     */
+    function st_project_pin_form_html(int $projectId, bool $isPinned, string $returnUrl, string $btnClass = 'btn btn-sm btn-outline-secondary'): string {
+        $action = $isPinned ? '0' : '1';
+        $label = $isPinned ? 'Unpin' : 'Pin';
+        $icon = $isPinned ? 'bi-pin-fill' : 'bi-pin-angle';
+        $title = $isPinned ? 'Remove from pinned boards' : 'Pin this board for quick navigation';
+        return '<form method="post" action="/admin/pin-project.php" class="d-inline m-0 position-relative" style="z-index:3;">'
+            . csrfInputField()
+            . '<input type="hidden" name="project_id" value="' . $projectId . '">'
+            . '<input type="hidden" name="pinned" value="' . $action . '">'
+            . '<input type="hidden" name="return" value="' . htmlspecialchars($returnUrl, ENT_QUOTES, 'UTF-8') . '">'
+            . '<button type="submit" class="' . htmlspecialchars($btnClass) . '" title="' . htmlspecialchars($title) . '">'
+            . '<i class="bi ' . $icon . ' me-1"></i>' . htmlspecialchars($label)
+            . '</button></form>';
+    }
+}
+
 require_once __DIR__ . '/../includes/doc_guide.php';
