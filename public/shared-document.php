@@ -53,7 +53,7 @@ if ($token === null) {
     <div class="surface surface-pad">
         <?= $bodyBlock ?>
         <hr class="my-4">
-        <p class="fine-print mb-0 text-muted">Shared from Sanctum Tasks. Signing in is not required to view this page. Internal discussions stay inside your workspace.</p>
+        <p class="fine-print mb-0 text-muted">Shared from <?= htmlspecialchars(getAppName(), ENT_QUOTES, 'UTF-8') ?>. Signing in is not required to view this page. Internal discussions stay inside your workspace.</p>
     </div>
 </div>
 <?php echo st_mermaid_assets_html(); ?>

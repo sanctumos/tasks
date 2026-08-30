@@ -3,7 +3,8 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/skin-lab-env.php';
 require_once __DIR__ . '/_helpers.php';
-$pageTitle = isset($pageTitle) ? $pageTitle : 'Sanctum Tasks';
+$stAppName = getAppName();
+$pageTitle = isset($pageTitle) ? $pageTitle : $stAppName;
 $stSkinSlug = skinLabEffectiveSlug(isLoggedIn() ? getCurrentUser() : null);
 $stShowSkinCompBar = skinLabShouldShowCompBar();
 $stSkinSlugs = skinLabAvailableSlugs();
@@ -13,7 +14,7 @@ $stSkinSlugs = skinLabAvailableSlugs();
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= htmlspecialchars($pageTitle) ?> · Sanctum Tasks</title>
+    <title><?= htmlspecialchars($pageTitle) ?> · <?= htmlspecialchars($stAppName) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="/assets/admin.css?v=18" rel="stylesheet">
@@ -50,9 +51,9 @@ window.__ST_SKIN_LAB__ = {
 <?php endif; ?>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark admin-nav">
     <div class="container-fluid px-3 px-lg-4">
-        <a class="navbar-brand fw-semibold d-inline-flex align-items-center gap-2" href="/admin/">
+        <a class="navbar-brand fw-semibold d-inline-flex align-items-center gap-2" href="/admin/" title="<?= htmlspecialchars($stAppName) ?>">
             <i class="bi bi-stack"></i>
-            <span>Sanctum Tasks</span>
+            <span><?= htmlspecialchars($stAppName) ?></span>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar" aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>

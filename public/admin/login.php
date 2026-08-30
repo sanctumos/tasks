@@ -46,7 +46,7 @@ require __DIR__ . '/_layout_top.php';
             <div class="text-center mb-4">
                 <div style="font-size: 2rem; color: var(--st-accent);"><i class="bi bi-stack"></i></div>
                 <h1 class="h4 mb-1">Sign in</h1>
-                <p class="fine-print mb-0">Sanctum Tasks admin</p>
+                <p class="fine-print mb-0"><?= htmlspecialchars(getAppName()) ?> admin</p>
             </div>
 
             <?php if ($error): ?>

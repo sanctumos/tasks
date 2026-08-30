@@ -2263,6 +2263,46 @@ function setAppSetting(string $settingKey, ?string $settingValue, ?int $actorUse
     return ['success' => true, 'setting_key' => $settingKey, 'setting_value' => $settingValue];
 }
 
+/** Navbar / login / document title label (CRM-style branding). */
+function getAppName(): string {
+    $fallback = defined('TASKS_APP_NAME_DEFAULT') ? (string)TASKS_APP_NAME_DEFAULT : 'Sanctum Tasks';
+    if (!function_exists('getAppSetting')) {
+        return $fallback;
+    }
+    $raw = getAppSetting('app_name');
+    if ($raw === null) {
+        return $fallback;
+    }
+    $name = trim($raw);
+    return $name !== '' ? $name : $fallback;
+}
+
+function normalizeAppNameInput(string $raw): array {
+    $appName = trim($raw);
+    if ($appName === '') {
+        return ['success' => false, 'error' => 'Application name is required.'];
+    }
+    if (strlen($appName) > 100) {
+        return ['success' => false, 'error' => 'Application name must be 100 characters or fewer.'];
+    }
+    if (preg_match('/<[^>]*>/', $appName)) {
+        return ['success' => false, 'error' => 'Application name cannot contain HTML.'];
+    }
+    return ['success' => true, 'app_name' => $appName];
+}
+
+function updateAppNameSetting(string $appName, ?int $actorUserId): array {
+    $normalized = normalizeAppNameInput($appName);
+    if (empty($normalized['success'])) {
+        return $normalized;
+    }
+    $saved = setAppSetting('app_name', (string)$normalized['app_name'], $actorUserId);
+    if (empty($saved['success'])) {
+        return $saved;
+    }
+    return ['success' => true, 'app_name' => (string)$normalized['app_name']];
+}
+
 function updateOrganizationDefaultSkin(int $orgId, ?string $skinSlug, ?int $actorUserId): array {
     if ($orgId <= 0) {
         return ['success' => false, 'error' => 'Invalid organization'];

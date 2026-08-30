@@ -12,7 +12,22 @@ $userOverride = skinLabUserOverrideSlug($currentUser);
 $effective = skinLabEffectiveSlug($currentUser);
 $masterSkin = skinLabMasterSlug();
 $isAdminAppearance = isAdminRole((string)($currentUser['role'] ?? ''));
+$appNameSetting = getAppName();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] ?? '') === 'save_branding') {
+    requireCsrfToken();
+    if (!$isAdminAppearance) {
+        $appearance_error = 'Admin role required.';
+    } else {
+        $result = updateAppNameSetting((string)($_POST['app_name'] ?? ''), (int)$currentUser['id']);
+        if ($result['success']) {
+            $appNameSetting = (string)($result['app_name'] ?? getAppName());
+            $appearance_success = 'Branding saved. Header and login will show the new name.';
+        } else {
+            $appearance_error = $result['error'] ?? 'Could not save branding.';
+        }
+    }
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] ?? '') === 'save_appearance') {
     requireCsrfToken();
     $choice = (string)($_POST['skin_choice'] ?? '');
@@ -51,6 +66,34 @@ $skinLabels = [
 ];
 ?>
 
+<?php if ($appearance_error): ?>
+    <div class="alert alert-danger"><?= htmlspecialchars($appearance_error) ?></div>
+<?php endif; ?>
+<?php if ($appearance_success): ?>
+    <div class="alert alert-success"><i class="bi bi-check-circle-fill me-1"></i><?= htmlspecialchars($appearance_success) ?></div>
+<?php endif; ?>
+
+<?php if ($isAdminAppearance): ?>
+<div class="surface surface-pad mb-3">
+    <div class="section-title"><i class="bi bi-type"></i> Branding</div>
+    <p class="fine-print mb-3">
+        Shown in the top navbar, browser tab, login page, and public document footer.
+        Default is <code><?= htmlspecialchars(TASKS_APP_NAME_DEFAULT) ?></code>.
+    </p>
+    <form method="post" action="/admin/settings.php?tab=appearance" style="max-width: 520px;" autocomplete="off">
+        <?= csrfInputField() ?>
+        <input type="hidden" name="settings_action" value="save_branding">
+        <div class="mb-3">
+            <label class="form-label" for="app_name">Application name</label>
+            <input type="text" class="form-control" id="app_name" name="app_name"
+                   value="<?= htmlspecialchars($appNameSetting) ?>"
+                   maxlength="100" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Save branding</button>
+    </form>
+</div>
+<?php endif; ?>
+
 <div class="surface surface-pad">
     <div class="section-title"><i class="bi bi-palette"></i> Appearance</div>
     <p class="fine-print mb-3">
@@ -59,13 +102,6 @@ $skinLabels = [
         unless you pick a personal override below. Instance master default is
         <strong><?= htmlspecialchars($skinLabels[$masterSkin] ?? $masterSkin) ?></strong>.
     </p>
-
-    <?php if ($appearance_error): ?>
-        <div class="alert alert-danger"><?= htmlspecialchars($appearance_error) ?></div>
-    <?php endif; ?>
-    <?php if ($appearance_success): ?>
-        <div class="alert alert-success"><i class="bi bi-check-circle-fill me-1"></i><?= htmlspecialchars($appearance_success) ?></div>
-    <?php endif; ?>
 
     <form method="post" action="/admin/settings.php?tab=appearance" style="max-width: 520px;">
         <?= csrfInputField() ?>

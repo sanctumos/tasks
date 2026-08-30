@@ -26,6 +26,11 @@ define('DB_TIMEOUT', (int)envOrDefault('TASKS_DB_TIMEOUT', 30));
 /** Min seconds between api_keys.last_used writes per key (reduces lock contention on read-heavy endpoints). */
 define('API_KEY_LAST_USED_THROTTLE_SECONDS', (int)envOrDefault('TASKS_API_KEY_LAST_USED_THROTTLE_SECONDS', 600));
 
+// Application identity (navbar, login, page titles — override via app_settings.app_name)
+if (!defined('TASKS_APP_NAME_DEFAULT')) {
+    define('TASKS_APP_NAME_DEFAULT', 'Sanctum Tasks');
+}
+
 // Security settings
 define('SESSION_NAME', envOrDefault('TASKS_SESSION_NAME', 'sanctum_tasks'));
 define('SESSION_LIFETIME', (int)envOrDefault('TASKS_SESSION_LIFETIME', 3600));
