@@ -20,22 +20,39 @@ $view = $_GET['view'] ?? '';
 $sortBy = $_GET['sort_by'] ?? 'updated_at';
 $sortDir = strtoupper($_GET['sort_dir'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
 
+$homeWidgets = getHomeWidgetsForUser($currentUser);
+// Filter / board deep-links opt into the heavy cross-project board for this request only.
+if (
+    isset($_GET['board'])
+    || $status !== ''
+    || $q !== ''
+    || $priority !== ''
+    || $project !== ''
+    || $projectIdFilter > 0
+) {
+    $homeWidgets['cross_project_board'] = true;
+}
+
 $statuses = listTaskStatuses();
 $statusMap = [];
 foreach ($statuses as $s) { $statusMap[$s['slug']] = $s; }
-$users = listUsers(false);
-$projects = listProjects(200);
+$users = !empty($homeWidgets['cross_project_board']) ? listUsers(false) : [];
+$projects = !empty($homeWidgets['cross_project_board']) ? listProjects(200) : [];
 
 // directory_projects (workspace projects), used to render Project as a link
-$directoryProjects = listDirectoryProjectsForUser($currentUser, 300);
+$directoryProjects = !empty($homeWidgets['projects_hub']) || !empty($homeWidgets['cross_project_board']) || !empty($homeWidgets['my_work'])
+    ? listDirectoryProjectsForUser($currentUser, 300)
+    : [];
 $directoryProjectByName = [];
 foreach ($directoryProjects as $dp) {
     $directoryProjectByName[strtolower($dp['name'])] = $dp;
 }
 
 $todoListsByProject = [];
-foreach ($directoryProjects as $dp) {
-    $todoListsByProject[(int)$dp['id']] = listTodoListsForProject($currentUser, (int)$dp['id']);
+if (!empty($homeWidgets['cross_project_board'])) {
+    foreach ($directoryProjects as $dp) {
+        $todoListsByProject[(int)$dp['id']] = listTodoListsForProject($currentUser, (int)$dp['id']);
+    }
 }
 
 $filters = [
@@ -50,26 +67,55 @@ $filters = [
 if ($projectIdFilter > 0) {
     $filters['project_id'] = $projectIdFilter;
 }
-$tasksResult = listAllTasks($filters, null, $currentUser);
-$tasks = $tasksResult['tasks'];
-$total = (int)$tasksResult['total'];
 
-// Group tasks by status for the board view
+$tasks = [];
+$total = 0;
 $grouped = [];
 foreach ($statuses as $s) {
     $grouped[$s['slug']] = [];
 }
-foreach ($tasks as $t) {
-    $slug = (string)$t['status'];
-    if (!isset($grouped[$slug])) $grouped[$slug] = [];
-    $grouped[$slug][] = $t;
+if (!empty($homeWidgets['cross_project_board'])) {
+    $tasksResult = listAllTasks($filters, null, $currentUser);
+    $tasks = $tasksResult['tasks'];
+    $total = (int)$tasksResult['total'];
+    foreach ($tasks as $t) {
+        $slug = (string)$t['status'];
+        if (!isset($grouped[$slug])) {
+            $grouped[$slug] = [];
+        }
+        $grouped[$slug][] = $t;
+    }
+}
+
+$pulseKpis = !empty($homeWidgets['pulse_kpis']) ? computeHomePulseKpis($currentUser) : null;
+
+$myWorkTasks = [];
+$myWorkTotal = 0;
+if (!empty($homeWidgets['my_work'])) {
+    $myWorkResult = listTasks([
+        'assigned_to_user_id' => (int)$currentUser['id'],
+        'exclude_done' => true,
+        'limit' => 12,
+        'sort_by' => 'priority',
+        'sort_dir' => 'DESC',
+    ], true, null, $currentUser);
+    $myWorkTasks = $myWorkResult['tasks'];
+    $myWorkTotal = (int)$myWorkResult['total'];
+}
+
+$inboxPeek = [];
+if (!empty($homeWidgets['inbox_peek'])) {
+    $inboxResult = listNotificationsForUser((int)$currentUser['id'], 8, null, false);
+    $inboxPeek = array_slice($inboxResult['notifications'] ?? [], 0, 5);
 }
 
 $flashError = $_SESSION['admin_flash_error'] ?? null;
 $flashSuccess = $_SESSION['admin_flash_success'] ?? null;
 unset($_SESSION['admin_flash_error'], $_SESSION['admin_flash_success']);
 
-$homeActivityFeed = listAccessibleProjectsActivityForViewer($currentUser, 10, null);
+$homeActivityFeed = !empty($homeWidgets['recent_activity'])
+    ? listAccessibleProjectsActivityForViewer($currentUser, 10, null)
+    : [];
 
 $pageTitle = 'Home';
 $adminBreadcrumbs = [['label' => 'Home']];
@@ -88,10 +134,11 @@ function st_render_task_assignee_html(array $t): string {
 <div class="page-header mb-4">
     <div class="page-header__title">
         <h1><i class="bi bi-house-door me-2 text-muted"></i>Home</h1>
-        <div class="subtitle">Jump into a project, or scroll for the full cross-project task board below.</div>
+        <div class="subtitle">Your pulse, work queue, and projects — without loading every task by default.</div>
     </div>
     <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
         <span class="d-inline-flex align-items-center" title="Documentation"><?= st_doc_help('home') ?></span>
+        <a class="btn btn-outline-secondary btn-sm" href="/admin/settings.php?tab=appearance"><i class="bi bi-sliders me-1"></i>Home widgets</a>
         <a class="btn btn-outline-secondary btn-sm" href="/admin/workspace-projects.php"><i class="bi bi-grid-3x3-gap me-1"></i>All projects page</a>
     </div>
 </div>
@@ -107,7 +154,107 @@ function st_render_task_assignee_html(array $t): string {
     </div>
 <?php endif; ?>
 
+<?php if ($pulseKpis !== null): ?>
+<section class="st-home-kpis mb-4" aria-label="Pulse">
+    <div class="st-kpi-strip">
+        <a class="st-kpi" href="#st-home-mywork-heading">
+            <div class="st-kpi__n"><?= (int)$pulseKpis['assigned_open'] ?></div>
+            <div class="st-kpi__l">Assigned to me</div>
+        </a>
+        <a class="st-kpi <?= ((int)$pulseKpis['blocked'] > 0) ? 'st-kpi--warn' : '' ?>" href="/admin/?status=blocked&amp;board=1">
+            <div class="st-kpi__n"><?= (int)$pulseKpis['blocked'] ?></div>
+            <div class="st-kpi__l">Blocked</div>
+        </a>
+        <a class="st-kpi" href="/admin/?board=1">
+            <div class="st-kpi__n"><?= (int)$pulseKpis['unassigned_open'] ?></div>
+            <div class="st-kpi__l">Unassigned (open)</div>
+        </a>
+        <a class="st-kpi" href="/admin/activity.php">
+            <div class="st-kpi__n"><?= (int)$pulseKpis['updated_today'] ?></div>
+            <div class="st-kpi__l">Updated today</div>
+        </a>
+    </div>
+</section>
+<?php endif; ?>
+
+<?php if (!empty($homeWidgets['my_work']) || !empty($homeWidgets['inbox_peek'])): ?>
+<div class="row g-3 mb-5">
+    <?php if (!empty($homeWidgets['my_work'])): ?>
+    <div class="<?= !empty($homeWidgets['inbox_peek']) ? 'col-lg-8' : 'col-12' ?>">
+        <section class="st-home-mywork" aria-labelledby="st-home-mywork-heading">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <h2 id="st-home-mywork-heading" class="h5 mb-0"><i class="bi bi-person-check me-2 text-muted"></i>My Work</h2>
+                <span class="text-muted small"><?= (int)$myWorkTotal ?> open assigned to you</span>
+            </div>
+            <?php if ($myWorkTasks === []): ?>
+                <div class="surface surface-pad text-muted small">Nothing assigned to you right now.</div>
+            <?php else: ?>
+                <div class="st-mywork surface">
+                    <?php foreach ($myWorkTasks as $t): ?>
+                        <?php
+                        $pri = (string)($t['priority'] ?? 'normal');
+                        $priClass = $pri === 'urgent' ? 'st-pri--urgent' : ($pri === 'high' ? 'st-pri--high' : 'st-pri--normal');
+                        $projName = (string)($t['directory_project_name'] ?? $t['project'] ?? '');
+                        ?>
+                        <a class="st-mywork__row text-decoration-none text-reset" href="/admin/view.php?id=<?= (int)$t['id'] ?>">
+                            <span class="st-pri <?= $priClass ?>"><?= htmlspecialchars($pri) ?></span>
+                            <div>
+                                <div class="st-mywork__title"><?= htmlspecialchars((string)$t['title']) ?></div>
+                                <div class="st-mywork__meta"><?= htmlspecialchars($projName !== '' ? $projName : 'No project') ?> · <?= htmlspecialchars((string)($t['status'] ?? '')) ?></div>
+                            </div>
+                            <span class="st-mywork__meta">#<?= (int)$t['id'] ?></span>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </section>
+    </div>
+    <?php endif; ?>
+    <?php if (!empty($homeWidgets['inbox_peek'])): ?>
+    <div class="<?= !empty($homeWidgets['my_work']) ? 'col-lg-4' : 'col-12' ?>">
+        <section class="st-peek surface surface-pad" aria-labelledby="st-home-inbox-heading">
+            <h2 id="st-home-inbox-heading" class="h6 mb-3 d-flex align-items-center gap-2">
+                <i class="bi bi-bell"></i> Inbox
+                <?php $unreadN = countUnreadNotifications((int)$currentUser['id']); ?>
+                <?php if ($unreadN > 0): ?><span class="badge text-bg-danger"><?= $unreadN > 99 ? '99+' : (int)$unreadN ?></span><?php endif; ?>
+                <a class="ms-auto small" href="/admin/notifications.php">All</a>
+            </h2>
+            <?php if ($inboxPeek === []): ?>
+                <p class="text-muted small mb-0">No recent notifications.</p>
+            <?php else: ?>
+                <ul class="list-unstyled mb-0">
+                    <?php foreach ($inboxPeek as $n): ?>
+                        <?php
+                        $nLabel = trim((string)($n['label'] ?? ''));
+                        if ($nLabel === '') {
+                            $nLabel = trim((string)($n['title'] ?? ''));
+                        }
+                        if ($nLabel === '') {
+                            $nLabel = 'Notification';
+                        }
+                        $nHref = (string)($n['href'] ?? '');
+                        if ($nHref === '' && !empty($n['task_id'])) {
+                            $nHref = '/admin/view.php?id=' . (int)$n['task_id'];
+                        }
+                        if ($nHref === '') {
+                            $nHref = '/admin/notifications.php';
+                        }
+                        ?>
+                        <li class="st-peek__li d-flex justify-content-between gap-2 py-1 border-top">
+                            <a class="small text-decoration-none" href="<?= htmlspecialchars($nHref) ?>"><?= htmlspecialchars($nLabel) ?></a>
+                            <span class="text-muted small text-nowrap"><?= htmlspecialchars(st_relative_time($n['created_at'] ?? null)) ?></span>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+        </section>
+    </div>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <?php /* -------- Projects hub (accessible directory projects first) ------- */ ?>
+<?php if (!empty($homeWidgets['projects_hub'])): ?>
 <section class="st-home-projects mb-5" aria-labelledby="st-home-projects-heading">
     <div class="st-home-projects__toolbar d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <h2 id="st-home-projects-heading" class="h5 mb-0 d-flex align-items-center gap-2 flex-wrap"><i class="bi bi-kanban me-2 text-muted"></i>Your projects <?= st_doc_help('projects') ?></h2>
@@ -151,6 +298,7 @@ function st_render_task_assignee_html(array $t): string {
         </div>
     <?php endif; ?>
 </section>
+<?php endif; ?>
 
 <?php if (!empty($homeActivityFeed)): ?>
 <section class="st-home-activity mb-5" aria-labelledby="st-home-activity-heading">
@@ -174,6 +322,17 @@ function st_render_task_assignee_html(array $t): string {
 
 <hr class="st-home-rule text-muted opacity-50 my-5" aria-hidden="true">
 
+<?php if (empty($homeWidgets['cross_project_board'])): ?>
+<section class="st-home-master-optin mb-4">
+    <div class="surface surface-pad d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div>
+            <div class="fw-semibold mb-1">Cross-project board</div>
+            <p class="fine-print mb-0 text-muted">Off by default — it loads every reachable task. Turn it on under Appearance → Home widgets when you need the full board.</p>
+        </div>
+        <a class="btn btn-outline-primary btn-sm" href="/admin/settings.php?tab=appearance"><i class="bi bi-sliders me-1"></i>Enable in settings</a>
+    </div>
+</section>
+<?php else: ?>
 <section class="st-home-master" aria-labelledby="st-home-master-heading">
     <div class="page-header">
         <div class="page-header__title">
@@ -595,5 +754,6 @@ function st_render_task_assignee_html(array $t): string {
 </script>
 
 </section>
+<?php endif; ?>
 
 <?php require __DIR__ . '/_layout_bottom.php'; ?>

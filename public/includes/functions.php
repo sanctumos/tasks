@@ -524,8 +524,8 @@ function getEffectiveDirectoryOrgId(array $userRow): int {
 function getUserById($id, bool $includeSensitive = false): ?array {
     $db = getDbConnection();
     $sql = $includeSensitive
-        ? "SELECT id, username, role, is_active, must_change_password, mfa_enabled, mfa_secret, password_hash, org_id, person_kind, limited_project_access, skin_slug, created_at FROM users WHERE id = :id LIMIT 1"
-        : "SELECT id, username, role, is_active, must_change_password, mfa_enabled, org_id, person_kind, limited_project_access, skin_slug, created_at FROM users WHERE id = :id LIMIT 1";
+        ? "SELECT id, username, role, is_active, must_change_password, mfa_enabled, mfa_secret, password_hash, org_id, person_kind, limited_project_access, skin_slug, home_widgets_json, created_at FROM users WHERE id = :id LIMIT 1"
+        : "SELECT id, username, role, is_active, must_change_password, mfa_enabled, org_id, person_kind, limited_project_access, skin_slug, home_widgets_json, created_at FROM users WHERE id = :id LIMIT 1";
     $stmt = $db->prepare($sql);
     $stmt->bindValue(':id', (int)$id, SQLITE3_INTEGER);
     $res = $stmt->execute();
@@ -1794,6 +1794,23 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
         }
     }
 
+    if (!empty($filters['exclude_done'])) {
+        $filterJoins[] = 'LEFT JOIN task_statuses ts_open ON ts_open.slug = t.status';
+        $where[] = 'IFNULL(ts_open.is_done, 0) = 0';
+    }
+
+    if (!empty($filters['unassigned_only'])) {
+        $where[] = 't.assigned_to_user_id IS NULL';
+    }
+
+    if (!empty($filters['updated_since'])) {
+        $since = parseDateTimeOrNull($filters['updated_since']);
+        if ($since !== null) {
+            $where[] = 't.updated_at IS NOT NULL AND t.updated_at >= :updated_since';
+            $params[':updated_since'] = [$since, SQLITE3_TEXT];
+        }
+    }
+
     $scopeUser = $directoryScopeUser ?? null;
     if ($scopeUser === null && $apiUser !== null) {
         $scopeUser = $apiUser;
@@ -2301,6 +2318,102 @@ function updateAppNameSetting(string $appName, ?int $actorUserId): array {
         return $saved;
     }
     return ['success' => true, 'app_name' => (string)$normalized['app_name']];
+}
+
+/** Default Home widget visibility (cross-project board off — it hydrates all tasks). */
+function homeWidgetDefaults(): array {
+    return [
+        'pulse_kpis' => true,
+        'my_work' => true,
+        'board_health' => true,
+        'inbox_peek' => true,
+        'schedule_peek' => false,
+        'projects_hub' => true,
+        'cross_project_board' => false,
+        'recent_activity' => true,
+    ];
+}
+
+function homeWidgetKeys(): array {
+    return array_keys(homeWidgetDefaults());
+}
+
+function normalizeHomeWidgets(?array $raw): array {
+    $out = homeWidgetDefaults();
+    if (!is_array($raw)) {
+        return $out;
+    }
+    foreach (homeWidgetKeys() as $key) {
+        if (array_key_exists($key, $raw)) {
+            $out[$key] = !empty($raw[$key]);
+        }
+    }
+    return $out;
+}
+
+function getHomeWidgetsForUser(?array $userRow): array {
+    if ($userRow === null) {
+        return homeWidgetDefaults();
+    }
+    $json = $userRow['home_widgets_json'] ?? null;
+    if ($json === null || $json === '') {
+        return homeWidgetDefaults();
+    }
+    $decoded = json_decode((string)$json, true);
+    return normalizeHomeWidgets(is_array($decoded) ? $decoded : null);
+}
+
+function updateUserHomeWidgets(int $userId, array $widgets): array {
+    if ($userId <= 0) {
+        return ['success' => false, 'error' => 'Invalid user'];
+    }
+    $normalized = normalizeHomeWidgets($widgets);
+    $db = getDbConnection();
+    $stmt = $db->prepare('UPDATE users SET home_widgets_json = :j WHERE id = :id');
+    $stmt->bindValue(':j', json_encode($normalized, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+    $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
+    $stmt->execute();
+    createAuditLog($userId, 'user.home_widgets.update', 'user', (string)$userId, $normalized);
+    return ['success' => true, 'home_widgets' => $normalized];
+}
+
+/**
+ * Lightweight Home KPI counts (paginated totals only — no task bodies).
+ *
+ * @return array{assigned_open:int,blocked:int,unassigned_open:int,updated_today:int}
+ */
+function computeHomePulseKpis(array $viewer): array {
+    $uid = (int)($viewer['id'] ?? 0);
+    $todayStart = gmdate('Y-m-d') . ' 00:00:00';
+
+    $assigned = listTasks([
+        'assigned_to_user_id' => $uid,
+        'exclude_done' => true,
+        'limit' => 1,
+    ], true, null, $viewer);
+
+    $blocked = listTasks([
+        'status' => 'blocked',
+        'limit' => 1,
+    ], true, null, $viewer);
+
+    $unassigned = listTasks([
+        'unassigned_only' => true,
+        'exclude_done' => true,
+        'limit' => 1,
+    ], true, null, $viewer);
+
+    $updated = listTasks([
+        'updated_since' => $todayStart,
+        'limit' => 1,
+    ], true, null, $viewer);
+
+    return [
+        'assigned_open' => (int)($assigned['total'] ?? 0),
+        'blocked' => (int)($blocked['total'] ?? 0),
+        'unassigned_open' => (int)($unassigned['total'] ?? 0),
+        'updated_today' => (int)($updated['total'] ?? 0),
+    ];
 }
 
 function updateOrganizationDefaultSkin(int $orgId, ?string $skinSlug, ?int $actorUserId): array {

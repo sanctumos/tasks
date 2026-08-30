@@ -84,6 +84,67 @@ body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-t
 .admin-nav .navbar-text { font-size: 0.85rem; }
 .admin-shell { max-width: 1400px; }
 
+/* ---------- Home pulse / My Work ---------- */
+.st-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+@media (max-width: 700px) {
+    .st-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.st-kpi {
+    background: var(--st-bg-soft);
+    border: 1px solid var(--st-border-subtle);
+    border-radius: var(--st-radius);
+    padding: 0.75rem 0.85rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.12s ease;
+}
+.st-kpi:hover { border-color: var(--st-accent); color: inherit; }
+.st-kpi__n {
+    font-size: 1.55rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+.st-kpi__l {
+    font-size: 0.78rem;
+    color: var(--st-text-muted);
+    margin-top: 0.15rem;
+}
+.st-kpi--warn .st-kpi__n { color: var(--st-status-blocked); }
+.st-mywork {
+    border: 1px solid var(--st-border-subtle);
+    border-radius: var(--st-radius);
+    overflow: hidden;
+    background: var(--st-bg-surface);
+}
+.st-mywork__row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.65rem;
+    align-items: center;
+    padding: 0.65rem 0.85rem;
+    border-top: 1px solid var(--st-border-subtle);
+}
+.st-mywork__row:first-child { border-top: 0; }
+.st-mywork__row:hover { background: var(--st-bg-soft); }
+.st-mywork__title { font-weight: 550; font-size: 0.9rem; }
+.st-mywork__meta { font-size: 0.75rem; color: var(--st-text-muted); }
+.st-pri {
+    font-size: 0.68rem;
+    font-weight: 650;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    text-transform: lowercase;
+}
+.st-pri--urgent { background: var(--st-pri-urgent-soft); color: var(--st-pri-urgent); }
+.st-pri--high { background: var(--st-pri-high-soft); color: var(--st-pri-high); }
+.st-pri--normal { background: var(--st-pri-normal-soft); color: var(--st-pri-normal); }
+.st-peek .st-peek__li:first-child { border-top: 0 !important; }
+
 /* ---- UI Skin Lab comp bar (dev host) ---- */
 :root { --comp-h: 0px; }
 .st-skin-lab-active .admin-nav { top: var(--comp-h); }

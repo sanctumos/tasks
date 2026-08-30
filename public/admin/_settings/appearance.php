@@ -13,6 +13,18 @@ $effective = skinLabEffectiveSlug($currentUser);
 $masterSkin = skinLabMasterSlug();
 $isAdminAppearance = isAdminRole((string)($currentUser['role'] ?? ''));
 $appNameSetting = getAppName();
+$homeWidgets = getHomeWidgetsForUser($currentUser);
+
+$homeWidgetLabels = [
+    'pulse_kpis' => ['Pulse KPIs', 'COUNT strip at the top of Home'],
+    'my_work' => ['My Work', 'Limited list of your open tasks'],
+    'board_health' => ['Board health', 'Per-project attention cards'],
+    'inbox_peek' => ['Inbox peek', 'Recent unread notifications'],
+    'schedule_peek' => ['Schedule peek', 'Next few schedule items'],
+    'projects_hub' => ['Projects hub', 'Grid of boards you can access'],
+    'cross_project_board' => ['Cross-project board', 'Loads all reachable tasks — slow'],
+    'recent_activity' => ['Recent activity', 'Last 10 events across projects'],
+];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] ?? '') === 'save_branding') {
     requireCsrfToken();
@@ -26,6 +38,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] 
         } else {
             $appearance_error = $result['error'] ?? 'Could not save branding.';
         }
+    }
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] ?? '') === 'save_home_widgets') {
+    requireCsrfToken();
+    $posted = [];
+    foreach (homeWidgetKeys() as $key) {
+        $posted[$key] = isset($_POST['home_widget'][$key]);
+    }
+    $result = updateUserHomeWidgets((int)$currentUser['id'], $posted);
+    if ($result['success']) {
+        $homeWidgets = (array)($result['home_widgets'] ?? getHomeWidgetsForUser($currentUser));
+        $appearance_success = 'Home widgets saved. Open Home to see the new layout.';
+        $currentUser = getCurrentUser() ?: $currentUser;
+    } else {
+        $appearance_error = $result['error'] ?? 'Could not save home widgets.';
     }
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] ?? '') === 'save_appearance') {
@@ -93,6 +120,31 @@ $skinLabels = [
     </form>
 </div>
 <?php endif; ?>
+
+<div class="surface surface-pad mb-3">
+    <div class="section-title"><i class="bi bi-layout-wtf"></i> Home widgets</div>
+    <p class="fine-print mb-3">
+        Choose which blocks load on Home. The cross-project board hydrates every reachable task — leave it off unless you need it.
+        Defaults match the Home element comps (Doc #1224).
+    </p>
+    <form method="post" action="/admin/settings.php?tab=appearance" style="max-width: 520px;">
+        <?= csrfInputField() ?>
+        <input type="hidden" name="settings_action" value="save_home_widgets">
+        <?php foreach ($homeWidgetLabels as $key => $meta): ?>
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" role="switch"
+                       id="home_widget_<?= htmlspecialchars($key) ?>"
+                       name="home_widget[<?= htmlspecialchars($key) ?>]" value="1"
+                       <?= !empty($homeWidgets[$key]) ? 'checked' : '' ?>>
+                <label class="form-check-label" for="home_widget_<?= htmlspecialchars($key) ?>">
+                    <strong><?= htmlspecialchars($meta[0]) ?></strong>
+                    <span class="fine-print d-block"><?= htmlspecialchars($meta[1]) ?></span>
+                </label>
+            </div>
+        <?php endforeach; ?>
+        <button type="submit" class="btn btn-primary mt-2">Save home widgets</button>
+    </form>
+</div>
 
 <div class="surface surface-pad">
     <div class="section-title"><i class="bi bi-palette"></i> Appearance</div>
