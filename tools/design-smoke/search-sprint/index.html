@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Search at every level — comps</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="/assets/admin.css?v=20" rel="stylesheet">
+  <style>
+    .comp-page { max-width: 1180px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+    .comp-intro { margin-bottom: 1.75rem; }
+    .comp-intro h1 { font-size: 1.35rem; margin-bottom: 0.35rem; }
+    .comp-block {
+      border: 1px dashed #cfd4de; border-radius: 12px;
+      padding: 0.85rem 0.95rem 1.1rem; margin-bottom: 1.5rem; background: #fff;
+    }
+    .comp-meta {
+      display: flex; flex-wrap: wrap; gap: 0.4rem 0.75rem;
+      align-items: baseline; margin-bottom: 0.75rem;
+      padding-bottom: 0.55rem; border-bottom: 1px solid #e4e7ee;
+    }
+    .comp-rank {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em;
+      color: #fff; background: #2c5cff; padding: 0.15rem 0.5rem; border-radius: 4px;
+    }
+    .comp-rank--low { background: #8a93a3; }
+    .comp-title { font-weight: 650; font-size: 0.95rem; }
+    .comp-behavior {
+      font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em;
+      padding: 0.12rem 0.4rem; border-radius: 999px; font-weight: 600;
+    }
+    .b-live { background: #dcfce7; color: #15803d; }
+    .b-submit { background: #fef4d6; color: #b45309; }
+    .b-client { background: #e0e7ff; color: #3730a3; }
+    .comp-note { font-size: 0.8rem; color: #4a5260; margin: 0; max-width: 56rem; }
+
+    /* R1 — Global omnibox */
+    .st-omnibox { position: relative; max-width: 560px; }
+    .st-omnibox__input { width: 100%; }
+    .st-omnibox__drop {
+      position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+      background: #fff; border: 1px solid #e4e7ee; border-radius: 10px;
+      box-shadow: 0 12px 32px rgba(20,22,26,.14); overflow: hidden; z-index: 50;
+    }
+    .st-omnibox__group {
+      padding: 0.4rem 0.75rem 0.25rem; font-size: 0.68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.05em; color: #8a93a3;
+      background: #f8f9fc; border-top: 1px solid #eef0f4;
+    }
+    .st-omnibox__group:first-child { border-top: 0; }
+    .st-omnibox__item {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.5rem 0.75rem; text-decoration: none; color: inherit;
+    }
+    .st-omnibox__item:hover, .st-omnibox__item.is-active { background: #eef2ff; }
+    .st-omnibox__icon {
+      width: 26px; height: 26px; border-radius: 6px; flex: 0 0 auto;
+      display: grid; place-items: center; font-size: 0.8rem;
+    }
+    .st-omnibox__icon--task { background: #e9efff; color: #2c5cff; }
+    .st-omnibox__icon--doc { background: #fef4d6; color: #b45309; }
+    .st-omnibox__icon--user { background: #dcfce7; color: #15803d; }
+    .st-omnibox__icon--project { background: #f3e8ff; color: #7e22ce; }
+    .st-omnibox__text { min-width: 0; flex: 1; }
+    .st-omnibox__title { font-size: 0.86rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .st-omnibox__sub { font-size: 0.74rem; color: #8a93a3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .st-omnibox__kbd {
+      font-size: 0.68rem; color: #8a93a3; border: 1px solid #e4e7ee;
+      border-radius: 4px; padding: 0.05rem 0.35rem; background: #f8f9fc;
+    }
+    .st-omnibox__foot {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.45rem 0.75rem; background: #f8f9fc; border-top: 1px solid #eef0f4;
+      font-size: 0.74rem; color: #4a5260;
+    }
+    mark.st-hl { background: #fff3bf; padding: 0 1px; border-radius: 2px; }
+
+    /* R2 — Home live filter */
+    .st-livebar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .st-livebar .input-group { max-width: 340px; }
+    .st-livebar__count { font-size: 0.78rem; color: #4a5260; }
+    .st-livebar__spinner { visibility: hidden; }
+    .st-livebar.is-loading .st-livebar__spinner { visibility: visible; }
+
+    /* R3 — Project tasks tab search */
+    .st-projsearch { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .st-chip-toggle {
+      border: 1px solid #e4e7ee; background: #fff; border-radius: 999px;
+      font-size: 0.76rem; padding: 0.2rem 0.65rem; color: #4a5260;
+    }
+    .st-chip-toggle.is-on { background: #2c5cff; border-color: #2c5cff; color: #fff; }
+
+    /* R4 — Docs search */
+    .st-docresult {
+      display: flex; gap: 0.65rem; padding: 0.6rem 0.75rem;
+      border: 1px solid #e4e7ee; border-radius: 10px; margin-bottom: 0.5rem; background: #fff;
+    }
+    .st-docresult__icon { color: #b45309; font-size: 1.1rem; }
+    .st-docresult__title { font-weight: 650; font-size: 0.9rem; }
+    .st-docresult__snip { font-size: 0.78rem; color: #4a5260; }
+
+    /* R5 — find in thread */
+    .st-findbar {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: #fffbe8; border: 1px solid #f0e0a8; border-radius: 8px;
+      padding: 0.4rem 0.6rem; font-size: 0.82rem;
+    }
+    .st-comment-hl { outline: 2px solid #f0c040; outline-offset: 2px; border-radius: 6px; }
+
+    /* R6 — activity/notif filter */
+    .st-feedfilter { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+
+    /* R7 — users admin */
+    .st-userfilter { max-width: 300px; }
+
+    .kbd-hint {
+      font-size: 0.7rem; color: #8a93a3; border: 1px solid #e4e7ee;
+      border-radius: 4px; padding: 0.05rem 0.35rem; background: #f8f9fc;
+    }
+  </style>
+</head>
+<body>
+<div class="comp-page">
+  <div class="comp-intro">
+    <h1>Search at every level — proposed integrations</h1>
+    <p class="text-muted mb-0">Ranked by necessity. Each comp shows the level, the search behavior (live / submit / client-side), and what it covers. Prototype only — no prod edits.</p>
+  </div>
+
+  <!-- ============ R1: Global omnibox ============ -->
+  <div class="comp-block" id="r1">
+    <div class="comp-meta">
+      <span class="comp-rank">R1</span>
+      <span class="comp-title">Global nav omnibox — search everything from anywhere</span>
+      <span class="comp-behavior b-live">Live dropdown</span>
+      <span class="comp-behavior b-submit">Enter → results page</span>
+    </div>
+    <p class="comp-note">
+      The single biggest gap: there is no way to search across tasks, docs, people, and boards from the chrome.
+      A navbar omnibox (keyboard shortcut <span class="kbd-hint">/</span> or <span class="kbd-hint">Ctrl K</span>) with a live dropdown of top hits grouped by entity, and Enter falling through to a full results page.
+      Backed by a new <code>GET /api/search.php?q=</code> that fans out to tasks (title/body), documents (title/body), users (username), and projects (name) with per-entity LIMIT 5.
+      Non-stateful: the dropdown is ephemeral; the results page carries <code>?q=</code> in the URL so it's shareable.
+    </p>
+    <div class="mt-3">
+      <!-- navbar mock -->
+      <nav class="navbar navbar-expand-lg st-navbar mb-0" style="border-radius:10px;">
+        <div class="container-fluid px-3">
+          <a class="navbar-brand fw-semibold d-inline-flex align-items-center gap-2" href="#"><i class="bi bi-stack"></i><span>Sanctum Tasks</span></a>
+          <div class="st-omnibox mx-auto">
+            <div class="input-group">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+              <input class="form-control border-start-0" type="search" value="invoice" aria-label="Search everything">
+              <span class="input-group-text bg-white border-start-0"><span class="st-omnibox__kbd">Ctrl K</span></span>
+            </div>
+            <div class="st-omnibox__drop">
+              <div class="st-omnibox__group">Tasks</div>
+              <a class="st-omnibox__item is-active" href="#">
+                <span class="st-omnibox__icon st-omnibox__icon--task"><i class="bi bi-check2-square"></i></span>
+                <span class="st-omnibox__text">
+                  <span class="st-omnibox__title">Build: email <mark class="st-hl">invoice</mark>s into the system automatically</span>
+                  <span class="st-omnibox__sub">Luke's Inventory · doing · #1522</span>
+                </span>
+              </a>
+              <a class="st-omnibox__item" href="#">
+                <span class="st-omnibox__icon st-omnibox__icon--task"><i class="bi bi-check2-square"></i></span>
+                <span class="st-omnibox__text">
+                  <span class="st-omnibox__title">Fix: <mark class="st-hl">invoice</mark> PDF totals round wrong on tax</span>
+                  <span class="st-omnibox__sub">Invoicing · todo · #1871</span>
+                </span>
+              </a>
+              <div class="st-omnibox__group">Documents</div>
+              <a class="st-omnibox__item" href="#">
+                <span class="st-omnibox__icon st-omnibox__icon--doc"><i class="bi bi-file-text"></i></span>
+                <span class="st-omnibox__text">
+                  <span class="st-omnibox__title"><mark class="st-hl">Invoice</mark> email ingest — design notes</span>
+                  <span class="st-omnibox__sub">Luke's Inventory · specs/ · updated 2d ago</span>
+                </span>
+              </a>
+              <div class="st-omnibox__group">People</div>
+              <a class="st-omnibox__item" href="#">
+                <span class="st-omnibox__icon st-omnibox__icon--user"><i class="bi bi-person"></i></span>
+                <span class="st-omnibox__text">
+                  <span class="st-omnibox__title">luke</span>
+                  <span class="st-omnibox__sub">Client · Luke's Inventory</span>
+                </span>
+              </a>
+              <div class="st-omnibox__foot">
+                <span>↑↓ navigate · ↵ open · esc close</span>
+                <span><strong>Enter</strong> for all 14 results</span>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-bell text-muted"></i>
+            <span class="text-muted small">rizzn</span>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </div>
+
+  <!-- ============ R2: Home live filter ============ -->
+  <div class="comp-block" id="r2">
+    <div class="comp-meta">
+      <span class="comp-rank">R2</span>
+      <span class="comp-title">Home filter bar — upgrade to live update</span>
+      <span class="comp-behavior b-live">Live (debounced)</span>
+      <span class="comp-behavior b-submit">URL-stateful</span>
+    </div>
+    <p class="comp-note">
+      Home already has a submit-based filter bar, but it forces a full page reload and hydrates the heavy cross-project board.
+      Proposal: keep the same fields, make <code>q</code> + selects fire a debounced (300ms) fetch against <code>list-tasks.php</code>,
+      swap only the results region, and reflect state in the URL (<code>?q=&status=&mine=1</code>) so a reload or share reproduces the view.
+      This also fixes the "deep-link forces the heavy board on" wart — a live-filtered Home can serve results from the light path.
+    </p>
+    <div class="mt-3">
+      <div class="surface surface-pad">
+        <div class="st-livebar is-loading">
+          <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input class="form-control border-start-0" type="search" value="garage" aria-label="Search tasks">
+          </div>
+          <select class="form-select form-select-sm" style="max-width:130px"><option>All statuses</option><option selected>Open</option></select>
+          <select class="form-select form-select-sm" style="max-width:130px"><option>Any priority</option><option>High</option></select>
+          <button class="btn btn-outline-primary btn-sm"><i class="bi bi-person-check me-1"></i>Assigned to me</button>
+          <span class="st-livebar__spinner spinner-border spinner-border-sm text-primary" role="status"></span>
+          <span class="st-livebar__count"><strong>6</strong> of 214 tasks · <a href="#">clear</a></span>
+        </div>
+        <div class="mt-3 d-flex flex-column gap-2">
+          <div class="task-card p-2 d-flex align-items-center gap-2">
+            <span class="status-pill status-pill--doing">doing</span>
+            <span class="fw-semibold">Reorganize the <mark class="st-hl">garage</mark> and label your pallets</span>
+            <span class="text-muted small ms-auto">Luke's Inventory</span>
+          </div>
+          <div class="task-card p-2 d-flex align-items-center gap-2">
+            <span class="status-pill status-pill--todo">todo</span>
+            <span class="fw-semibold">Build: scan barcodes into a pallet (from the <mark class="st-hl">garage</mark> floor)</span>
+            <span class="text-muted small ms-auto">Luke's Inventory</span>
+          </div>
+          <div class="task-card p-2 d-flex align-items-center gap-2">
+            <span class="status-pill status-pill--todo">todo</span>
+            <span class="fw-semibold">Order <mark class="st-hl">garage</mark> shelving — measure north wall first</span>
+            <span class="text-muted small ms-auto">Personal</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ R3: Project tasks tab ============ -->
+  <div class="comp-block" id="r3">
+    <div class="comp-meta">
+      <span class="comp-rank">R3</span>
+      <span class="comp-title">Project → Tasks tab — board-local search + quick chips</span>
+      <span class="comp-behavior b-client">Client-side live</span>
+      <span class="comp-behavior b-submit">Server for big boards</span>
+    </div>
+    <p class="comp-note">
+      The project workspace is where people live, and today the only filter is "assigned to me."
+      Proposal: a search box above the kanban that filters <em>the cards already on the page</em> client-side (instant, no round trip),
+      plus one-tap chips for status and priority that combine with the text query.
+      Boards over ~200 cards fall back to a server round trip (<code>list-tasks.php?project_id=&q=</code>) so we never ship a giant DOM to filter.
+      Stateful in the tab URL (<code>?tab=tasks&q=</code>) so a refresh keeps the view.
+    </p>
+    <div class="mt-3">
+      <div class="surface surface-pad">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+          <div class="st-projsearch">
+            <div class="input-group input-group-sm" style="max-width:280px">
+              <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+              <input class="form-control border-start-0" type="search" value="pallet" placeholder="Search this board…">
+            </div>
+            <button class="st-chip-toggle is-on">Open</button>
+            <button class="st-chip-toggle">Done</button>
+            <button class="st-chip-toggle is-on">High priority</button>
+            <button class="st-chip-toggle">Assigned to me</button>
+          </div>
+          <span class="text-muted small">4 of 38 tasks</span>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <div class="fw-semibold small text-muted mb-1">To do</div>
+            <div class="task-card p-2 mb-2"><span class="fw-semibold">Label <mark class="st-hl">pallet</mark>s to match app names</span><div class="fine-print text-muted">#1523</div></div>
+            <div class="task-card p-2 mb-2"><span class="fw-semibold">Build: scan barcodes into a <mark class="st-hl">pallet</mark></span><div class="fine-print text-muted">#1521</div></div>
+          </div>
+          <div class="col-md-4">
+            <div class="fw-semibold small text-muted mb-1">Doing</div>
+            <div class="task-card p-2 mb-2"><span class="fw-semibold"><mark class="st-hl">Pallet</mark> picker on the scan screen</span><div class="fine-print text-muted">#1530</div></div>
+          </div>
+          <div class="col-md-4">
+            <div class="fw-semibold small text-muted mb-1">Done</div>
+            <div class="task-card p-2 mb-2 opacity-50"><span class="fw-semibold">Fridge pickup (no <mark class="st-hl">pallet</mark> needed)</span><div class="fine-print text-muted">#1490</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ R4: Docs search ============ -->
+  <div class="comp-block" id="r4">
+    <div class="comp-meta">
+      <span class="comp-rank">R4</span>
+      <span class="comp-title">Docs hub + project Docs tab — title/body search</span>
+      <span class="comp-behavior b-submit">Submit-based</span>
+      <span class="comp-behavior b-live">Server-side</span>
+    </div>
+    <p class="comp-note">
+      Documents are the long-term memory and today you can only browse by project/folder — no <code>q</code> in the UI or the API.
+      Proposal: a search box on the Docs hub (all projects you can reach) and on each project's Docs tab (scoped to that project),
+      submit-based with results ranked title-match-first, then body snippet with highlight.
+      Requires adding <code>q</code> to <code>list-documents.php</code> (SQL LIKE on title + body, same pattern as tasks).
+      Stateful via <code>?q=</code>; no live dropdown needed here — docs corpora are small and reads are deliberate.
+    </p>
+    <div class="mt-3">
+      <div class="surface surface-pad">
+        <form class="d-flex gap-2 mb-3" onsubmit="return false">
+          <div class="input-group" style="max-width:420px">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input class="form-control border-start-0" type="search" value="retainer" placeholder="Search documents…">
+          </div>
+          <select class="form-select" style="max-width:200px"><option>All projects</option><option>Selected: Luke's Inventory</option></select>
+          <button class="btn btn-primary"><i class="bi bi-funnel-fill me-1"></i>Search</button>
+        </form>
+        <div class="st-docresult">
+          <i class="bi bi-file-text st-docresult__icon"></i>
+          <div>
+            <div class="st-docresult__title">Consulting hours — <mark class="st-hl">retainer</mark> shape (Gutor form)</div>
+            <div class="st-docresult__snip">…the only instrument DSC signs for consulting-hours / <mark class="st-hl">retainer</mark> work is the Gutor GSA + SOW…</div>
+            <div class="fine-print text-muted mt-1">Sanctum · contracts/ · updated Aug 13</div>
+          </div>
+        </div>
+        <div class="st-docresult">
+          <i class="bi bi-file-text st-docresult__icon"></i>
+          <div>
+            <div class="st-docresult__title">Andrew Lowe e-com rescue — quote</div>
+            <div class="st-docresult__snip">…quote $500/mo <mark class="st-hl">retainer</mark>, CRM amount 6000 (annualized)…</div>
+            <div class="fine-print text-muted mt-1">Sales · quotes/ · updated Aug 28</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ R5: Find in thread ============ -->
+  <div class="comp-block" id="r5">
+    <div class="comp-meta">
+      <span class="comp-rank comp-rank--low">R5</span>
+      <span class="comp-title">Task detail — find in thread</span>
+      <span class="comp-behavior b-client">Client-side</span>
+      <span class="comp-behavior b-live">Non-stateful</span>
+    </div>
+    <p class="comp-note">
+      Long comment threads (design reviews, client back-and-forth) have no way to jump to a keyword.
+      Proposal: a small "Find in thread" box on the task page that highlights matches in comments and hops between them —
+      pure client-side, no server, no URL state. Attachments list gets the same filter box (matches file names).
+      Low cost, real quality-of-life on big cards.
+    </p>
+    <div class="mt-3">
+      <div class="surface surface-pad" style="max-width:640px">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="fw-semibold">Comments (12)</div>
+          <div class="st-findbar">
+            <i class="bi bi-search"></i>
+            <input class="form-control form-control-sm border-0 bg-transparent" style="width:150px" value="screenshot" placeholder="Find in thread">
+            <span class="text-muted">2/4</span>
+            <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-chevron-up"></i></button>
+            <button class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-chevron-down"></i></button>
+          </div>
+        </div>
+        <div class="border rounded p-2 mb-2">
+          <div class="small fw-semibold">ottovernal · 2h ago</div>
+          <div class="small">Shipped the pin buttons. <mark class="st-hl">Screenshot</mark>s attached for desktop + mobile.</div>
+        </div>
+        <div class="border rounded p-2 mb-2 st-comment-hl">
+          <div class="small fw-semibold">rizzn · 1h ago</div>
+          <div class="small">The mobile <mark class="st-hl">screenshot</mark> shows the chip wrapping — fix that before we ship.</div>
+        </div>
+        <div class="border rounded p-2">
+          <div class="small fw-semibold">ottovernal · 30m ago</div>
+          <div class="small">Fixed wrap, re-attached <mark class="st-hl">screenshot</mark>s.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ R6: Activity / notifications ============ -->
+  <div class="comp-block" id="r6">
+    <div class="comp-meta">
+      <span class="comp-rank comp-rank--low">R6</span>
+      <span class="comp-title">Activity + Notifications — text filter</span>
+      <span class="comp-behavior b-client">Client-side live</span>
+      <span class="comp-behavior b-submit">Non-stateful</span>
+    </div>
+    <p class="comp-note">
+      Both feeds are browse-only today. Proposal: a filter box above the feed that narrows the <em>loaded</em> rows client-side
+      (matches actor, task title, project name), plus type chips on Activity (comments / status changes / creates).
+      Deliberately non-stateful and client-only: feeds are ephemeral scans, not reports — nobody bookmarks a filtered activity view.
+      Server-side search of the full audit trail stays an admin/API concern.
+    </p>
+    <div class="mt-3">
+      <div class="surface surface-pad" style="max-width:640px">
+        <div class="st-feedfilter mb-2">
+          <div class="input-group input-group-sm" style="max-width:260px">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input class="form-control border-start-0" type="search" value="athena" placeholder="Filter this feed…">
+          </div>
+          <button class="st-chip-toggle">Comments</button>
+          <button class="st-chip-toggle is-on">Status changes</button>
+          <button class="st-chip-toggle">Creates</button>
+        </div>
+        <div class="d-flex flex-column gap-1 small">
+          <div class="border rounded p-2"><strong>athena</strong> moved <em>Home widgets</em> to done · 2h</div>
+          <div class="border rounded p-2"><strong>athena</strong> commented on <em>Search sprint</em> · 3h</div>
+          <div class="border rounded p-2 opacity-50"><strong>ada</strong> deployed tasks to multihost · 5h <span class="text-muted">(filtered out)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ R7: Users admin ============ -->
+  <div class="comp-block" id="r7">
+    <div class="comp-meta">
+      <span class="comp-rank comp-rank--low">R7</span>
+      <span class="comp-title">Users admin — live list filter</span>
+      <span class="comp-behavior b-client">Client-side live</span>
+      <span class="comp-behavior b-submit">Non-stateful</span>
+    </div>
+    <p class="comp-note">
+      The admin users table is a full dump. Proposal: a filter box that narrows rows client-side on username / role / status.
+      Same pattern could serve the Members tab on projects and the user↔projects ACL page.
+      Lowest rank — the user count is small and admins tolerate scrolling — but it's nearly free once the client-side filter helper exists for R3/R5/R6.
+    </p>
+    <div class="mt-3">
+      <div class="surface surface-pad" style="max-width:640px">
+        <div class="st-userfilter mb-2">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input class="form-control border-start-0" type="search" value="otto" placeholder="Filter users…">
+          </div>
+        </div>
+        <table class="table table-sm align-middle mb-0">
+          <thead><tr><th>Username</th><th>Role</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><mark class="st-hl">otto</mark>vernal</td><td>admin</td><td><span class="badge text-bg-success">active</span></td></tr>
+            <tr class="opacity-50"><td>rizzn</td><td>admin</td><td><span class="badge text-bg-success">active</span></td></tr>
+            <tr class="opacity-50"><td>ada</td><td>user</td><td><span class="badge text-bg-success">active</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
