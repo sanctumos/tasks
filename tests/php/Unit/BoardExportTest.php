@@ -159,6 +159,9 @@ final class BoardExportTest extends TestCase
         $this->assertStringContainsString("Export task {$suffix}", $entries['index.html']);
         $this->assertStringContainsString('todo-list', $entries['index.html']);
         $this->assertStringContainsString('todo-row', $entries['index.html']);
+        if (str_contains($entries['index.html'], '<details class="todo-list')) {
+            $this->assertMatchesRegularExpression('/<details class="todo-list[^"]*" id="list-\d+" open>/', $entries['index.html'], 'archived lists must start open');
+        }
         $this->assertArrayHasKey('tasks.html', $entries);
         $this->assertStringContainsString('swimlane', $entries['tasks.html']);
         $this->assertArrayHasKey('docs.html', $entries);

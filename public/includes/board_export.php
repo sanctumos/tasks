@@ -8,7 +8,7 @@
 require_once __DIR__ . '/config.php';
 
 /** Bump when the snapshot HTML renderer changes so old flat ZIPs are not reused. */
-const BOARD_EXPORT_SNAPSHOT_VERSION = '2-lists-tasks-docs';
+const BOARD_EXPORT_SNAPSHOT_VERSION = '3-lists-open';
 
 function boardExportStorageRoot(): string
 {
@@ -812,6 +812,7 @@ details.todo-list>summary::-webkit-details-marker{display:none}
 .doc-card a:hover{color:var(--st-accent)}
 .card{border:1px solid var(--st-border-subtle);background:var(--st-bg-surface);padding:1rem;margin:.75rem 0;border-radius:var(--st-radius)}
 pre,code{background:var(--st-bg-soft)} img{max-width:100%}
+pre.doc-body{white-space:pre-wrap;overflow-wrap:anywhere;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:.92rem;line-height:1.5;padding:.7rem .85rem;border-radius:var(--st-radius-sm);margin:.5rem 0}
 .detail-nav{margin-bottom:1rem;font-size:.9rem}
 .detail-nav a{color:var(--st-accent);margin-right:1rem}
 .todo-list-archived-shelf{border:1px dashed var(--st-border-subtle);border-radius:var(--st-radius);padding:.75rem 1rem;margin-top:1rem;background:var(--st-bg-surface)}
@@ -925,7 +926,8 @@ function boardExportTodoListSectionHtml(array $tl, array $rows, bool $isArchived
     $useCollapse = !$isArchivedShelf && $allDone;
     $cls = 'todo-list' . ($isArchivedShelf ? ' todo-list--archived' : '') . ($allDone ? ' todo-list--all-done' : '');
     $tag = $useCollapse ? 'details' : 'section';
-    $html = '<' . $tag . ' class="' . $cls . '" id="list-' . $listId . '">';
+    // Archived snapshot: every list starts open so the whole board is visible without clicking.
+    $html = '<' . $tag . ' class="' . $cls . '" id="list-' . $listId . '"' . ($useCollapse ? ' open' : '') . '>';
     if ($useCollapse) {
         $html .= '<summary class="todo-list__header">';
     } else {
