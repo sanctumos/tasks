@@ -100,9 +100,10 @@ When you generate a board archive ZIP, Tasks tries to carry the evidence with th
 
 The export includes:
 
-- Board index HTML.
-- Task HTML pages.
-- Document HTML pages.
+- Lists view HTML (`index.html`) — the same checklist layout as the live board.
+- Tasks view HTML (`tasks.html`) — status columns.
+- Docs view HTML (`docs.html`).
+- One HTML page per task and document.
 - Local attachment files under `assets/`.
 - Rewritten image links when the source was a Tasks asset.
 - Note files for attachments that could not be copied.

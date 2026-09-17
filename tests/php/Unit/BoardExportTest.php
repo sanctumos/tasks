@@ -140,6 +140,11 @@ final class BoardExportTest extends TestCase
         $entries = boardExportTestReadZipEntries($zipPath);
         $this->assertArrayHasKey('index.html', $entries);
         $this->assertStringContainsString("Export task {$suffix}", $entries['index.html']);
+        $this->assertStringContainsString('todo-list', $entries['index.html']);
+        $this->assertStringContainsString('todo-row', $entries['index.html']);
+        $this->assertArrayHasKey('tasks.html', $entries);
+        $this->assertStringContainsString('swimlane', $entries['tasks.html']);
+        $this->assertArrayHasKey('docs.html', $entries);
         $this->assertArrayHasKey("task-{$tid}.html", $entries);
         $this->assertStringContainsString('assets/' . $aid . '-', $entries["task-{$tid}.html"]);
 

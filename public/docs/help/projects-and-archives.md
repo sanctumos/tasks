@@ -38,6 +38,12 @@ Project tabs:
 
 Every task belongs to a to-do list. That is not bureaucracy; it is how the board stays readable.
 
+**All tasks load.** The Lists and Tasks tabs show every task on the project — nothing is silently dropped because the board got big.
+
+**When a list is fully done**, it collapses by default so finished phases stay out of the way. Expand it anytime; nothing is auto-archived.
+
+**Archive list** (project lead / admin): hides a finished phase from the main Lists view. Tasks stay on the board; restore the list from **Archived lists** at the bottom when you need it again. Use this on long-running projects instead of pretending old work disappeared.
+
 ## Schedule, activity, and doors
 
 **Schedule** is built from task due dates. It is not a separate calendar. If the date matters, put the date on the task.
@@ -76,7 +82,7 @@ From there:
 2. Wait for the job to turn **ready**.
 3. Click **Download**.
 
-The ZIP is a snapshot. It includes flat HTML pages for the board, tasks, and documents, plus local attachment bytes under `assets/` when Tasks has the file. Embedded `get-asset.php?id=...` references are rewritten to files inside the ZIP when possible.
+The ZIP is a snapshot that looks like the live board: a Lists tab (checklists grouped by to-do list), a Tasks tab (status columns), a Docs tab, plus one page per task and document. Attachment bytes live under `assets/` when Tasks has the file. Embedded `get-asset.php?id=...` references are rewritten to files inside the ZIP when possible.
 
 Remote attachments are best-effort. If a third-party URL is dead, the ZIP records a note instead of pretending the file exists.
 

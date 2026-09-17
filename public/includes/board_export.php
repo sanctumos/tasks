@@ -1,6 +1,8 @@
 <?php
 /**
- * Archived directory-project board ZIP export (async jobs + flat HTML snapshot).
+ * Archived directory-project board ZIP export (async jobs + Tasks-style HTML snapshot).
+ * Snapshot index matches the live Lists tab (checklists by to-do list); tasks.html
+ * matches the status swimlanes; docs.html matches the Docs tab.
  */
 
 require_once __DIR__ . '/config.php';
@@ -731,11 +733,259 @@ function boardExportMaterializeAttachment(array $att, string $destPath): bool
  * @param array<string,mixed> $project
  * @param array<int,string> $assetMap
  */
+function boardExportSnapshotCss(): string
+{
+    return <<<'CSS'
+:root{
+  --st-bg-app:#f4f6fa;--st-bg-surface:#fff;--st-bg-soft:#f8f9fc;
+  --st-border-subtle:#e4e7ee;--st-border-strong:#cfd4de;
+  --st-text-primary:#14161a;--st-text-secondary:#4a5260;--st-text-muted:#8a93a3;
+  --st-accent:#2c5cff;--st-accent-soft:#e9efff;
+  --st-radius:10px;--st-radius-sm:6px;--st-gap-stack:.85rem;
+  --st-status-todo:#4a5260;--st-status-todo-soft:#eef0f4;
+  --st-status-doing:#b45309;--st-status-doing-soft:#fef4d6;
+  --st-status-done:#15803d;--st-status-done-soft:#dcfce7;
+  --st-status-blocked:#b91c1c;--st-status-blocked-soft:#fee2e2;
+  --st-pri-low:#6b7280;--st-pri-low-soft:#eef0f3;
+  --st-pri-normal:#2c5cff;--st-pri-normal-soft:#e9efff;
+  --st-pri-high:#b45309;--st-pri-high-soft:#fef4d6;
+  --st-pri-urgent:#b91c1c;--st-pri-urgent-soft:#fee2e2;
+}
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:var(--st-bg-app);color:var(--st-text-primary);line-height:1.45}
+.wrap{max-width:1100px;margin:0 auto;padding:1.25rem 1.35rem 2.5rem}
+h1{font-size:1.55rem;margin:.2rem 0 .35rem;letter-spacing:-.02em}
+h2.h5{font-size:1.05rem;font-weight:650}
+.subtitle,.meta{color:var(--st-text-muted);font-size:.9rem}
+.page-header{margin-bottom:1rem}
+.tabbar{display:flex;flex-wrap:wrap;gap:.25rem;border-bottom:1px solid var(--st-border-subtle);margin-bottom:1rem}
+.tabbar a{padding:.55rem .9rem;color:var(--st-text-secondary);text-decoration:none;border-bottom:2px solid transparent;font-weight:500;font-size:.92rem}
+.tabbar a:hover{color:var(--st-text-primary)}
+.tabbar a.active{color:var(--st-accent);border-bottom-color:var(--st-accent);font-weight:600}
+.tabbar a .count{background:var(--st-bg-soft);border:1px solid var(--st-border-subtle);color:var(--st-text-muted);border-radius:999px;padding:0 .45rem;font-size:.7rem;margin-left:.35rem}
+.status-pill{display:inline-flex;align-items:center;gap:.35rem;padding:.2rem .6rem;border-radius:999px;font-size:.75rem;font-weight:600;border:1px solid transparent}
+.status-pill--todo{color:var(--st-status-todo);background:var(--st-status-todo-soft)}
+.status-pill--doing{color:var(--st-status-doing);background:var(--st-status-doing-soft)}
+.status-pill--done{color:var(--st-status-done);background:var(--st-status-done-soft)}
+.status-pill--blocked{color:var(--st-status-blocked);background:var(--st-status-blocked-soft)}
+.priority-chip{display:inline-flex;padding:.12rem .45rem;border-radius:var(--st-radius-sm);font-size:.7rem;font-weight:600}
+.priority-chip--low{color:var(--st-pri-low);background:var(--st-pri-low-soft)}
+.priority-chip--normal{color:var(--st-pri-normal);background:var(--st-pri-normal-soft)}
+.priority-chip--high{color:var(--st-pri-high);background:var(--st-pri-high-soft)}
+.priority-chip--urgent{color:var(--st-pri-urgent);background:var(--st-pri-urgent-soft)}
+.todolist-toolbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1rem}
+.section-title{font-weight:650}
+.todo-list{background:var(--st-bg-surface);border:1px solid var(--st-border-subtle);border-radius:var(--st-radius);padding:.9rem 1rem;margin-bottom:var(--st-gap-stack)}
+.todo-list__header{display:flex;align-items:center;justify-content:space-between;gap:.75rem;border-bottom:1px solid var(--st-border-subtle);padding-bottom:.55rem;margin-bottom:.65rem}
+.todo-list__title{display:flex;align-items:center;gap:.5rem}
+.todo-list__progress-pill{background:var(--st-bg-soft);border:1px solid var(--st-border-subtle);color:var(--st-text-secondary);border-radius:999px;padding:.1rem .55rem;font-size:.74rem;font-weight:500}
+.todo-list--unfiled,.todo-list--archived{border-style:dashed}
+.todo-list__items{list-style:none;padding:0;margin:0 0 .5rem}
+.todo-row{display:flex;gap:.65rem;align-items:flex-start;padding:.48rem .35rem;border-top:1px solid var(--st-border-subtle)}
+.todo-row:first-child{border-top:0}
+.todo-row__body{flex:1;min-width:0}
+.todo-row__title{color:var(--st-text-primary);text-decoration:none;font-weight:500}
+.todo-row__title:hover{color:var(--st-accent);text-decoration:underline}
+.todo-row__meta{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font-size:.78rem;color:var(--st-text-muted);margin-top:.2rem}
+.todo-row--done .todo-row__title{color:var(--st-text-muted);text-decoration:line-through}
+.todo-checkbox{width:1.15rem;height:1.15rem;border-radius:50%;border:1.5px solid #94a3b8;background:#fff;flex:0 0 auto;margin-top:.15rem;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;color:#fff}
+.todo-checkbox--done{background:var(--st-accent);border-color:var(--st-accent)}
+details.todo-list>summary{cursor:pointer;list-style:none}
+details.todo-list>summary::-webkit-details-marker{display:none}
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.9rem;align-items:start}
+.swimlane{background:var(--st-bg-soft);border:1px solid var(--st-border-subtle);border-radius:var(--st-radius);padding:.75rem}
+.swimlane__header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid var(--st-border-subtle)}
+.swimlane__count{font-size:.75rem;color:var(--st-text-muted);font-weight:500}
+.swimlane__body{display:flex;flex-direction:column;gap:.5rem}
+.swimlane__empty{color:var(--st-text-muted);font-size:.82rem}
+.task-card{display:block;background:var(--st-bg-surface);border:1px solid var(--st-border-subtle);border-radius:var(--st-radius-sm);padding:.78rem .92rem}
+.task-card__title{font-weight:600;color:var(--st-text-primary);text-decoration:none;display:block;margin-bottom:.3rem}
+.task-card__title:hover{color:var(--st-accent)}
+.task-card__meta,.task-card__footer{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;font-size:.78rem;color:var(--st-text-muted)}
+.task-card__footer{justify-content:space-between;margin-top:.4rem}
+.doc-card{background:var(--st-bg-surface);border:1px solid var(--st-border-subtle);border-radius:var(--st-radius);padding:.85rem 1rem;margin-bottom:.65rem}
+.doc-card a{color:var(--st-text-primary);font-weight:600;text-decoration:none}
+.doc-card a:hover{color:var(--st-accent)}
+.card{border:1px solid var(--st-border-subtle);background:var(--st-bg-surface);padding:1rem;margin:.75rem 0;border-radius:var(--st-radius)}
+pre,code{background:var(--st-bg-soft)} img{max-width:100%}
+.detail-nav{margin-bottom:1rem;font-size:.9rem}
+.detail-nav a{color:var(--st-accent);margin-right:1rem}
+.todo-list-archived-shelf{border:1px dashed var(--st-border-subtle);border-radius:var(--st-radius);padding:.75rem 1rem;margin-top:1rem;background:var(--st-bg-surface)}
+.badge{display:inline-block;background:var(--st-status-done-soft);color:var(--st-status-done);border-radius:999px;padding:.05rem .5rem;font-size:.72rem;font-weight:650}
+CSS;
+}
+
+function boardExportStatusKind(array $statusOrTask): string
+{
+    $slug = strtolower((string)($statusOrTask['slug'] ?? $statusOrTask['status'] ?? ''));
+    if ((int)($statusOrTask['is_done'] ?? $statusOrTask['status_is_done'] ?? 0) === 1) {
+        return 'done';
+    }
+    if (in_array($slug, ['doing', 'in_progress', 'inprogress'], true)) {
+        return 'doing';
+    }
+    if ($slug === 'blocked') {
+        return 'blocked';
+    }
+    return 'todo';
+}
+
+function boardExportWrapPage(string $title, string $css, string $body): string
+{
+    return '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        . '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        . '<title>' . htmlspecialchars($title) . '</title><style>' . $css . '</style></head>'
+        . '<body><div class="wrap">' . $body . '</div></body></html>';
+}
+
+function boardExportTabBar(string $active, int $listCount, int $taskCount, int $docCount): string
+{
+    $tabs = [
+        'index.html' => ['Lists', $listCount],
+        'tasks.html' => ['Tasks', $taskCount],
+        'docs.html' => ['Docs', $docCount],
+    ];
+    $html = '<nav class="tabbar" aria-label="Project sections">';
+    foreach ($tabs as $href => $pair) {
+        $cls = $active === $href ? ' active' : '';
+        $html .= '<a class="' . trim($cls) . '" href="' . $href . '">'
+            . htmlspecialchars($pair[0])
+            . '<span class="count">' . (int)$pair[1] . '</span></a>';
+    }
+    return $html . '</nav>';
+}
+
+function boardExportProjectHeader(array $project, string $exportedAt): string
+{
+    $html = '<header class="page-header"><h1>' . htmlspecialchars((string)$project['name']) . '</h1>';
+    $html .= '<div class="subtitle">Archived board snapshot · exported '
+        . htmlspecialchars($exportedAt)
+        . ' · project_id ' . (int)$project['id'];
+    $html .= ' · <span class="status-pill status-pill--todo">' . htmlspecialchars((string)($project['status'] ?? '')) . '</span></div>';
+    if (!empty($project['description'])) {
+        $html .= '<p class="meta">' . nl2br(htmlspecialchars((string)$project['description'])) . '</p>';
+    }
+    return $html . '</header>';
+}
+
+/**
+ * @param list<array<string,mixed>> $tasks
+ * @return array{by_list:array<int,list<array<string,mixed>>>,unfiled:list<array<string,mixed>>}
+ */
+function boardExportGroupTasksByList(array $tasks): array
+{
+    $byList = [];
+    $unfiled = [];
+    foreach ($tasks as $t) {
+        $lid = (int)($t['list_id'] ?? 0);
+        if ($lid <= 0) {
+            $unfiled[] = $t;
+            continue;
+        }
+        $byList[$lid][] = $t;
+    }
+    foreach ($byList as &$rows) {
+        usort($rows, static function ($a, $b) {
+            $aDone = (int)($a['status_is_done'] ?? 0);
+            $bDone = (int)($b['status_is_done'] ?? 0);
+            if ($aDone !== $bDone) {
+                return $aDone <=> $bDone;
+            }
+            $ar = (int)($a['rank'] ?? 0);
+            $br = (int)($b['rank'] ?? 0);
+            if ($ar !== $br) {
+                return $ar <=> $br;
+            }
+            return strcmp((string)($a['title'] ?? ''), (string)($b['title'] ?? ''));
+        });
+    }
+    unset($rows);
+    return ['by_list' => $byList, 'unfiled' => $unfiled];
+}
+
+/**
+ * @param list<array<string,mixed>> $rows
+ */
+function boardExportTodoListSectionHtml(array $tl, array $rows, bool $isArchivedShelf = false): string
+{
+    $listId = (int)$tl['id'];
+    $total = count($rows);
+    $done = 0;
+    foreach ($rows as $r) {
+        if ((int)($r['status_is_done'] ?? 0) === 1) {
+            $done++;
+        }
+    }
+    $remaining = max(0, $total - $done);
+    $allDone = $total > 0 && $remaining === 0;
+    $useCollapse = !$isArchivedShelf && $allDone;
+    $cls = 'todo-list' . ($isArchivedShelf ? ' todo-list--archived' : '') . ($allDone ? ' todo-list--all-done' : '');
+    $tag = $useCollapse ? 'details' : 'section';
+    $html = '<' . $tag . ' class="' . $cls . '" id="list-' . $listId . '">';
+    if ($useCollapse) {
+        $html .= '<summary class="todo-list__header">';
+    } else {
+        $html .= '<header class="todo-list__header">';
+    }
+    $html .= '<div class="todo-list__title"><h2 class="h5">' . htmlspecialchars((string)$tl['name']) . '</h2>';
+    if ($allDone && !$isArchivedShelf) {
+        $html .= '<span class="badge">All done</span>';
+    }
+    $html .= '</div><div class="todo-list__progress">';
+    if ($total === 0) {
+        $html .= '<span class="meta">empty</span>';
+    } else {
+        $html .= '<span class="todo-list__progress-pill">' . $done . ' / ' . $total . ' done</span>';
+        if ($remaining > 0) {
+            $html .= '<span class="meta">' . $remaining . ' remaining</span>';
+        }
+    }
+    $html .= '</div>' . ($useCollapse ? '</summary>' : '</header>');
+    if ($total === 0) {
+        $html .= '<p class="meta">No to-dos in this list yet.</p>';
+    } else {
+        $html .= '<ol class="todo-list__items">';
+        foreach ($rows as $t) {
+            $html .= boardExportTodoRowHtml($t);
+        }
+        $html .= '</ol>';
+    }
+    return $html . '</' . $tag . '>';
+}
+
+/**
+ * @param array<string,mixed> $t
+ */
+function boardExportTodoRowHtml(array $t): string
+{
+    $tid = (int)$t['id'];
+    $isDone = (int)($t['status_is_done'] ?? 0) === 1;
+    $pri = strtolower((string)($t['priority'] ?? 'normal'));
+    if (!in_array($pri, ['low', 'normal', 'high', 'urgent'], true)) {
+        $pri = 'normal';
+    }
+    $html = '<li class="todo-row' . ($isDone ? ' todo-row--done' : '') . '">';
+    $html .= '<span class="todo-checkbox' . ($isDone ? ' todo-checkbox--done' : '') . '" aria-hidden="true">'
+        . ($isDone ? '✓' : '') . '</span>';
+    $html .= '<div class="todo-row__body"><a class="todo-row__title" href="task-' . $tid . '.html">'
+        . htmlspecialchars((string)$t['title']) . '</a><div class="todo-row__meta">';
+    if (!$isDone) {
+        $html .= '<span class="priority-chip priority-chip--' . htmlspecialchars($pri) . '">'
+            . htmlspecialchars($pri) . '</span>';
+    }
+    if (!empty($t['due_at'])) {
+        $html .= '<span>' . htmlspecialchars(substr((string)$t['due_at'], 0, 10)) . '</span>';
+    }
+    $assignee = trim((string)($t['assigned_to_username'] ?? ''));
+    $html .= '<span>' . ($assignee !== '' ? htmlspecialchars($assignee) : 'Unassigned') . '</span>';
+    $html .= '<span>#' . $tid . '</span></div></div></li>';
+    return $html;
+}
+
 function boardExportWriteHtmlPages(array $project, string $staging, array $assetMap): void
 {
     $projectId = (int)$project['id'];
     $userStub = ['id' => 0, 'role' => 'admin', 'person_kind' => 'team_member', 'org_id' => (int)$project['org_id'], 'limited_project_access' => 0];
-    // Prefer a real admin row if present for list helpers that expect a user.
     $admin = null;
     $db = getDbConnection();
     $ar = $db->query("SELECT * FROM users WHERE role = 'admin' AND is_active = 1 LIMIT 1");
@@ -743,67 +993,148 @@ function boardExportWriteHtmlPages(array $project, string $staging, array $asset
         $admin = $ar->fetchArray(SQLITE3_ASSOC) ?: null;
     }
     $viewer = $admin ?: $userStub;
+    $docViewer = is_array($admin) ? $admin : ['id' => 1, 'role' => 'admin', 'person_kind' => 'team_member', 'org_id' => (int)$project['org_id'], 'limited_project_access' => 0];
 
-    $lists = listTodoListsForProject($viewer, $projectId);
+    $allLists = listTodoListsForProject($viewer, $projectId, true);
+    $activeLists = [];
+    $archivedLists = [];
+    foreach ($allLists as $list) {
+        if (!empty($list['archived_at'])) {
+            $archivedLists[] = $list;
+        } else {
+            $activeLists[] = $list;
+        }
+    }
+
     $taskResult = listTasks(['project_id' => $projectId], false, null, is_array($admin) ? $admin : null);
     $tasks = is_array($taskResult) ? $taskResult : [];
-    // listTasks without pagination returns list of tasks
     if (isset($tasks['tasks']) && is_array($tasks['tasks'])) {
         $tasks = $tasks['tasks'];
     }
 
-    $docs = listDocumentsForUser(is_array($admin) ? $admin : ['id' => 1, 'role' => 'admin', 'person_kind' => 'team_member', 'org_id' => (int)$project['org_id'], 'limited_project_access' => 0], 500, $projectId);
-
-    $css = <<<'CSS'
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:1.5rem;line-height:1.45;color:#111}
-a{color:#0645ad} h1,h2,h3{margin-top:1.4rem}
-.meta{color:#555;font-size:.9rem} .card{border:1px solid #ccc;padding:1rem;margin:.75rem 0;border-radius:6px}
-pre,code{background:#f5f5f5} img{max-width:100%}
-nav a{margin-right:1rem}
-CSS;
-
-    $indexItems = [];
-    $indexItems[] = '<h1>' . htmlspecialchars((string)$project['name']) . '</h1>';
-    $indexItems[] = '<p class="meta">Archived board snapshot · exported '
-        . htmlspecialchars(gmdate('Y-m-d H:i') . ' UTC')
-        . ' · project_id ' . $projectId . '</p>';
-    if (!empty($project['description'])) {
-        $indexItems[] = '<p>' . nl2br(htmlspecialchars((string)$project['description'])) . '</p>';
-    }
-    $indexItems[] = '<h2>Lists</h2><ul>';
-    foreach ($lists as $list) {
-        $indexItems[] = '<li>' . htmlspecialchars((string)$list['name']) . ' (#' . (int)$list['id'] . ')</li>';
-    }
-    $indexItems[] = '</ul><h2>Tasks</h2><ul>';
-    foreach ($tasks as $t) {
-        $tid = (int)$t['id'];
-        $indexItems[] = '<li><a href="task-' . $tid . '.html">#' . $tid . ' '
-            . htmlspecialchars((string)$t['title']) . '</a>'
-            . ' <span class="meta">[' . htmlspecialchars((string)($t['status'] ?? '')) . ']</span></li>';
-        boardExportWriteTaskHtml($t, $staging, $assetMap, $css);
-    }
-    $indexItems[] = '</ul><h2>Documents</h2><ul>';
+    $docs = listDocumentsForUser($docViewer, 500, $projectId);
+    $liveDocs = [];
     foreach ($docs as $d) {
         if (($d['status'] ?? '') === 'trashed') {
             continue;
         }
-        $did = (int)$d['id'];
-        $full = getDocumentById($did, true);
-        if (!$full) {
-            continue;
+        $full = getDocumentById((int)$d['id'], true);
+        if ($full) {
+            $liveDocs[] = $full;
         }
-        $indexItems[] = '<li><a href="doc-' . $did . '.html">'
-            . htmlspecialchars((string)$full['title']) . '</a></li>';
+    }
+
+    $css = boardExportSnapshotCss();
+    $exportedAt = gmdate('Y-m-d H:i') . ' UTC';
+    $grouped = boardExportGroupTasksByList($tasks);
+    $header = boardExportProjectHeader($project, $exportedAt);
+    $tabsLists = boardExportTabBar('index.html', count($activeLists), count($tasks), count($liveDocs));
+    $tabsTasks = boardExportTabBar('tasks.html', count($activeLists), count($tasks), count($liveDocs));
+    $tabsDocs = boardExportTabBar('docs.html', count($activeLists), count($tasks), count($liveDocs));
+
+    $listsBody = $header . $tabsLists;
+    $listsBody .= '<div class="todolist-toolbar"><div class="section-title">To-do lists <span class="todo-list__progress-pill">'
+        . count($activeLists) . '</span></div></div>';
+    if ($activeLists === [] && $grouped['unfiled'] === []) {
+        $listsBody .= '<p class="meta">No lists yet.</p>';
+    }
+    foreach ($activeLists as $tl) {
+        $listsBody .= boardExportTodoListSectionHtml($tl, $grouped['by_list'][(int)$tl['id']] ?? [], false);
+    }
+    if ($archivedLists !== []) {
+        $listsBody .= '<details class="todo-list-archived-shelf" open><summary>Archived lists <span class="todo-list__progress-pill">'
+            . count($archivedLists) . '</span></summary>';
+        foreach ($archivedLists as $tl) {
+            $listsBody .= boardExportTodoListSectionHtml($tl, $grouped['by_list'][(int)$tl['id']] ?? [], true);
+        }
+        $listsBody .= '</details>';
+    }
+    if ($grouped['unfiled'] !== []) {
+        $unfiledDone = 0;
+        foreach ($grouped['unfiled'] as $r) {
+            if ((int)($r['status_is_done'] ?? 0) === 1) {
+                $unfiledDone++;
+            }
+        }
+        $unfiledTotal = count($grouped['unfiled']);
+        $listsBody .= '<section class="todo-list todo-list--unfiled"><header class="todo-list__header">'
+            . '<div class="todo-list__title"><h2 class="h5">Unfiled</h2></div>'
+            . '<span class="todo-list__progress-pill">' . $unfiledDone . ' / ' . $unfiledTotal . ' done</span></header>'
+            . '<ol class="todo-list__items">';
+        foreach ($grouped['unfiled'] as $t) {
+            $listsBody .= boardExportTodoRowHtml($t);
+        }
+        $listsBody .= '</ol></section>';
+    }
+    file_put_contents($staging . '/index.html', boardExportWrapPage((string)$project['name'], $css, $listsBody));
+
+    $statuses = function_exists('listTaskStatuses') ? listTaskStatuses() : [
+        ['slug' => 'todo', 'label' => 'To Do', 'is_done' => 0],
+        ['slug' => 'doing', 'label' => 'In Progress', 'is_done' => 0],
+        ['slug' => 'done', 'label' => 'Done', 'is_done' => 1],
+    ];
+    $byStatus = [];
+    foreach ($statuses as $s) {
+        $byStatus[(string)$s['slug']] = [];
+    }
+    foreach ($tasks as $t) {
+        $slug = (string)($t['status'] ?? 'todo');
+        if (!isset($byStatus[$slug])) {
+            $byStatus[$slug] = [];
+        }
+        $byStatus[$slug][] = $t;
+    }
+    $tasksBody = $header . $tabsTasks . '<div class="board">';
+    foreach ($statuses as $s) {
+        $slug = (string)$s['slug'];
+        $kind = boardExportStatusKind($s);
+        $col = $byStatus[$slug] ?? [];
+        $tasksBody .= '<div class="swimlane"><div class="swimlane__header">'
+            . '<span class="status-pill status-pill--' . htmlspecialchars($kind) . '">'
+            . htmlspecialchars((string)($s['label'] ?? $slug)) . '</span>'
+            . '<span class="swimlane__count">' . count($col) . '</span></div><div class="swimlane__body">';
+        if ($col === []) {
+            $tasksBody .= '<div class="swimlane__empty">No tasks here.</div>';
+        }
+        foreach ($col as $t) {
+            $tid = (int)$t['id'];
+            $pri = strtolower((string)($t['priority'] ?? 'normal'));
+            if (!in_array($pri, ['low', 'normal', 'high', 'urgent'], true)) {
+                $pri = 'normal';
+            }
+            $assignee = trim((string)($t['assigned_to_username'] ?? ''));
+            $tasksBody .= '<div class="task-card"><a class="task-card__title" href="task-' . $tid . '.html">'
+                . htmlspecialchars((string)$t['title']) . '</a>'
+                . '<div class="task-card__meta"><span class="priority-chip priority-chip--' . htmlspecialchars($pri) . '">'
+                . htmlspecialchars($pri) . '</span></div>'
+                . '<div class="task-card__footer"><span>'
+                . ($assignee !== '' ? htmlspecialchars($assignee) : 'Unassigned')
+                . '</span><span>#' . $tid . '</span></div></div>';
+        }
+        $tasksBody .= '</div></div>';
+    }
+    $tasksBody .= '</div>';
+    file_put_contents($staging . '/tasks.html', boardExportWrapPage((string)$project['name'] . ' · Tasks', $css, $tasksBody));
+
+    $docsBody = $header . $tabsDocs;
+    if ($liveDocs === []) {
+        $docsBody .= '<p class="meta">No documents on this board.</p>';
+    }
+    foreach ($liveDocs as $full) {
+        $did = (int)$full['id'];
+        $dir = trim((string)($full['directory_path'] ?? ''));
+        $docsBody .= '<div class="doc-card"><a href="doc-' . $did . '.html">'
+            . htmlspecialchars((string)$full['title']) . '</a>'
+            . '<div class="meta">document #' . $did
+            . ($dir !== '' ? ' · ' . htmlspecialchars($dir) : '')
+            . '</div></div>';
         boardExportWriteDocHtml($full, $staging, $assetMap, $css);
     }
-    $indexItems[] = '</ul>';
+    file_put_contents($staging . '/docs.html', boardExportWrapPage((string)$project['name'] . ' · Docs', $css, $docsBody));
 
-    $html = '<!doctype html><html><head><meta charset="utf-8"><title>'
-        . htmlspecialchars((string)$project['name'])
-        . '</title><style>' . $css . '</style></head><body>'
-        . implode("\n", $indexItems)
-        . '</body></html>';
-    file_put_contents($staging . '/index.html', $html);
+    foreach ($tasks as $t) {
+        boardExportWriteTaskHtml($t, $staging, $assetMap, $css);
+    }
 }
 
 /**
@@ -818,7 +1149,7 @@ function boardExportWriteTaskHtml(array $task, string $staging, array $assetMap,
     $atts = listTaskAttachments($tid);
 
     $parts = [];
-    $parts[] = '<nav><a href="index.html">← Board index</a></nav>';
+    $parts[] = '<nav class="detail-nav"><a href="index.html">← Lists</a><a href="tasks.html">Tasks</a><a href="docs.html">Docs</a></nav>';
     $parts[] = '<h1>#' . $tid . ' ' . htmlspecialchars((string)$task['title']) . '</h1>';
     $parts[] = '<p class="meta">status=' . htmlspecialchars((string)($task['status'] ?? ''))
         . ' · priority=' . htmlspecialchars((string)($task['priority'] ?? ''))
@@ -851,10 +1182,10 @@ function boardExportWriteTaskHtml(array $task, string $staging, array $assetMap,
     }
     $parts[] = '</ul>';
 
-    $html = '<!doctype html><html><head><meta charset="utf-8"><title>Task #'
-        . $tid . '</title><style>' . $css . '</style></head><body>'
-        . implode("\n", $parts) . '</body></html>';
-    file_put_contents($staging . '/task-' . $tid . '.html', $html);
+    file_put_contents(
+        $staging . '/task-' . $tid . '.html',
+        boardExportWrapPage('Task #' . $tid, $css, implode("\n", $parts))
+    );
 }
 
 /**
@@ -866,17 +1197,16 @@ function boardExportWriteDocHtml(array $doc, string $staging, array $assetMap, s
     $did = (int)$doc['id'];
     $body = boardExportRewriteAssetUrls((string)($doc['body'] ?? ''), $assetMap);
     $parts = [];
-    $parts[] = '<nav><a href="index.html">← Board index</a></nav>';
+    $parts[] = '<nav class="detail-nav"><a href="index.html">← Lists</a><a href="tasks.html">Tasks</a><a href="docs.html">Docs</a></nav>';
     $parts[] = '<h1>' . htmlspecialchars((string)$doc['title']) . '</h1>';
     $parts[] = '<p class="meta">document #' . $did . ' · '
         . htmlspecialchars((string)($doc['status'] ?? '')) . '</p>';
     $parts[] = '<div class="card">' . boardExportMarkdownToHtml($body) . '</div>';
 
-    $html = '<!doctype html><html><head><meta charset="utf-8"><title>'
-        . htmlspecialchars((string)$doc['title'])
-        . '</title><style>' . $css . '</style></head><body>'
-        . implode("\n", $parts) . '</body></html>';
-    file_put_contents($staging . '/doc-' . $did . '.html', $html);
+    file_put_contents(
+        $staging . '/doc-' . $did . '.html',
+        boardExportWrapPage((string)$doc['title'], $css, implode("\n", $parts))
+    );
 }
 
 /**
