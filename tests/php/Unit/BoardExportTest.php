@@ -26,6 +26,23 @@ final class BoardExportTest extends TestCase
         }
     }
 
+    public function testFingerprintIncludesSnapshotVersionAndIsStable(): void
+    {
+        $this->assertNotSame('', \BOARD_EXPORT_SNAPSHOT_VERSION);
+        $suffix = bin2hex(random_bytes(3));
+        $user = createUser("exp_fp_{$suffix}", 'MemberPass123456', 'admin', false);
+        $this->assertTrue($user['success']);
+        $uid = (int)$user['id'];
+        $proj = createDirectoryProject($uid, "FpExp {$suffix}", null, false, true);
+        $this->assertTrue($proj['success']);
+        $pid = (int)$proj['id'];
+        $a = boardExportContentFingerprint($pid);
+        $b = boardExportContentFingerprint($pid);
+        $this->assertSame($a, $b);
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $a);
+        $this->assertNotSame(hash('sha256', implode("\n", ['project|' . $pid])), $a);
+    }
+
     public function testActiveProjectRejectsExportRequest(): void
     {
         $suffix = bin2hex(random_bytes(3));

@@ -7,6 +7,9 @@
 
 require_once __DIR__ . '/config.php';
 
+/** Bump when the snapshot HTML renderer changes so old flat ZIPs are not reused. */
+const BOARD_EXPORT_SNAPSHOT_VERSION = '2-lists-tasks-docs';
+
 function boardExportStorageRoot(): string
 {
     $root = rtrim((string)TASKS_BOARD_EXPORT_DIR, '/\\');
@@ -96,6 +99,7 @@ function boardExportContentFingerprint(int $projectId): string
 {
     $db = getDbConnection();
     $parts = [];
+    $parts[] = 'snapshot|' . BOARD_EXPORT_SNAPSHOT_VERSION;
 
     $proj = $db->prepare('SELECT id, name, description, status, updated_at FROM projects WHERE id = :id LIMIT 1');
     $proj->bindValue(':id', $projectId, SQLITE3_INTEGER);
