@@ -95,8 +95,10 @@ export async function createShell(config) {
     inputEl.focus();
   });
 
-  function setStatus(text) {
+  function setStatus(text, kind = '') {
     statusEl.textContent = text || '';
+    statusEl.classList.toggle('is-offline', kind === 'offline');
+    statusEl.classList.toggle('is-busy', kind === 'busy');
   }
 
   const bridge = createBridgeClient({
@@ -147,7 +149,7 @@ export async function createShell(config) {
       try {
         await bridge.postMessage({ sessionId, message, pageContext: config.pageContext || null });
         store.patch({ transport: 'waiting' });
-        setStatus('Waiting for Q…');
+        setStatus('Waiting for Q…', 'busy');
       } catch (err) {
         store.patch({ transport: 'failed' });
         messages.append({ role: 'system', text: err.message || 'Send failed' });
@@ -195,7 +197,7 @@ export async function createShell(config) {
         onTick(err, result) {
           if (err) {
             store.patch({ transport: 'retrying' });
-            setStatus('Reconnecting…');
+            setStatus('Reconnecting…', 'offline');
             return;
           }
           store.patch({ transport: 'idle' });

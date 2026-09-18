@@ -37,6 +37,13 @@ export function createMountRegistry({ getRoot }) {
       return lease;
     } catch (err) {
       root.replaceChildren();
+      const box = document.createElement('div');
+      box.className = 'companion-canvas-error';
+      box.setAttribute('role', 'alert');
+      box.textContent = (err && err.message) ? String(err.message) : 'Mount failed';
+      root.appendChild(box);
+      const section = root.closest('#companion-canvas');
+      if (section) section.dataset.canvasState = 'error';
       throw err;
     } finally {
       mounting = false;

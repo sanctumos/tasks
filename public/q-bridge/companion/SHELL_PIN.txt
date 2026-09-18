@@ -3,7 +3,7 @@
 # Do not hand-edit vendored assets under this tree except tasks-bootstrap.js (host).
 
 SHELL_REPO=https://github.com/decisionsciencecorp/sanctum-companion-shell
-SHELL_COMMIT=e9ae923f7a2e3bc8f76a3411531f18149944a366
-TASKS_IMPORT_COMMIT=5a1e90bc328cf3b00c001f6915d28702596b43a1
+SHELL_COMMIT=411d2f1ab812c9b8905f5c02434e1c41cdfa4b55
+TASKS_IMPORT_COMMIT=pending
 IMPORTED_AT=2026-09-18
 NOTE=rsync public/assets + php/src + smcp; host: admin/companion.php, companion-boot.php, tasks-bootstrap.js
