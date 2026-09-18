@@ -1,0 +1,9 @@
+# Companion shell pin (Track B)
+# One-way: edit decisionsciencecorp/sanctum-companion-shell, then re-import.
+# Do not hand-edit vendored assets under this tree except tasks-bootstrap.js (host).
+
+SHELL_REPO=https://github.com/decisionsciencecorp/sanctum-companion-shell
+SHELL_COMMIT=2893ccbf688d1fcdc75876721a59bf42e8c533a3
+TASKS_IMPORT_COMMIT=825f73693dc64309566930ba4ff6d14ccb634d38
+IMPORTED_AT=2026-09-18
+NOTE=rsync of public/assets + php/src; host files: admin/companion.php, companion-boot.php, tasks-bootstrap.js
