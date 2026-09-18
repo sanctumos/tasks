@@ -140,8 +140,17 @@ body[data-companion-mode="desktop-split"] .companion-chat { flex: 0 0 var(--c-ra
 }
 .companion-canvas[hidden] { display: none !important; }
 .companion-canvas-toolbar {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
   padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--c-border);
+}
+.companion-canvas-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--c-text);
 }
 #sanctum-canvas-root {
   flex: 1;
