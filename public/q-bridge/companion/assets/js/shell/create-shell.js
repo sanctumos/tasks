@@ -36,7 +36,7 @@ export async function createShell(config) {
             <button type="submit" id="companion-send" disabled>Send</button>
           </form>
         </main>
-        <section class="companion-canvas" id="companion-canvas" aria-label="Canvas" data-canvas-state="closed" hidden>
+        <section class="companion-canvas" id="companion-canvas" aria-label="Canvas" aria-hidden="true" data-canvas-state="closed" hidden>
           <div class="companion-canvas-toolbar">
             <span class="companion-canvas-title" id="companion-canvas-title">Canvas</span>
             <button type="button" id="companion-canvas-dismiss" aria-label="Close canvas">Close</button>

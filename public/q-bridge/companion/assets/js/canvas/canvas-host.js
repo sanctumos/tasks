@@ -23,6 +23,7 @@ export function createCanvasHost({ rootEl, sectionEl, store, emit }) {
   function open(initiation) {
     const title = initiation && initiation.payload && initiation.payload.title;
     sectionEl.hidden = false;
+    sectionEl.setAttribute('aria-hidden', 'false');
     sectionEl.dataset.canvasState = 'empty';
     sectionEl.setAttribute('aria-label', title ? `Canvas: ${title}` : 'Canvas');
     ensureRoot();
@@ -35,6 +36,7 @@ export function createCanvasHost({ rootEl, sectionEl, store, emit }) {
   async function close(reason = 'dismiss') {
     await registry.unmount(reason);
     sectionEl.hidden = true;
+    sectionEl.setAttribute('aria-hidden', 'true');
     sectionEl.dataset.canvasState = 'closed';
     store.patch({ canvas: { mode: 'closed', title: null, eventId: null } });
     document.body.dataset.companionMode = 'chat';
