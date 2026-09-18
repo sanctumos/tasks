@@ -72,6 +72,9 @@ switch ($action) {
     case 'user_session':
         handle_user_session();
         break;
+    case 'ui_event':
+        handle_ui_event();
+        break;
            default:
                send_error_response('Invalid action', 400);
                break;
@@ -150,6 +153,12 @@ function handle_history() {
 function handle_messages() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         send_error_response('Method not allowed', 405);
+    }
+
+    // Browser session mode: require CSRF (companion shell / Ask Q). Poll bearer path uses require_auth elsewhere.
+    if (!is_authenticated()) {
+        require_once dirname(__DIR__, 3) . '/includes/auth.php';
+        requireCsrfToken();
     }
     
     // Get and validate input
@@ -500,17 +509,128 @@ function handle_responses() {
         ");
         $stmt->execute($params);
         $responses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $sinceEventId = (int)($_GET['since_event_id'] ?? 0);
+        $evStmt = $pdo->prepare("
+            SELECT id, event_id, event_type, payload_json, created_at
+            FROM web_chat_ui_events
+            WHERE session_id = ? AND id > ?
+            ORDER BY id ASC
+        ");
+        $evStmt->execute([$session_id, $sinceEventId]);
+        $uiEvents = [];
+        $nextEventId = $sinceEventId;
+        foreach ($evStmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $payload = json_decode((string)($row['payload_json'] ?? '{}'), true);
+            if (!is_array($payload)) {
+                $payload = [];
+            }
+            $uiEvents[] = [
+                'id' => (int)$row['id'],
+                'event_id' => $row['event_id'],
+                'schema' => 'sanctum.companion.ui-event',
+                'version' => 1,
+                'type' => $row['event_type'],
+                'created_at' => $row['created_at'],
+                'payload' => $payload,
+            ];
+            $nextEventId = max($nextEventId, (int)$row['id']);
+        }
         
         // Log request
         log_api_request('/api/responses', 'GET');
         
         send_success_response([
             'session_id' => $session_id,
-            'responses' => $responses
+            'responses' => $responses,
+            'ui_events' => $uiEvents,
+            'next_event_id' => $nextEventId,
         ]);
         
     } catch (Exception $e) {
         log_api_request('/api/responses', 'GET', [], 500);
+        send_error_response('Internal server error', 500);
+    }
+}
+
+/**
+ * POST action=ui_event — machine (poll bearer) writes allowlisted canvas.open events.
+ */
+function handle_ui_event() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        send_error_response('Method not allowed', 405);
+    }
+    require_auth();
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        send_error_response('Invalid JSON', 400);
+    }
+    $session_id = sanitize_input($input['session_id'] ?? '');
+    $event = $input['event'] ?? null;
+    if ($session_id === '' || !is_array($event)) {
+        send_error_response('Missing session_id/event', 400);
+    }
+    if (!validate_session_id($session_id)) {
+        send_error_response('Invalid session ID', 400);
+    }
+    if (($event['schema'] ?? '') !== 'sanctum.companion.ui-event' || (int)($event['version'] ?? 0) !== 1) {
+        send_error_response('Unsupported event schema/version', 400);
+    }
+    if (($event['type'] ?? '') !== 'canvas.open') {
+        send_error_response('Unsupported event type', 400);
+    }
+    $eventId = (string)($event['event_id'] ?? '');
+    if (strlen($eventId) < 8 || strlen($eventId) > 128 || !preg_match('/^[A-Za-z0-9._:-]+$/', $eventId)) {
+        send_error_response('Invalid event_id', 400);
+    }
+    $payload = $event['payload'] ?? [];
+    if (!is_array($payload)) {
+        send_error_response('Invalid payload', 400);
+    }
+    foreach (array_keys($payload) as $k) {
+        if ($k !== 'surface' && $k !== 'title') {
+            send_error_response('Invalid payload key', 400);
+        }
+    }
+    $surface = $payload['surface'] ?? 'primary';
+    if ($surface !== 'primary') {
+        send_error_response('Invalid surface', 400);
+    }
+    $norm = ['surface' => 'primary'];
+    if (isset($payload['title'])) {
+        $title = trim((string)$payload['title']);
+        if (strlen($title) > 120 || preg_match('/[<>&]/', $title)) {
+            send_error_response('Invalid title', 400);
+        }
+        if ($title !== '') {
+            $norm['title'] = $title;
+        }
+    }
+    try {
+        $pdo = get_db_connection();
+        if (!is_session_active($session_id)) {
+            send_error_response('Invalid or expired session', 400);
+        }
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO web_chat_ui_events (session_id, event_id, event_type, payload_json, created_at)
+                VALUES (?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $session_id,
+                $eventId,
+                'canvas.open',
+                json_encode($norm, JSON_UNESCAPED_SLASHES),
+                date('c'),
+            ]);
+            $id = (int)$pdo->lastInsertId();
+        } catch (PDOException $e) {
+            $q = $pdo->prepare('SELECT id FROM web_chat_ui_events WHERE event_id = ?');
+            $q->execute([$eventId]);
+            $id = (int)$q->fetchColumn();
+        }
+        send_success_response(['id' => $id, 'event_id' => $eventId]);
+    } catch (Exception $e) {
         send_error_response('Internal server error', 500);
     }
 }

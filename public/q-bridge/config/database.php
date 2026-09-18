@@ -85,6 +85,19 @@ function init_database() {
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_sessions_uid ON web_chat_sessions(uid)');
     $pdo->exec('CREATE INDEX IF NOT EXISTS idx_sessions_ip ON web_chat_sessions(ip_address)');
 
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS web_chat_ui_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            event_id TEXT NOT NULL UNIQUE,
+            event_type TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (session_id) REFERENCES web_chat_sessions(id)
+        )
+    ");
+    $pdo->exec('CREATE INDEX IF NOT EXISTS idx_ui_events_session_id ON web_chat_ui_events(session_id, id)');
+
     q_bridge_ensure_message_metadata_column($pdo);
 }
 

@@ -186,6 +186,9 @@
             if (!config.useSessionAuth && config.apiKey) {
                 h['Authorization'] = 'Bearer ' + config.apiKey;
             }
+            if (config.useSessionAuth && config.csrfToken) {
+                h['X-CSRF-Token'] = config.csrfToken;
+            }
             return h;
         },
 

@@ -101,6 +101,13 @@ function cleanup_inactive_sessions(): int {
         // Archive inactive sessions (move to archived_sessions table if it exists, otherwise just delete)
         $session_ids = array_column($inactive_sessions, 'id');
         $placeholders = str_repeat('?,', count($session_ids) - 1) . '?';
+
+        // Drop UI events before sessions (FK / orphan hygiene)
+        $stmt = $pdo->prepare("
+            DELETE FROM web_chat_ui_events
+            WHERE session_id IN ({$placeholders})
+        ");
+        $stmt->execute($session_ids);
         
         // Delete inactive sessions
         $stmt = $pdo->prepare("
