@@ -7,7 +7,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../q-bridge/includes/connection_config.php';
 require_once __DIR__ . '/../q-bridge/includes/page_context.php';
 
-requireLogin();
+requireAuth();
 
 if (!q_bridge_is_ui_enabled()) {
     http_response_code(403);
