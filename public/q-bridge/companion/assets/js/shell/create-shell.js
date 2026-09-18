@@ -55,7 +55,7 @@ export async function createShell(config) {
   const chromePanel = root.querySelector('[data-chrome-panel]');
   const formEl = root.querySelector('#companion-composer');
 
-  const messages = createMessageView({ messagesEl, useMarkdown: false });
+  const messages = createMessageView({ messagesEl, useMarkdown: true });
 
   const canvas = createCanvasHost({
     rootEl: root,

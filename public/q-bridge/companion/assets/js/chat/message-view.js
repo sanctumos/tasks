@@ -1,6 +1,6 @@
 /**
- * Message view — append/clear chat bubbles (text-safe by default).
- * Optional markdown via ./markdown.js ES export when rich rendering is enabled.
+ * Message view — append/clear chat bubbles.
+ * Matches Ask Q: decode HTML entities then safe markdown when enabled.
  */
 import { toHtml as markdownToHtml } from './markdown.js';
 
@@ -10,6 +10,13 @@ export function escapeText(s) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/** Decode entities (&#039; etc.) without executing markup. */
+export function decodeEntities(text) {
+  const ta = document.createElement('textarea');
+  ta.innerHTML = String(text == null ? '' : text);
+  return ta.value;
 }
 
 /**
@@ -23,7 +30,7 @@ export function appendMessage(messagesEl, { role, text, id, html = false }) {
   if (id != null) div.dataset.id = String(id);
   const body = document.createElement('div');
   body.className = 'companion-msg-body';
-  const raw = text == null ? '' : String(text);
+  const raw = decodeEntities(text == null ? '' : String(text));
   if (html) {
     body.innerHTML = markdownToHtml(raw);
   } else {
@@ -36,10 +43,11 @@ export function appendMessage(messagesEl, { role, text, id, html = false }) {
 }
 
 export function clearMessages(messagesEl) {
-  if (messagesEl) messagesEl.replaceChildren();
+  if (!messagesEl) return;
+  messagesEl.replaceChildren();
 }
 
-export function createMessageView({ messagesEl, useMarkdown = false }) {
+export function createMessageView({ messagesEl, useMarkdown = true }) {
   return {
     append(msg) {
       return appendMessage(messagesEl, { ...msg, html: !!useMarkdown });
@@ -51,4 +59,4 @@ export function createMessageView({ messagesEl, useMarkdown = false }) {
   };
 }
 
-export default { escapeText, appendMessage, clearMessages, createMessageView };
+export default { escapeText, decodeEntities, appendMessage, clearMessages, createMessageView };
