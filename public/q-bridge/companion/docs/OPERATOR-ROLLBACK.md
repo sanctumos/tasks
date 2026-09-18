@@ -8,9 +8,9 @@ Recorded on Tasks at `public/q-bridge/companion/SHELL_PIN.txt`:
 
 | Field | Value (as of 2026-09-18 import) |
 |-------|----------------------------------|
-| Shell tip | `2893ccbf688d1fcdc75876721a59bf42e8c533a3` |
-| Tasks import commit | `825f73693dc64309566930ba4ff6d14ccb634d38` |
-| Pin meta commit | `519bd3050fac3b65ca410129c964dc35f5b86b5a` |
+| Shell tip | `e9ae923f7a2e3bc8f76a3411531f18149944a366` (aria-hidden; coverage tip `d49138d` is repo/CI only) |
+| Tasks import commit | `5a1e90bc328cf3b00c001f6915d28702596b43a1` |
+| Pin meta commit | `d17d050c34b882932de4c84a98a156ddf359feb0` |
 
 Update `SHELL_PIN.txt` whenever you re-import from this repo.
 
