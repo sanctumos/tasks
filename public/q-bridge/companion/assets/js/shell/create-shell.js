@@ -30,6 +30,7 @@ export async function createShell(config) {
           <div class="companion-status" id="companion-status" aria-live="polite"></div>
           <div class="companion-messages" id="companion-messages" role="log" aria-relevant="additions"></div>
           <form class="companion-composer" id="companion-composer">
+            <div class="sanctum-composer-chips sanctum-hidden" id="companion-composer-chips" aria-live="polite"></div>
             <label class="visually-hidden" for="companion-input">Message</label>
             <textarea id="companion-input" rows="1" placeholder="Message Q…"></textarea>
             <button type="submit" id="companion-send" disabled>Send</button>
@@ -67,12 +68,12 @@ export async function createShell(config) {
   const chrome = createChromeController({
     store,
     lifecycle,
+    panelEl: chromePanel,
     onEscapeCascade(e) {
       const snap = store.get();
       if (snap.chrome === 'summoned') {
         e.preventDefault();
         chrome.hide();
-        chromePanel.hidden = true;
         return;
       }
       if (snap.canvas.mode !== 'closed') {
@@ -85,11 +86,9 @@ export async function createShell(config) {
 
   lifecycle.on(root.querySelector('#companion-summon'), 'click', () => {
     chrome.show();
-    chromePanel.hidden = false;
   });
   lifecycle.on(root.querySelector('.companion-chrome-hide'), 'click', () => {
     chrome.hide();
-    chromePanel.hidden = true;
   });
   lifecycle.on(root.querySelector('#companion-canvas-dismiss'), 'click', async () => {
     await canvas.close('button');
@@ -109,19 +108,44 @@ export async function createShell(config) {
 
   let sessionId = config.sessionId || null;
 
+  const chipContainer = root.querySelector('#companion-composer-chips');
+
+  lifecycle.on(messagesEl, 'click', (e) => {
+    const btn = e.target && e.target.closest && e.target.closest('.sanctum-composer-preview-btn');
+    if (!btn) return;
+    const name = btn.getAttribute('data-preview-name') || 'Attachment';
+    const text = btn.getAttribute('data-preview-text') || '';
+    window.alert(name + '\n\n' + text.slice(0, 4000) + (text.length > 4000 ? '\n…' : ''));
+  });
+
   const composer = createComposer({
     formEl,
     inputEl,
     sendBtn,
+    chipContainer,
     lifecycle,
     isBusy: () => store.get().transport === 'sending',
-    async onSubmit(text) {
+    async onSubmit(payload) {
       if (!sessionId) return;
+      const message = payload && payload.message != null ? String(payload.message) : '';
+      if (!message) return;
       store.patch({ transport: 'sending' });
       composer.updateSendEnabled();
-      messages.append({ role: 'user', text });
+      const hasAttach = payload.attachments && payload.attachments.length;
+      if (hasAttach && composer.paste) {
+        messages.append({
+          role: 'user',
+          text: payload.caption || '',
+          safeHtml: composer.paste.renderBubbleHtml({
+            caption: payload.caption,
+            attachments: payload.attachments,
+          }),
+        });
+      } else {
+        messages.append({ role: 'user', text: message });
+      }
       try {
-        await bridge.postMessage({ sessionId, message: text, pageContext: config.pageContext || null });
+        await bridge.postMessage({ sessionId, message, pageContext: config.pageContext || null });
         store.patch({ transport: 'waiting' });
         setStatus('Waiting for Q…');
       } catch (err) {
@@ -243,8 +267,8 @@ export async function createShell(config) {
       unmount: (reason) => canvas.registry.unmount(reason)
     },
     chrome: {
-      show: () => { chrome.show(); chromePanel.hidden = false; },
-      hide: () => { chrome.hide(); chromePanel.hidden = true; },
+      show: () => chrome.show(),
+      hide: () => chrome.hide(),
       toggle: () => chrome.toggle()
     },
     dispatchAction: api.dispatchAction

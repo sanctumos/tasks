@@ -21,20 +21,25 @@ export function decodeEntities(text) {
 
 /**
  * @param {HTMLElement} messagesEl
- * @param {{ role: string, text?: string, id?: string|number, html?: boolean }} opts
+ * @param {{ role: string, text?: string, id?: string|number, html?: boolean, safeHtml?: string }} opts
  */
-export function appendMessage(messagesEl, { role, text, id, html = false }) {
+export function appendMessage(messagesEl, { role, text, id, html = false, safeHtml = null }) {
   if (!messagesEl) throw new Error('messagesEl required');
   const div = document.createElement('div');
   div.className = 'companion-msg companion-msg--' + role;
   if (id != null) div.dataset.id = String(id);
   const body = document.createElement('div');
   body.className = 'companion-msg-body';
-  const raw = decodeEntities(text == null ? '' : String(text));
-  if (html) {
-    body.innerHTML = markdownToHtml(raw);
+  if (safeHtml != null) {
+    body.classList.add('sanctum-composer-bubble');
+    body.innerHTML = String(safeHtml);
   } else {
-    body.textContent = raw;
+    const raw = decodeEntities(text == null ? '' : String(text));
+    if (html) {
+      body.innerHTML = markdownToHtml(raw);
+    } else {
+      body.textContent = raw;
+    }
   }
   div.appendChild(body);
   messagesEl.appendChild(div);
@@ -50,7 +55,12 @@ export function clearMessages(messagesEl) {
 export function createMessageView({ messagesEl, useMarkdown = true }) {
   return {
     append(msg) {
-      return appendMessage(messagesEl, { ...msg, html: !!useMarkdown });
+      const { safeHtml, ...rest } = msg || {};
+      return appendMessage(messagesEl, {
+        ...rest,
+        html: safeHtml != null ? false : !!useMarkdown,
+        safeHtml: safeHtml != null ? safeHtml : null,
+      });
     },
     clear() {
       clearMessages(messagesEl);
