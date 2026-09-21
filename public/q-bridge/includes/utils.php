@@ -98,31 +98,45 @@ function cleanup_inactive_sessions(): int {
             return 0;
         }
         
-        // Archive inactive sessions (move to archived_sessions table if it exists, otherwise just delete)
         $session_ids = array_column($inactive_sessions, 'id');
         $placeholders = str_repeat('?,', count($session_ids) - 1) . '?';
 
-        // Drop UI events before sessions (FK / orphan hygiene)
+        // Never delete sessions that still have chat history — FK failure was
+        // accidentally protecting transcripts. Only remove empty abandoned sessions.
+        $stmt = $pdo->prepare("
+            SELECT DISTINCT session_id FROM web_chat_messages
+            WHERE session_id IN ({$placeholders})
+            UNION
+            SELECT DISTINCT session_id FROM web_chat_responses
+            WHERE session_id IN ({$placeholders})
+        ");
+        $stmt->execute(array_merge($session_ids, $session_ids));
+        $keep = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'session_id');
+        $delete_ids = array_values(array_diff($session_ids, $keep));
+        if (empty($delete_ids)) {
+            return 0;
+        }
+        $placeholders = str_repeat('?,', count($delete_ids) - 1) . '?';
+
         $stmt = $pdo->prepare("
             DELETE FROM web_chat_ui_events
             WHERE session_id IN ({$placeholders})
         ");
-        $stmt->execute($session_ids);
+        $stmt->execute($delete_ids);
         
-        // Delete inactive sessions
         $stmt = $pdo->prepare("
             DELETE FROM web_chat_sessions 
             WHERE id IN ({$placeholders})
         ");
-        $stmt->execute($session_ids);
+        $stmt->execute($delete_ids);
         
-        // Log the cleanup
         log_message('INFO', 'Cleaned up inactive sessions', [
-            'count' => count($inactive_sessions),
-            'session_ids' => $session_ids
+            'count' => count($delete_ids),
+            'session_ids' => $delete_ids,
+            'skipped_with_history' => count($keep)
         ]);
         
-        return count($inactive_sessions);
+        return count($delete_ids);
         
     } catch (Exception $e) {
         log_message('ERROR', 'Failed to cleanup inactive sessions', [
@@ -132,13 +146,6 @@ function cleanup_inactive_sessions(): int {
     }
 }
 
-/**
- * Check and cleanup inactive sessions with a random probability
- * This prevents all API calls from doing cleanup, but ensures it happens regularly
- * 
- * @param float $probability Probability of running cleanup (0.0 to 1.0, default 0.1 = 10%)
- * @return int Number of sessions cleaned up (0 if cleanup wasn't run)
- */
 function maybe_cleanup_inactive_sessions($probability = 0.1): int {
     // Only run cleanup with the specified probability
     if (mt_rand(1, 100) <= ($probability * 100)) {
