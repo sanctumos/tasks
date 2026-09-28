@@ -34,8 +34,12 @@ function generate_web_chat_uid(): string {
 }
 
 /**
- * Get or create a web chat user UID for a session
- * 
+ * Get or create a web chat browser UID for a session.
+ *
+ * `is_new` means this request minted a session uid — NOT that the Tasks user
+ * is new to Ask Q. Callers that need person novelty must use
+ * q_bridge_prepare_chatter_context() / is_first_contact instead.
+ *
  * @param string $session_id The session ID
  * @param string|null $ip_address The IP address (optional)
  * @return array Array with 'uid' and 'is_new' keys

@@ -220,11 +220,13 @@ function handle_messages() {
         }
         $sessionMeta['last_page_context'] = $pageCtx;
         
-        // Get or create UID for this session
+        // Session browser uid (opaque). is_new here means "uid minted this request",
+        // NOT "this Tasks user is new to Ask Q" — do not surface that as is_new_user.
         $ip_address = get_client_ip();
         $user_data = get_or_create_web_chat_user($session_id, $ip_address);
         $uid = $user_data['uid'];
-        $is_new_user = $user_data['is_new'];
+        // Person novelty = first Ask Q message from this Tasks user (already computed).
+        $is_new_user = $isFirstContact;
         
         $updMeta = $pdo->prepare('UPDATE web_chat_sessions SET metadata = ?, last_active = CURRENT_TIMESTAMP WHERE id = ?');
         $updMeta->execute([json_encode($sessionMeta), $session_id]);
