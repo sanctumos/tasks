@@ -27,6 +27,7 @@ Target: **≥ 90%** of these workflows have an automated browser path under `too
 | W21 | Task detail find-in-thread + attachment filter | `find_in_thread_verify.py` | yes |
 | W22 | Activity feed filter + type chips | `activity_filter_verify.py` | yes |
 | W23 | Notifications + Users admin filters | `notifs_users_filter_verify.py` | yes |
+| W24 | Search ACL (member People / mentions / full search) | `search_acl_verify.py` | yes |
 
 **Required set** = rows marked `yes`. Pass rate = scripts present and runnable against the target host.
 
