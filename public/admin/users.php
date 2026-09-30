@@ -190,8 +190,18 @@ require __DIR__ . '/_layout_top.php';
     </div>
 <?php endif; ?>
 
+<?php if (count($users) > 0): ?>
+    <div class="st-feedfilter mb-3" id="st-users-filter">
+        <div class="input-group input-group-sm st-userfilter" style="max-width:300px">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="search" id="st-users-filter-q" class="form-control border-start-0" placeholder="Filter users…" autocomplete="off" aria-label="Filter users by username, role, or status">
+        </div>
+        <span class="st-feedfilter__count text-muted small" id="st-users-filter-count" aria-live="polite"></span>
+    </div>
+<?php endif; ?>
+
 <div class="surface">
-    <table class="task-table">
+    <table class="task-table" id="st-users-table">
         <thead>
             <tr>
                 <th>Username</th>
@@ -207,8 +217,16 @@ require __DIR__ . '/_layout_top.php';
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($users as $u): ?>
-                <tr>
+            <?php foreach ($users as $u):
+                $activeLabel = (int)$u['is_active'] === 1 ? 'active' : 'disabled';
+                $userFilterText = trim(preg_replace('/\s+/', ' ', implode(' ', [
+                    (string)($u['username'] ?? ''),
+                    (string)($u['role'] ?? ''),
+                    $activeLabel,
+                    (string)($u['person_kind'] ?? ''),
+                ])) ?? '');
+                ?>
+                <tr data-st-filter-item data-st-filter-text="<?= htmlspecialchars($userFilterText, ENT_QUOTES, 'UTF-8') ?>">
                     <td>
                         <strong><?= htmlspecialchars($u['username']) ?></strong>
                         <div class="text-muted small">User #<?= (int)$u['id'] ?></div>
@@ -507,3 +525,18 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 
 <?php require __DIR__ . '/_layout_bottom.php'; ?>
+<?php if (count($users) > 0): ?>
+<script>
+(function () {
+    if (!window.stFilter) return;
+    var items = document.querySelectorAll('#st-users-table [data-st-filter-item]');
+    if (!items.length) return;
+    stFilter.attach({
+        input: document.getElementById('st-users-filter-q'),
+        items: items,
+        countEl: document.getElementById('st-users-filter-count'),
+        urlParam: ''
+    });
+})();
+</script>
+<?php endif; ?>

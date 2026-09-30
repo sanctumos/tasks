@@ -71,7 +71,14 @@ require __DIR__ . '/_layout_top.php';
 <?php if (!$items): ?>
     <div class="surface surface-pad text-center text-muted">No notifications yet. You will see assignments, @mentions, and comments on tasks you follow here.</div>
 <?php else: ?>
-    <ul class="list-group shadow-sm">
+    <div class="st-feedfilter mb-3" id="st-notifs-filter">
+        <div class="input-group input-group-sm" style="max-width:300px">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input type="search" id="st-notifs-filter-q" class="form-control border-start-0" placeholder="Filter notifications…" autocomplete="off" aria-label="Filter notifications">
+        </div>
+        <span class="st-feedfilter__count text-muted small" id="st-notifs-filter-count" aria-live="polite"></span>
+    </div>
+    <ul class="list-group shadow-sm" id="st-notifs-list">
         <?php foreach ($items as $n): ?>
             <?php
             $isUnread = $n['read_at'] === null || $n['read_at'] === '';
@@ -81,8 +88,17 @@ require __DIR__ . '/_layout_top.php';
             }
             $actor = (string)($n['actor_username'] ?? '');
             $actorBit = $actor !== '' ? ('@' . $actor . ' · ') : '';
+            $filterText = trim(preg_replace('/\s+/', ' ', implode(' ', [
+                $actor,
+                (string)($n['label'] ?? ''),
+                (string)($n['title'] ?? ''),
+                (string)($n['snippet'] ?? ''),
+                (string)($n['kind'] ?? ''),
+            ])) ?? '');
             ?>
-            <li class="list-group-item d-flex flex-column flex-md-row align-items-md-start gap-2<?= $isUnread ? ' st-notif-unread' : '' ?>">
+            <li class="list-group-item d-flex flex-column flex-md-row align-items-md-start gap-2<?= $isUnread ? ' st-notif-unread' : '' ?>"
+                data-st-filter-item
+                data-st-filter-text="<?= htmlspecialchars($filterText, ENT_QUOTES, 'UTF-8') ?>">
                 <div class="flex-grow-1">
                     <div class="small text-muted mb-1"><?= htmlspecialchars($actorBit . (string)($n['created_at'] ?? '')) ?></div>
                     <div class="fw-semibold"><?= htmlspecialchars((string)($n['label'] ?? '')) ?></div>
@@ -110,3 +126,18 @@ require __DIR__ . '/_layout_top.php';
 <?php endif; ?>
 
 <?php require __DIR__ . '/_layout_bottom.php'; ?>
+<?php if ($items): ?>
+<script>
+(function () {
+    if (!window.stFilter) return;
+    var items = document.querySelectorAll('#st-notifs-list [data-st-filter-item]');
+    if (!items.length) return;
+    stFilter.attach({
+        input: document.getElementById('st-notifs-filter-q'),
+        items: items,
+        countEl: document.getElementById('st-notifs-filter-count'),
+        urlParam: ''
+    });
+})();
+</script>
+<?php endif; ?>
