@@ -32,6 +32,7 @@ final class MajorWorkflowsChecklistTest extends TestCase
             'ask_q_composer_paste_verify.py',
             'ask_q_reload_persist_verify.py',
             'board_export_archives_verify.py',
+            'omnibox_verify.py',
         ];
         $smoke = $root . '/tools/design-smoke';
         $present = 0;

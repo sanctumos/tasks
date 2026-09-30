@@ -17,7 +17,7 @@ $stSkinSlugs = skinLabAvailableSlugs();
     <title><?= htmlspecialchars($pageTitle) ?> · <?= htmlspecialchars($stAppName) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/assets/admin.css?v=21" rel="stylesheet">
+    <link href="/assets/admin.css?v=22" rel="stylesheet">
     <?php if ($stShowSkinCompBar): ?>
         <?php /* Comp bar toggles data-skin-comp client-side — load every skin sheet so switches paint. */ ?>
         <?php foreach ($stSkinSlugs as $slug): ?>
@@ -55,6 +55,22 @@ window.__ST_SKIN_LAB__ = {
             <i class="bi bi-stack"></i>
             <span><?= htmlspecialchars($stAppName) ?></span>
         </a>
+        <?php if (isLoggedIn()): ?>
+        <form class="st-omnibox flex-grow-1 mx-lg-3 my-2 my-lg-0 order-lg-0" id="st-omnibox" method="get" action="/admin/search.php" role="search" autocomplete="off">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted" aria-hidden="true"></i></span>
+                <input class="form-control border-start-0 st-omnibox__input" type="search" name="q" id="st-omnibox-input"
+                       placeholder="Search tasks, docs, people, boards…"
+                       aria-label="Search everything"
+                       aria-autocomplete="list"
+                       aria-controls="st-omnibox-drop"
+                       aria-expanded="false"
+                       value="">
+                <span class="input-group-text bg-white border-start-0 d-none d-md-inline-flex"><span class="st-omnibox__kbd">Ctrl K</span></span>
+            </div>
+            <div class="st-omnibox__drop" id="st-omnibox-drop" hidden role="listbox" aria-label="Search results"></div>
+        </form>
+        <?php endif; ?>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar" aria-controls="adminNavbar" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>

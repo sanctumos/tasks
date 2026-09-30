@@ -1170,3 +1170,162 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
 .markdown-body .footnotes li { margin-bottom: 0.35rem; }
 .markdown-body .footnotes li p { margin-bottom: 0.25rem; }
 .markdown-body .footnotes .footnote-backref { text-decoration: none; margin-left: 0.15rem; }
+
+/* ---------- Global omnibox (Search S1.3) ---------- */
+.admin-nav .st-omnibox {
+    position: relative;
+    max-width: 560px;
+    min-width: 0;
+    width: 100%;
+    z-index: 1040;
+}
+.admin-nav .st-omnibox__input {
+    background: #fff;
+    color: var(--st-text-primary);
+}
+.admin-nav .st-omnibox__kbd {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--st-text-muted);
+    border: 1px solid var(--st-border-subtle);
+    border-radius: 4px;
+    padding: 0.05rem 0.35rem;
+    line-height: 1.4;
+    background: var(--st-bg-soft);
+}
+.admin-nav .st-omnibox__drop {
+    position: absolute;
+    top: calc(100% + 0.35rem);
+    left: 0;
+    right: 0;
+    max-height: min(70vh, 28rem);
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid var(--st-border-subtle);
+    border-radius: var(--st-radius);
+    box-shadow: var(--st-shadow-md);
+    z-index: 1050;
+}
+.admin-nav .st-omnibox__group {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--st-text-muted);
+    padding: 0.55rem 0.85rem 0.25rem;
+    border-top: 1px solid var(--st-border-subtle);
+}
+.admin-nav .st-omnibox__group:first-child { border-top: 0; }
+.admin-nav .st-omnibox__item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.45rem 0.85rem;
+    text-decoration: none;
+    color: inherit;
+    border: 0;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+}
+.admin-nav .st-omnibox__item:hover,
+.admin-nav .st-omnibox__item.is-active {
+    background: var(--st-accent-soft);
+}
+.admin-nav .st-omnibox__icon {
+    flex: 0 0 auto;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+.admin-nav .st-omnibox__icon--task { background: #e9efff; color: #2c5cff; }
+.admin-nav .st-omnibox__icon--doc { background: #fef4d6; color: #b45309; }
+.admin-nav .st-omnibox__icon--user { background: #dcfce7; color: #15803d; }
+.admin-nav .st-omnibox__icon--project { background: #f3e8ff; color: #7e22ce; }
+.admin-nav .st-omnibox__text { min-width: 0; flex: 1; }
+.admin-nav .st-omnibox__title {
+    display: block;
+    font-size: 0.86rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.admin-nav .st-omnibox__sub {
+    display: block;
+    font-size: 0.74rem;
+    color: var(--st-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.admin-nav .st-omnibox__title mark.st-hl,
+.st-search-results mark.st-hl {
+    background: #fef08a;
+    color: inherit;
+    padding: 0 0.1em;
+    border-radius: 2px;
+}
+.admin-nav .st-omnibox__empty {
+    padding: 0.85rem;
+    font-size: 0.86rem;
+    color: var(--st-text-muted);
+    text-align: center;
+}
+.admin-nav .st-omnibox__foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 0.72rem;
+    color: var(--st-text-muted);
+    padding: 0.55rem 0.85rem;
+    border-top: 1px solid var(--st-border-subtle);
+    background: var(--st-bg-soft);
+}
+@media (max-width: 575.98px) {
+    .admin-nav .st-omnibox {
+        flex: 1 1 100%;
+        max-width: none;
+        order: 3;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    .admin-nav .st-omnibox__drop {
+        position: fixed;
+        left: 0.5rem;
+        right: 0.5rem;
+        top: auto;
+        width: auto;
+        max-height: min(60vh, 24rem);
+    }
+}
+
+/* Full search results page (S1.3 stub / S1.4) */
+.st-search-group { margin-bottom: 1.5rem; }
+.st-search-group__title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--st-text-muted);
+    margin-bottom: 0.5rem;
+}
+.st-search-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--st-border-subtle);
+    border-radius: var(--st-radius);
+    background: #fff;
+    text-decoration: none;
+    color: inherit;
+    margin-bottom: 0.45rem;
+}
+.st-search-row:hover { border-color: var(--st-accent); background: var(--st-accent-soft); }
