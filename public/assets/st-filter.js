@@ -96,6 +96,9 @@
         }
 
         function syncUrl(q) {
+            if (!urlParam) {
+                return;
+            }
             try {
                 var u = new URL(window.location.href);
                 var trimmed = String(q || "").trim();

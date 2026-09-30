@@ -1234,8 +1234,15 @@ require __DIR__ . '/_layout_top.php';
 
 <?php elseif ($tab === 'members'): ?>
 
+    <div class="st-projsearch mb-3">
+        <div class="input-group" style="max-width: 300px;">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input class="form-control border-start-0" type="search" id="st-members-filter-q" placeholder="Filter members…" aria-label="Filter members">
+        </div>
+        <span class="st-livebar__count" id="st-members-filter-count"></span>
+    </div>
     <div class="surface mb-3">
-        <table class="task-table">
+        <table class="task-table" id="st-members-table">
             <thead>
                 <tr>
                     <th>User</th>
@@ -1245,7 +1252,7 @@ require __DIR__ . '/_layout_top.php';
             </thead>
             <tbody>
                 <?php foreach ($members as $m): ?>
-                    <tr>
+                    <tr data-st-filter-item="1" data-st-filter-text="<?= htmlspecialchars((string)$m['username'] . ' ' . (string)$m['role'] . ' ' . (string)($m['person_kind'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                         <td>
                             <strong><?= htmlspecialchars($m['username']) ?></strong>
                             <div class="text-muted small"><?= htmlspecialchars($m['person_kind']) ?></div>
@@ -1299,6 +1306,19 @@ require __DIR__ . '/_layout_top.php';
             </form>
         </div>
     <?php endif; ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!window.stFilter) return;
+        var items = document.querySelectorAll('#st-members-table [data-st-filter-item]');
+        if (!items.length) return;
+        stFilter.attach({
+            input: document.getElementById('st-members-filter-q'),
+            items: items,
+            countEl: document.getElementById('st-members-filter-count'),
+            urlParam: ''
+        });
+    });
+    </script>
 
 <?php elseif ($tab === 'archives' && $projectIsArchived): ?>
     <?php

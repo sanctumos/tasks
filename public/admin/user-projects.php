@@ -138,9 +138,16 @@ require __DIR__ . '/_layout_top.php';
         <input type="hidden" name="action" value="sync_projects">
         <div class="section-title mb-3"><i class="bi bi-kanban"></i> Checked projects <?= $target['username'] ?> is on</div>
         <p class="small text-muted mb-3">Uncheck to remove membership (respects minimum project-lead rules). <strong>All-access</strong> projects remain visible directory-wide regardless of checkbox.</p>
-        <div class="row row-cols-1 row-cols-md-2 g-2">
+        <div class="st-projsearch mb-3">
+            <div class="input-group" style="max-width: 320px;">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input class="form-control border-start-0" type="search" id="st-acl-filter-q" placeholder="Filter projects…" aria-label="Filter projects">
+            </div>
+            <span class="st-livebar__count" id="st-acl-filter-count"></span>
+        </div>
+        <div class="row row-cols-1 row-cols-md-2 g-2" id="st-acl-project-grid">
             <?php foreach ($projects as $p): ?>
-                <div class="col">
+                <div class="col" data-st-filter-item="1" data-st-filter-text="<?= htmlspecialchars((string)$p['name'] . ' #' . (int)$p['id'], ENT_QUOTES, 'UTF-8') ?>">
                     <label class="d-flex align-items-start gap-2 border rounded p-3 h-100 bg-white">
                         <input class="form-check-input mt-1" type="checkbox" name="project_id[]" value="<?= (int)$p['id'] ?>" <?= !empty($checked[(int)$p['id']]) ? 'checked' : '' ?>>
                         <span>
@@ -164,6 +171,19 @@ require __DIR__ . '/_layout_top.php';
             <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save access</button>
         </div>
     </form>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!window.stFilter) return;
+        var items = document.querySelectorAll('#st-acl-project-grid [data-st-filter-item]');
+        if (!items.length) return;
+        stFilter.attach({
+            input: document.getElementById('st-acl-filter-q'),
+            items: items,
+            countEl: document.getElementById('st-acl-filter-count'),
+            urlParam: ''
+        });
+    });
+    </script>
 <?php endif; ?>
 
 <?php require __DIR__ . '/_layout_bottom.php'; ?>
