@@ -115,4 +115,22 @@ final class OmniboxSearchResponseTest extends TestCase
         $this->assertLessThanOrEqual(25, count($capped['groups']['tasks']));
         $this->assertSame(25, $capped['limit'] ?? null);
     }
+
+    public function testSearchOmniboxHidesUsersForNonAdmin(): void
+    {
+        $suffix = bin2hex(random_bytes(4));
+        $admin = createUser("omni_adm_{$suffix}", 'OmniPass123456', 'admin', false);
+        $this->assertTrue($admin['success']);
+        $member = createUser("omni_mem_{$suffix}", 'OmniPass123456', 'member', false);
+        $this->assertTrue($member['success']);
+
+        $memberRow = getUserById((int)$member['id'], false);
+        $asMember = searchOmniboxForUser($memberRow, "omni_adm_{$suffix}", 5);
+        $this->assertSame(0, $asMember['counts']['users']);
+        $this->assertSame([], $asMember['groups']['users']);
+
+        $adminRow = getUserById((int)$admin['id'], false);
+        $asAdmin = searchOmniboxForUser($adminRow, "omni_mem_{$suffix}", 5);
+        $this->assertContains("omni_mem_{$suffix}", array_column($asAdmin['groups']['users'], 'title'));
+    }
 }

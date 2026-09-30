@@ -4837,37 +4837,41 @@ function searchOmniboxForUser(array $userRow, string $q, int $limitPerEntity = 5
         ];
     }
 
+    // People hits link to /admin/users.php (requireAdmin). Only admin/manager may search users.
     $userItems = [];
-    $db = getDbConnection();
-    $like = '%' . escapeSqlLikePattern($q) . '%';
-    $countStmt = $db->prepare("
-        SELECT COUNT(*) AS c FROM users
-        WHERE is_active = 1 AND username LIKE :pat ESCAPE '\\'
-    ");
-    $countStmt->bindValue(':pat', $like, SQLITE3_TEXT);
-    $userTotal = (int)(($countStmt->execute()->fetchArray(SQLITE3_ASSOC)['c'] ?? 0));
-    $uStmt = $db->prepare("
-        SELECT id, username, role, person_kind, org_id
-        FROM users
-        WHERE is_active = 1 AND username LIKE :pat ESCAPE '\\'
-        ORDER BY length(username) ASC, username ASC
-        LIMIT :lim OFFSET :off
-    ");
-    $uStmt->bindValue(':pat', $like, SQLITE3_TEXT);
-    $uStmt->bindValue(':lim', $limitPerEntity, SQLITE3_INTEGER);
-    $uStmt->bindValue(':off', $userOff, SQLITE3_INTEGER);
-    $uRes = $uStmt->execute();
-    while ($row = $uRes->fetchArray(SQLITE3_ASSOC)) {
-        $uid = (int)$row['id'];
-        $userItems[] = [
-            'id' => $uid,
-            'title' => (string)$row['username'],
-            'name' => (string)$row['username'],
-            'entity' => 'user',
-            'url' => '/admin/users.php?q=' . rawurlencode((string)$row['username']),
-            'role' => normalizeRole((string)($row['role'] ?? 'member')) ?? 'member',
-            'person_kind' => normalizePersonKind($row['person_kind'] ?? 'team_member'),
-        ];
+    $userTotal = 0;
+    if (isAdminRole((string)($userRow['role'] ?? ''))) {
+        $db = getDbConnection();
+        $like = '%' . escapeSqlLikePattern($q) . '%';
+        $countStmt = $db->prepare("
+            SELECT COUNT(*) AS c FROM users
+            WHERE is_active = 1 AND username LIKE :pat ESCAPE '\\'
+        ");
+        $countStmt->bindValue(':pat', $like, SQLITE3_TEXT);
+        $userTotal = (int)(($countStmt->execute()->fetchArray(SQLITE3_ASSOC)['c'] ?? 0));
+        $uStmt = $db->prepare("
+            SELECT id, username, role, person_kind, org_id
+            FROM users
+            WHERE is_active = 1 AND username LIKE :pat ESCAPE '\\'
+            ORDER BY length(username) ASC, username ASC
+            LIMIT :lim OFFSET :off
+        ");
+        $uStmt->bindValue(':pat', $like, SQLITE3_TEXT);
+        $uStmt->bindValue(':lim', $limitPerEntity, SQLITE3_INTEGER);
+        $uStmt->bindValue(':off', $userOff, SQLITE3_INTEGER);
+        $uRes = $uStmt->execute();
+        while ($row = $uRes->fetchArray(SQLITE3_ASSOC)) {
+            $uid = (int)$row['id'];
+            $userItems[] = [
+                'id' => $uid,
+                'title' => (string)$row['username'],
+                'name' => (string)$row['username'],
+                'entity' => 'user',
+                'url' => '/admin/users.php?q=' . rawurlencode((string)$row['username']),
+                'role' => normalizeRole((string)($row['role'] ?? 'member')) ?? 'member',
+                'person_kind' => normalizePersonKind($row['person_kind'] ?? 'team_member'),
+            ];
+        }
     }
 
     $projectsAll = listDirectoryProjectsForUser($userRow, 500, []);

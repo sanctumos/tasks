@@ -81,7 +81,7 @@ require __DIR__ . '/_layout_top.php';
 <div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
     <div>
         <h1 class="h3 mb-1">Search</h1>
-        <p class="text-muted mb-0 small">Tasks, documents, people, and boards you can access.</p>
+        <p class="text-muted mb-0 small">Tasks, documents, and boards you can access. People results appear for admins only.</p>
     </div>
 </div>
 
