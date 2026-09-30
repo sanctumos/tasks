@@ -97,5 +97,13 @@ final class ProjectBoardSearchHttpTest extends TestCase
         $fhtml = (string)$filtered->getBody();
         $this->assertStringContainsString("Hit {$needle}", $fhtml);
         $this->assertStringContainsString('name="q"', $fhtml);
+
+        $lists = $c->get('/admin/project.php', [
+            'query' => ['id' => $projectId, 'tab' => 'lists', 'q' => $needle],
+        ]);
+        $this->assertSame(200, $lists->getStatusCode());
+        $lhtml = (string)$lists->getBody();
+        $this->assertStringContainsString('id="st-lists-filter"', $lhtml);
+        $this->assertStringContainsString("Hit {$needle}", $lhtml);
     }
 }

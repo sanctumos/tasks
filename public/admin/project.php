@@ -669,6 +669,33 @@ require __DIR__ . '/_layout_top.php';
         <?php endif; ?>
     </div>
 
+    <?php if ($boardTaskUniverse > 0): ?>
+        <form id="st-lists-filter" class="st-projsearch mb-3" method="get" action="/admin/project.php" role="search"
+              data-st-use-client="<?= $stBoardUseClientFilter ? '1' : '0' ?>">
+            <input type="hidden" name="id" value="<?= (int)$id ?>">
+            <input type="hidden" name="tab" value="lists">
+            <?php if ($mineFilter): ?><input type="hidden" name="mine" value="1"><?php endif; ?>
+            <div class="input-group" style="max-width: 340px;">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input class="form-control border-start-0" type="search" name="q" id="st-lists-filter-q" value="<?= htmlspecialchars($boardSearchQ) ?>" placeholder="Search lists…" aria-label="Search lists">
+            </div>
+            <?php if ($stBoardUseClientFilter): ?>
+                <button type="button" class="st-chip-toggle<?= !empty($boardChips['open']) ? ' is-on' : '' ?>" data-st-chip="open" aria-pressed="<?= !empty($boardChips['open']) ? 'true' : 'false' ?>">Open</button>
+                <button type="button" class="st-chip-toggle<?= !empty($boardChips['done']) ? ' is-on' : '' ?>" data-st-chip="done" aria-pressed="<?= !empty($boardChips['done']) ? 'true' : 'false' ?>">Done</button>
+                <button type="button" class="st-chip-toggle<?= !empty($boardChips['high']) ? ' is-on' : '' ?>" data-st-chip="high" aria-pressed="<?= !empty($boardChips['high']) ? 'true' : 'false' ?>">High priority</button>
+                <button type="button" class="st-chip-toggle<?= !empty($boardChips['mine']) ? ' is-on' : '' ?>" data-st-chip="mine" aria-pressed="<?= !empty($boardChips['mine']) ? 'true' : 'false' ?>">Assigned to me</button>
+            <?php else: ?>
+                <label class="st-chip-toggle<?= !empty($boardChips['open']) ? ' is-on' : '' ?>"><input type="checkbox" name="chip[]" value="open" <?= !empty($boardChips['open']) ? 'checked' : '' ?> class="d-none">Open</label>
+                <label class="st-chip-toggle<?= !empty($boardChips['done']) ? ' is-on' : '' ?>"><input type="checkbox" name="chip[]" value="done" <?= !empty($boardChips['done']) ? 'checked' : '' ?> class="d-none">Done</label>
+                <label class="st-chip-toggle<?= !empty($boardChips['high']) ? ' is-on' : '' ?>"><input type="checkbox" name="chip[]" value="high" <?= !empty($boardChips['high']) ? 'checked' : '' ?> class="d-none">High priority</label>
+                <label class="st-chip-toggle<?= !empty($boardChips['mine']) ? ' is-on' : '' ?>"><input type="checkbox" name="chip[]" value="mine" <?= !empty($boardChips['mine']) ? 'checked' : '' ?> class="d-none">Assigned to me</label>
+                <button class="btn btn-primary btn-sm" type="submit">Filter</button>
+            <?php endif; ?>
+            <a class="btn btn-outline-secondary btn-sm st-lists-filter-clear" href="/admin/project.php?id=<?= (int)$id ?>&amp;tab=lists">Clear</a>
+            <span class="st-livebar__count" id="st-lists-filter-count"><strong><?= (int)$totalTasks ?></strong> of <?= (int)$boardTaskUniverse ?> items</span>
+        </form>
+    <?php endif; ?>
+
     <?php if ($mineFilter && $totalTasks === 0 && (!empty($lists) || !empty($tasksUnfiled))): ?>
         <div class="alert alert-secondary d-flex flex-wrap align-items-center justify-content-between gap-2">
             <span><i class="bi bi-person-check me-1"></i>No tasks in this project are assigned to you.</span>
@@ -685,14 +712,22 @@ require __DIR__ . '/_layout_top.php';
     <?php endif; ?>
 
     <?php
-    $renderTodoRow = function (array $t) use ($listsRedirect, $doneStatusSlug, $defaultStatusSlug, $currentUser) {
+    $renderTodoRow = function (array $t) use ($listsRedirect, $doneStatusSlug, $defaultStatusSlug, $currentUser, $mineUserId) {
         $isDone = (int)($t['status_is_done'] ?? 0) === 1;
         $rowCls = 'todo-row' . ($isDone ? ' todo-row--done' : '');
         $nextStatus = $isDone ? $defaultStatusSlug : $doneStatusSlug;
         $canToggle = userCanManageTaskForViewer($currentUser, $t);
+        $prio = strtolower((string)($t['priority'] ?? 'normal'));
+        $assigneeId = (int)($t['assigned_to_user_id'] ?? 0);
         ob_start();
         ?>
-        <li class="<?= $rowCls ?>">
+        <li class="<?= $rowCls ?>"
+            data-st-filter-item="1"
+            data-st-filter-text="<?= htmlspecialchars((string)$t['title'] . ' ' . ($t['assigned_to_username'] ?? '') . ' ' . $prio, ENT_QUOTES, 'UTF-8') ?>"
+            data-st-chip-open="<?= $isDone ? '0' : '1' ?>"
+            data-st-chip-done="<?= $isDone ? '1' : '0' ?>"
+            data-st-chip-high="<?= $prio === 'high' || $prio === 'urgent' ? '1' : '0' ?>"
+            data-st-chip-mine="<?= $assigneeId === $mineUserId ? '1' : '0' ?>">
             <form method="post" action="/admin/update.php" class="todo-row__check">
                 <?= csrfInputField() ?>
                 <input type="hidden" name="id" value="<?= (int)$t['id'] ?>">
@@ -874,6 +909,26 @@ require __DIR__ . '/_layout_top.php';
                 <?php foreach ($tasksUnfiled as $t): echo $renderTodoRow($t); endforeach; ?>
             </ol>
         </section>
+    <?php endif; ?>
+
+    <?php if ($stBoardUseClientFilter && $boardTaskUniverse > 0): ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!window.stFilter) return;
+        var form = document.getElementById('st-lists-filter');
+        if (!form || form.getAttribute('data-st-use-client') !== '1') return;
+        var items = document.querySelectorAll('.todo-list [data-st-filter-item]');
+        stFilter.attach({
+            input: document.getElementById('st-lists-filter-q'),
+            items: items,
+            chips: form.querySelectorAll('[data-st-chip]'),
+            countEl: document.getElementById('st-lists-filter-count'),
+            clearEl: form.querySelector('.st-lists-filter-clear'),
+            urlParam: 'q'
+        });
+        form.addEventListener('submit', function (ev) { ev.preventDefault(); });
+    });
+    </script>
     <?php endif; ?>
 
 <?php elseif ($tab === 'schedule'): ?>

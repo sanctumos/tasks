@@ -166,6 +166,27 @@ def run_board_search(page, base: str, project_id: int, needle: str, shot: str) -
     )
 
 
+def run_lists_search(page, base: str, project_id: int, needle: str) -> None:
+    login_admin(page, base)
+    page.goto(f"{base}/admin/project.php?id={project_id}&tab=lists", wait_until="load", timeout=60000)
+    page.wait_for_selector("#st-lists-filter", timeout=15000)
+    page.locator("#st-lists-filter-q").fill(needle)
+    page.wait_for_function(
+        f"""() => {{
+            const u = new URL(window.location.href);
+            return (u.searchParams.get('q') || '').includes({json.dumps(needle)}) && u.searchParams.get('tab') === 'lists';
+        }}""",
+        timeout=10000,
+    )
+    page.wait_for_function(
+        """() => {
+            const el = document.getElementById('st-lists-filter-count');
+            return el && /\\b1\\b/.test(el.textContent || '');
+        }""",
+        timeout=10000,
+    )
+
+
 def main() -> int:
     try:
         from playwright.sync_api import sync_playwright
@@ -238,11 +259,17 @@ def main() -> int:
                 page = browser.new_page(viewport={"width": MOBILE[0], "height": MOBILE[1]})
                 run_board_search(page, base, project_id, needle, "project_board_search_mobile.png")
                 page.close()
+
+                page = browser.new_page(viewport={"width": DESKTOP[0], "height": DESKTOP[1]})
+                run_lists_search(page, base, project_id, needle)
+                page.screenshot(path=str(OUT / "project_lists_search_desktop.png"), full_page=False)
+                page.close()
             finally:
                 browser.close()
 
         print(OUT / "project_board_search_desktop.png")
         print(OUT / "project_board_search_mobile.png")
+        print(OUT / "project_lists_search_desktop.png")
         return 0
     finally:
         proc.terminate()
