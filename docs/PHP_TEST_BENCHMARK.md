@@ -24,15 +24,15 @@ Coverage (PCOV) — Unit line % on includes:
 php -d pcov.enabled=1 vendor/bin/phpunit --testsuite unit --coverage-text
 ```
 
-## Measured snapshot (2026-09-30, `dev` branch — post S1.4 search results page)
+## Measured snapshot (2026-09-30, `dev` branch — Search S1 complete)
 
 | Category | Result |
 | -------- | ------ |
-| **Unit** (PCOV, scoped includes) | **90.24%** lines (4089/4531) |
-| **Integration** (PHPUnit HTTP suite) | **100%** green (incl. `AdminSearchPageHttpTest`) |
-| **E2E** (checklist + Playwright W17) | **100%**; omnibox + search results screenshots inspected |
+| **Unit** (PCOV, scoped includes) | **90.20%** lines (4112/4559) |
+| **Integration** (PHPUnit HTTP suite) | **100%** green (13/13) |
+| **E2E** (checklist + Playwright W17–W18) | **100%**; omnibox + docs search screenshots inspected |
 
-Prior snapshot (2026-09-30, post S1.3): Unit **90.21%** (4071/4513).
+Commits on `dev` (S1): `d24f65a`…`aa51920`. A11 + W17 + W18 wired. No `main` merge / Ada sync.
 
 ## CI
 
