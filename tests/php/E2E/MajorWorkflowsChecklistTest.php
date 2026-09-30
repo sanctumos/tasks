@@ -40,6 +40,7 @@ final class MajorWorkflowsChecklistTest extends TestCase
             'activity_filter_verify.py',
             'notifs_users_filter_verify.py',
             'search_acl_verify.py',
+            'home_health_schedule_verify.py',
         ];
         $smoke = $root . '/tools/design-smoke';
         $present = 0;
