@@ -24,6 +24,16 @@ Coverage (PCOV) — Unit line % on includes:
 php -d pcov.enabled=1 vendor/bin/phpunit --testsuite unit --coverage-text
 ```
 
+## Measured snapshot (2026-09-30, `dev` branch — Search S3 complete)
+
+| Category | Result |
+| -------- | ------ |
+| **Unit** (PCOV, scoped includes) | **90.23%** lines (4158/4608) |
+| **Integration** (PHPUnit HTTP suite) | **100%** green (16/16) |
+| **E2E** (checklist + Playwright W17–W20 + members/ACL) | **100%**; board/lists/members/ACL screenshots inspected |
+
+Commits on `dev` (S3): `e0479a7`…`84b05ca`. W20 + `st-filter.js`. No `main` merge / Ada sync.
+
 ## Measured snapshot (2026-09-30, `dev` branch — Search S2 complete)
 
 | Category | Result |
