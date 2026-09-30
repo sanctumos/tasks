@@ -275,13 +275,8 @@ $projectActivityBefore = isset($_GET['before_id']) ? (int)$_GET['before_id'] : 0
 if ($tab === 'activity') {
     $projectActivityItems = listDirectoryProjectActivity($id, 80, $projectActivityBefore > 0 ? $projectActivityBefore : null);
 }
-$orgUsers = [];
 $pOrgId = (int)$project['org_id'];
-foreach (listUsers(false) as $u) {
-    if (userMayAccessOrganization($u, $pOrgId)) {
-        $orgUsers[] = $u;
-    }
-}
+$orgUsers = listUsersInOrganizations([$pOrgId], false);
 
 $mineFilter = st_mine_filter_active();
 $mineUserId = (int)$currentUser['id'];
@@ -372,7 +367,7 @@ foreach ($projectTasks as $t) {
     $grouped[$slug][] = $t;
 }
 
-$users = listUsers(false);
+$users = listUsersVisibleForViewer($currentUser, false);
 
 // --- Lists view (Basecamp-style): group project tasks by list_id ----------
 $tasksByList = [];

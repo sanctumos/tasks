@@ -609,24 +609,121 @@ function listUsers(bool $includeDisabled = false): array {
 }
 
 /**
- * Users safe to show in assignee / filter pickers for this viewer.
- * Unrestricted staff: all users. Others: self, co-members of accessible boards,
- * and same-org peers when the viewer can see an all_access board in that org.
+ * Normalize a users+organizations list row (shared by listUsers* helpers).
+ *
+ * @param array<string,mixed> $row
+ * @return array<string,mixed>
+ */
+function hydrateListedUserRow(array $row): array {
+    $row['is_active'] = (int)($row['is_active'] ?? 0);
+    $row['must_change_password'] = (int)($row['must_change_password'] ?? 0);
+    $row['mfa_enabled'] = (int)($row['mfa_enabled'] ?? 0);
+    if (array_key_exists('org_id', $row) && $row['org_id'] !== null && $row['org_id'] !== '') {
+        $row['org_id'] = (int)$row['org_id'];
+    } else {
+        $row['org_id'] = null;
+    }
+    $row['role'] = normalizeRole((string)($row['role'] ?? 'member')) ?? 'member';
+    $row['person_kind'] = normalizePersonKind($row['person_kind'] ?? 'team_member');
+    $row['limited_project_access'] = (int)($row['limited_project_access'] ?? 0);
+    return $row;
+}
+
+/**
+ * Active (or all) users whose primary org is one of $orgIds.
+ * Used for project Members “add user” within a single organization.
+ *
+ * @param list<int> $orgIds
+ * @return list<array<string,mixed>>
+ */
+function listUsersInOrganizations(array $orgIds, bool $includeDisabled = false): array {
+    $orgIds = array_values(array_unique(array_filter(array_map('intval', $orgIds), static fn (int $id): bool => $id > 0)));
+    if ($orgIds === []) {
+        return [];
+    }
+    $activeClause = $includeDisabled ? '' : 'AND u.is_active = 1';
+    $ph = [];
+    $params = [];
+    foreach ($orgIds as $i => $oid) {
+        $key = ':org' . $i;
+        $ph[] = $key;
+        $params[$key] = [$oid, SQLITE3_INTEGER];
+    }
+    $db = getDbConnection();
+    $inSql = implode(',', $ph);
+    $stmt = $db->prepare("
+        SELECT DISTINCT u.id, u.username, u.role, u.is_active, u.must_change_password, u.mfa_enabled, u.org_id, u.person_kind, u.limited_project_access, u.created_at,
+               o.name AS org_name
+        FROM users u
+        LEFT JOIN organizations o ON o.id = u.org_id
+        LEFT JOIN user_organization_memberships um ON um.user_id = u.id
+        WHERE (u.org_id IN ({$inSql}) OR um.org_id IN ({$inSql})) {$activeClause}
+        ORDER BY u.username ASC
+    ");
+    foreach ($params as $k => $pair) {
+        $stmt->bindValue($k, $pair[0], $pair[1]);
+    }
+    $res = $stmt->execute();
+    $users = [];
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $users[] = hydrateListedUserRow($row);
+    }
+    return $users;
+}
+
+/**
+ * Users safe to show in assignee / filter / mention / omnibox People pickers.
+ * Unrestricted staff: users in orgs from listOrganizationIdsForUserAccess (admins:
+ * every org; also include org-less users). Members/clients: self, co-members of
+ * accessible boards, and same-org peers when an all_access board is visible.
  *
  * @return list<array<string,mixed>>
  */
 function listUsersVisibleForViewer(array $viewerRow, bool $includeDisabled = false): array {
-    if (userHasUnrestrictedOrgDirectoryAccess($viewerRow)) {
-        return listUsers($includeDisabled);
-    }
     $viewerId = (int)($viewerRow['id'] ?? 0);
     if ($viewerId <= 0) {
         return [];
     }
+    $activeClause = $includeDisabled ? '' : 'AND u.is_active = 1';
+    $db = getDbConnection();
+
+    if (userHasUnrestrictedOrgDirectoryAccess($viewerRow)) {
+        $orgIds = listOrganizationIdsForUserAccess($viewerRow);
+        if ($orgIds === []) {
+            $self = getUserById($viewerId, false);
+            return $self ? [$self] : [];
+        }
+        $ph = [];
+        $params = [];
+        foreach ($orgIds as $i => $oid) {
+            $key = ':vorg' . $i;
+            $ph[] = $key;
+            $params[$key] = [(int)$oid, SQLITE3_INTEGER];
+        }
+        $isAdmin = strtolower(trim((string)($viewerRow['role'] ?? ''))) === 'admin';
+        $nullOrgClause = $isAdmin ? ' OR u.org_id IS NULL' : '';
+        $stmt = $db->prepare("
+            SELECT u.id, u.username, u.role, u.is_active, u.must_change_password, u.mfa_enabled, u.org_id, u.person_kind, u.limited_project_access, u.created_at,
+                   o.name AS org_name
+            FROM users u
+            LEFT JOIN organizations o ON o.id = u.org_id
+            WHERE (u.org_id IN (" . implode(',', $ph) . "){$nullOrgClause}) {$activeClause}
+            ORDER BY u.username ASC
+        ");
+        foreach ($params as $k => $pair) {
+            $stmt->bindValue($k, $pair[0], $pair[1]);
+        }
+        $res = $stmt->execute();
+        $users = [];
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            $users[] = hydrateListedUserRow($row);
+        }
+        return $users;
+    }
+
     $projectIds = getAccessibleDirectoryProjectIdsForUser($viewerRow);
     $allAccessOrgIds = [];
     if ($projectIds !== []) {
-        $db = getDbConnection();
         $ph = [];
         foreach ($projectIds as $i => $pid) {
             $ph[] = ':ap' . $i;
@@ -646,8 +743,6 @@ function listUsersVisibleForViewer(array $viewerRow, bool $includeDisabled = fal
         }
     }
 
-    $activeClause = $includeDisabled ? '' : 'AND u.is_active = 1';
-    $db = getDbConnection();
     $sql = "
         SELECT u.id, u.username, u.role, u.is_active, u.must_change_password, u.mfa_enabled, u.org_id, u.person_kind, u.limited_project_access, u.created_at,
                o.name AS org_name
@@ -686,18 +781,60 @@ function listUsersVisibleForViewer(array $viewerRow, bool $includeDisabled = fal
     $res = $stmt->execute();
     $users = [];
     while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
-        $row['is_active'] = (int)$row['is_active'];
-        $row['must_change_password'] = (int)$row['must_change_password'];
-        $row['mfa_enabled'] = (int)$row['mfa_enabled'];
-        if (isset($row['org_id']) && $row['org_id'] !== null) {
-            $row['org_id'] = (int)$row['org_id'];
-        }
-        $row['role'] = normalizeRole((string)($row['role'] ?? 'member')) ?? 'member';
-        $row['person_kind'] = normalizePersonKind($row['person_kind'] ?? 'team_member');
-        $row['limited_project_access'] = (int)($row['limited_project_access'] ?? 0);
-        $users[] = $row;
+        $users[] = hydrateListedUserRow($row);
     }
     return $users;
+}
+
+/**
+ * Username search over listUsersVisibleForViewer (mentions + omnibox People).
+ *
+ * @return array{users:list<array<string,mixed>>,total:int,q:string}
+ */
+function searchUsersVisibleForViewer(array $viewerRow, string $q, int $limit = 8, int $offset = 0): array {
+    $q = trim($q);
+    $limit = max(1, min(25, $limit));
+    $offset = max(0, $offset);
+    if ($q === '') {
+        return ['users' => [], 'total' => 0, 'q' => ''];
+    }
+    if (strlen($q) > 64) {
+        $q = substr($q, 0, 64);
+    }
+    // Mentions historically rejected free-form LIKE metachar junk; substring match
+    // here is PHP-side so wildcards are literal. Keep printable-ish usernames only.
+    if (!preg_match('/^[A-Za-z0-9_.\- ]+$/', $q)) {
+        return ['users' => [], 'total' => 0, 'q' => $q];
+    }
+    $qLower = strtolower(trim($q));
+    if ($qLower === '') {
+        return ['users' => [], 'total' => 0, 'q' => $q];
+    }
+    $matched = [];
+    foreach (listUsersVisibleForViewer($viewerRow, false) as $u) {
+        $name = (string)($u['username'] ?? '');
+        if ($name === '' || !str_contains(strtolower($name), $qLower)) {
+            continue;
+        }
+        $matched[] = $u;
+    }
+    usort($matched, static function (array $a, array $b) use ($qLower): int {
+        $na = strtolower((string)$a['username']);
+        $nb = strtolower((string)$b['username']);
+        $ra = ($na === $qLower) ? 0 : (str_starts_with($na, $qLower) ? 1 : 2);
+        $rb = ($nb === $qLower) ? 0 : (str_starts_with($nb, $qLower) ? 1 : 2);
+        if ($ra !== $rb) {
+            return $ra <=> $rb;
+        }
+        $len = strlen($na) <=> strlen($nb);
+        return $len !== 0 ? $len : strcmp($na, $nb);
+    });
+    $total = count($matched);
+    return [
+        'users' => array_slice($matched, $offset, $limit),
+        'total' => $total,
+        'q' => $q,
+    ];
 }
 
 function createUser(string $username, string $password, string $role = 'member', bool $mustChangePassword = true, ?int $orgId = null, string $personKind = 'team_member', bool $limitedProjectAccess = false): array {
@@ -1935,20 +2072,50 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
     if ($scopeUser === null && $apiUser !== null) {
         $scopeUser = $apiUser;
     }
-    if ($scopeUser !== null && !userHasUnrestrictedOrgDirectoryAccess($scopeUser)) {
+    // Directory scope matches docs/boards: members by accessible projects; unrestricted
+    // staff by organizations from listOrganizationIdsForUserAccess (not a global dump).
+    if ($scopeUser !== null) {
         $rUid = (int)$scopeUser['id'];
-        $accessible = getAccessibleDirectoryProjectIdsForUser($scopeUser);
         $params[':dir_scope_uid'] = [$rUid, SQLITE3_INTEGER];
-        if ($accessible === []) {
-            $where[] = '(t.project_id IS NULL AND (t.created_by_user_id = :dir_scope_uid OR t.assigned_to_user_id = :dir_scope_uid))';
-        } else {
-            $ph = [];
-            foreach ($accessible as $i => $apid) {
-                $key = ':dir_scope_proj_' . $i;
-                $ph[] = $key;
-                $params[$key] = [(int)$apid, SQLITE3_INTEGER];
+        if (!userHasUnrestrictedOrgDirectoryAccess($scopeUser)) {
+            $accessible = getAccessibleDirectoryProjectIdsForUser($scopeUser);
+            if ($accessible === []) {
+                $where[] = '(t.project_id IS NULL AND (t.created_by_user_id = :dir_scope_uid OR t.assigned_to_user_id = :dir_scope_uid))';
+            } else {
+                $ph = [];
+                foreach ($accessible as $i => $apid) {
+                    $key = ':dir_scope_proj_' . $i;
+                    $ph[] = $key;
+                    $params[$key] = [(int)$apid, SQLITE3_INTEGER];
+                }
+                $where[] = '((t.project_id IS NULL AND (t.created_by_user_id = :dir_scope_uid OR t.assigned_to_user_id = :dir_scope_uid)) OR (t.project_id IS NOT NULL AND t.project_id IN (' . implode(',', $ph) . ')))';
             }
-            $where[] = '((t.project_id IS NULL AND (t.created_by_user_id = :dir_scope_uid OR t.assigned_to_user_id = :dir_scope_uid)) OR (t.project_id IS NOT NULL AND t.project_id IN (' . implode(',', $ph) . ')))';
+        } else {
+            $orgIds = listOrganizationIdsForUserAccess($scopeUser);
+            $isAdmin = strtolower(trim((string)($scopeUser['role'] ?? ''))) === 'admin';
+            if ($orgIds === []) {
+                $where[] = '(t.project_id IS NULL AND (t.created_by_user_id = :dir_scope_uid OR t.assigned_to_user_id = :dir_scope_uid))';
+            } else {
+                $ph = [];
+                foreach ($orgIds as $i => $oid) {
+                    $key = ':dir_scope_org_' . $i;
+                    $ph[] = $key;
+                    $params[$key] = [(int)$oid, SQLITE3_INTEGER];
+                }
+                $orgIn = implode(',', $ph);
+                if ($isAdmin) {
+                    // Admins: every task on boards in accessible orgs, plus orphan (null project) tasks.
+                    $where[] = '(t.project_id IS NULL OR EXISTS (
+                        SELECT 1 FROM projects p_scope
+                        WHERE p_scope.id = t.project_id AND p_scope.org_id IN (' . $orgIn . ')
+                    ))';
+                } else {
+                    $where[] = '((t.project_id IS NULL AND (t.created_by_user_id = :dir_scope_uid OR t.assigned_to_user_id = :dir_scope_uid)) OR EXISTS (
+                        SELECT 1 FROM projects p_scope
+                        WHERE p_scope.id = t.project_id AND p_scope.org_id IN (' . $orgIn . ')
+                    ))';
+                }
+            }
         }
     }
 
@@ -4997,37 +5164,25 @@ function searchOmniboxForUser(array $userRow, string $q, int $limitPerEntity = 5
         ];
     }
 
-    // People hits link to /admin/users.php (requireAdmin). Only admin/manager may search users.
+    // People hits link to /admin/users.php (requireAdmin). Admin/manager only; results are
+    // org-scoped via listUsersVisibleForViewer (same directory model as docs/boards).
     $userItems = [];
     $userTotal = 0;
     if (isAdminRole((string)($userRow['role'] ?? ''))) {
-        $db = getDbConnection();
-        $like = '%' . escapeSqlLikePattern($q) . '%';
-        $countStmt = $db->prepare("
-            SELECT COUNT(*) AS c FROM users
-            WHERE is_active = 1 AND username LIKE :pat ESCAPE '\\'
-        ");
-        $countStmt->bindValue(':pat', $like, SQLITE3_TEXT);
-        $userTotal = (int)(($countStmt->execute()->fetchArray(SQLITE3_ASSOC)['c'] ?? 0));
-        $uStmt = $db->prepare("
-            SELECT id, username, role, person_kind, org_id
-            FROM users
-            WHERE is_active = 1 AND username LIKE :pat ESCAPE '\\'
-            ORDER BY length(username) ASC, username ASC
-            LIMIT :lim OFFSET :off
-        ");
-        $uStmt->bindValue(':pat', $like, SQLITE3_TEXT);
-        $uStmt->bindValue(':lim', $limitPerEntity, SQLITE3_INTEGER);
-        $uStmt->bindValue(':off', $userOff, SQLITE3_INTEGER);
-        $uRes = $uStmt->execute();
-        while ($row = $uRes->fetchArray(SQLITE3_ASSOC)) {
-            $uid = (int)$row['id'];
+        $userSearch = searchUsersVisibleForViewer($userRow, $q, $limitPerEntity, $userOff);
+        $userTotal = (int)($userSearch['total'] ?? 0);
+        foreach ($userSearch['users'] as $row) {
+            $uid = (int)($row['id'] ?? 0);
+            if ($uid <= 0) {
+                continue;
+            }
+            $uname = (string)($row['username'] ?? '');
             $userItems[] = [
                 'id' => $uid,
-                'title' => (string)$row['username'],
-                'name' => (string)$row['username'],
+                'title' => $uname,
+                'name' => $uname,
                 'entity' => 'user',
-                'url' => '/admin/users.php?q=' . rawurlencode((string)$row['username']),
+                'url' => '/admin/users.php?q=' . rawurlencode($uname),
                 'role' => normalizeRole((string)($row['role'] ?? 'member')) ?? 'member',
                 'person_kind' => normalizePersonKind($row['person_kind'] ?? 'team_member'),
             ];

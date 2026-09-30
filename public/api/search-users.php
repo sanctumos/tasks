@@ -2,9 +2,8 @@
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/api_auth.php';
 
-// Mention autocomplete: returns active users whose username matches the
-// supplied query. Accepts session OR API-key auth so admin pages can call
-// it directly without exposing a key in the browser.
+// Mention autocomplete: returns users the caller may see (same directory ACL as
+// assignee pickers / omnibox People). Session OR API-key auth.
 
 $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 if ($method !== 'GET') {
@@ -18,6 +17,20 @@ if (isLoggedIn()) {
     $apiKey = getApiKeyFromRequest();
     if ($apiKey) {
         $user = validateApiKeyAndGetUser($apiKey);
+        if ($user) {
+            $rateState = checkApiRateLimit($apiKey);
+            setRateLimitHeaders($rateState);
+            if (empty($rateState['allowed'])) {
+                header('Retry-After: ' . (int)($rateState['retry_after'] ?? 1));
+                apiError(
+                    'rate_limited',
+                    'Rate limit exceeded. Slow down and retry later.',
+                    429,
+                    ['retry_after' => (int)($rateState['retry_after'] ?? 1)],
+                    ['rate_limit' => $rateState]
+                );
+            }
+        }
     }
 }
 if (!$user) {
@@ -28,41 +41,9 @@ $q = trim((string)($_GET['q'] ?? ''));
 $limitRaw = isset($_GET['limit']) ? (int)$_GET['limit'] : 8;
 $limit = max(1, min(25, $limitRaw));
 
-if ($q === '') {
-    apiSuccess(['users' => [], 'count' => 0, 'q' => '']);
-}
-if (strlen($q) > 64) {
-    $q = substr($q, 0, 64);
-}
-
-// Username pattern: alnum, underscore, dot, hyphen. Keep this strict so we
-// don't run wildcard SQL on free-form input that contains LIKE metachars.
-if (!preg_match('/^[A-Za-z0-9_.\-]+$/', $q)) {
-    apiSuccess(['users' => [], 'count' => 0, 'q' => $q]);
-}
-
-$db = getDbConnection();
-$stmt = $db->prepare("
-    SELECT id, username, role, person_kind, org_id
-    FROM users
-    WHERE is_active = 1
-      AND username LIKE :pat
-    ORDER BY
-      CASE WHEN username = :exact THEN 0
-           WHEN username LIKE :prefix THEN 1
-           ELSE 2 END,
-      length(username) ASC,
-      username ASC
-    LIMIT :lim
-");
-$stmt->bindValue(':pat', '%' . $q . '%', SQLITE3_TEXT);
-$stmt->bindValue(':prefix', $q . '%', SQLITE3_TEXT);
-$stmt->bindValue(':exact', $q, SQLITE3_TEXT);
-$stmt->bindValue(':lim', $limit, SQLITE3_INTEGER);
-$res = $stmt->execute();
-
+$found = searchUsersVisibleForViewer($user, $q, $limit, 0);
 $users = [];
-while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+foreach ($found['users'] as $row) {
     $users[] = [
         'id' => (int)$row['id'],
         'username' => (string)$row['username'],
@@ -75,5 +56,5 @@ while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
 apiSuccess([
     'users' => $users,
     'count' => count($users),
-    'q' => $q,
+    'q' => $found['q'],
 ]);
