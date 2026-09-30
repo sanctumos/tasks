@@ -238,9 +238,18 @@ $projectDocCurrentDir = '';
 $projectDocs = [];
 $projectDocsDirChildren = [];
 $projectDocsInDir = [];
+$projectDocsQ = '';
+$projectDocsIsSearch = false;
 if ($tab === 'docs') {
     $projectDocCurrentDir = normalizeDocumentDirectoryPath((string)($_GET['dir'] ?? ''));
-    $projectDocs = listDocumentsForUser($currentUser, 500, $id);
+    $projectDocsQ = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
+    $projectDocsIsSearch = $projectDocsQ !== '';
+    $projectDocs = listDocumentsForUser(
+        $currentUser,
+        500,
+        $id,
+        $projectDocsIsSearch ? $projectDocsQ : null
+    );
     $aggProjectDocs = aggregateDocumentsForDirectoryView($projectDocs, $projectDocCurrentDir);
     $projectDocsDirChildren = $aggProjectDocs['dir_children'];
     $projectDocsInDir = $aggProjectDocs['documents_in_dir'];
@@ -911,13 +920,16 @@ require __DIR__ . '/_layout_top.php';
 
 <?php elseif ($tab === 'docs'): ?>
     <?php
-    $buildProjectDocsUrl = static function (int $projectId, string $dirPath = ''): string {
+    $buildProjectDocsUrl = static function (int $projectId, string $dirPath = '', string $q = ''): string {
         $dirPath = normalizeDocumentDirectoryPath($dirPath);
-        $q = ['id' => $projectId, 'tab' => 'docs'];
+        $params = ['id' => $projectId, 'tab' => 'docs'];
         if ($dirPath !== '') {
-            $q['dir'] = $dirPath;
+            $params['dir'] = $dirPath;
         }
-        return '/admin/project.php?' . http_build_query($q);
+        if (trim($q) !== '') {
+            $params['q'] = trim($q);
+        }
+        return '/admin/project.php?' . http_build_query($params);
     };
     ?>
 
@@ -925,13 +937,61 @@ require __DIR__ . '/_layout_top.php';
         <div class="section-title-row align-items-start flex-wrap gap-2">
             <div class="section-title"><i class="bi bi-journals"></i> Documents <span class="count"><?= (int)$projectDocsCount ?></span></div>
             <div class="d-flex align-items-center flex-wrap gap-2 ms-auto">
-                <a class="btn btn-outline-secondary btn-sm" href="/admin/docs.php?project_id=<?= (int)$id ?><?= $projectDocCurrentDir !== '' ? '&dir=' . rawurlencode($projectDocCurrentDir) : '' ?>">
+                <a class="btn btn-outline-secondary btn-sm" href="/admin/docs.php?project_id=<?= (int)$id ?><?= $projectDocCurrentDir !== '' ? '&dir=' . rawurlencode($projectDocCurrentDir) : '' ?><?= $projectDocsIsSearch ? '&q=' . rawurlencode($projectDocsQ) : '' ?>">
                     <i class="bi bi-box-arrow-up-right me-1"></i>Docs workspace
                 </a>
                 <a class="btn btn-primary btn-sm" href="/admin/doc-create.php?project_id=<?= (int)$id ?>"><i class="bi bi-plus-lg me-1"></i>New doc</a>
             </div>
         </div>
-        <?php if ($projectDocsCount === 0 && $projectDocCurrentDir === ''): ?>
+
+        <form class="filter-bar mt-3" method="get" action="/admin/project.php">
+            <input type="hidden" name="id" value="<?= (int)$id ?>">
+            <input type="hidden" name="tab" value="docs">
+            <div class="filter-bar__field" style="min-width: 14rem; flex: 1 1 14rem;">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted" aria-hidden="true"></i></span>
+                    <input class="form-control border-start-0" type="search" name="q"
+                           value="<?= htmlspecialchars($projectDocsQ, ENT_QUOTES, 'UTF-8') ?>"
+                           placeholder="Search documents in this project…" aria-label="Search project documents">
+                </div>
+            </div>
+            <div class="filter-bar__actions">
+                <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-funnel-fill me-1"></i>Search</button>
+                <?php if ($projectDocsIsSearch || $projectDocCurrentDir !== ''): ?>
+                    <a class="btn btn-outline-secondary btn-sm" href="<?= htmlspecialchars($buildProjectDocsUrl($id), ENT_QUOTES, 'UTF-8') ?>"><i class="bi bi-x-lg me-1"></i>Clear</a>
+                <?php endif; ?>
+            </div>
+        </form>
+
+        <?php if ($projectDocsIsSearch): ?>
+            <?php if (empty($projectDocs)): ?>
+                <div class="text-center st-docs-search-empty mt-3">
+                    <p class="mb-2">No documents match “<?= htmlspecialchars($projectDocsQ, ENT_QUOTES, 'UTF-8') ?>”.</p>
+                    <a class="btn btn-outline-secondary btn-sm" href="<?= htmlspecialchars($buildProjectDocsUrl($id), ENT_QUOTES, 'UTF-8') ?>">Clear search</a>
+                </div>
+            <?php else: ?>
+                <div class="mt-3">
+                    <?php foreach ($projectDocs as $d):
+                        $snip = documentSearchSnippet($d['body'] ?? null, $projectDocsQ);
+                        $dirLabel = normalizeDocumentDirectoryPath((string)($d['directory_path'] ?? '')) ?: '/';
+                        ?>
+                        <a class="st-docresult" href="/admin/doc.php?id=<?= (int)$d['id'] ?>">
+                            <i class="bi bi-file-text st-docresult__icon" aria-hidden="true"></i>
+                            <div class="min-w-0">
+                                <div class="st-docresult__title"><?= highlightSearchMatch((string)$d['title'], $projectDocsQ) ?></div>
+                                <?php if ($snip !== ''): ?>
+                                    <div class="st-docresult__snip"><?= $snip ?></div>
+                                <?php endif; ?>
+                                <div class="fine-print text-muted mt-1">
+                                    <?= htmlspecialchars($dirLabel, ENT_QUOTES, 'UTF-8') ?>
+                                    · updated <?= htmlspecialchars(st_absolute_time($d['updated_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>
+                                </div>
+                            </div>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        <?php elseif ($projectDocsCount === 0 && $projectDocCurrentDir === ''): ?>
             <p class="text-muted small mb-0">No docs in this project yet. Use Docs for long-form reference material — specs, runbooks, decision records, onboarding notes — with their own discussion thread.</p>
         <?php else: ?>
             <?php if ($projectDocsCount > 500): ?>

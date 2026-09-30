@@ -1329,3 +1329,39 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
     margin-bottom: 0.45rem;
 }
 .st-search-row:hover { border-color: var(--st-accent); background: var(--st-accent-soft); }
+
+/* ---------- Docs search results (S1.5) ---------- */
+.st-docresult {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.75rem 0.25rem;
+    border-bottom: 1px solid var(--st-border-subtle);
+    text-decoration: none;
+    color: inherit;
+}
+.st-docresult:last-child { border-bottom: 0; }
+.st-docresult:hover { background: var(--st-bg-soft); }
+.st-docresult__icon {
+    flex: 0 0 auto;
+    color: #b45309;
+    font-size: 1.15rem;
+    margin-top: 0.15rem;
+}
+.st-docresult__title {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+.st-docresult__snip {
+    font-size: 0.84rem;
+    color: var(--st-text-secondary);
+    margin-top: 0.2rem;
+    line-height: 1.4;
+}
+.st-docresult__title mark.st-hl,
+.st-docresult__snip mark.st-hl {
+    background: #fff3bf;
+    color: inherit;
+    padding: 0 1px;
+    border-radius: 2px;
+}

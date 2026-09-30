@@ -4252,7 +4252,7 @@ function emitTaskAttachmentHttpResponse(array $attachment, bool $publicShare = f
  * @param string|null $q Optional case-insensitive substring match on title OR body
  *                       (SQL LIKE with escaped wildcards). Empty/whitespace is ignored.
  */
-function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId = null, ?string $q = null, int $offset = 0): array {
+function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId = null, ?string $q = null, int $offset = 0, bool $includeBody = false): array {
     $limit = max(1, min(500, $limit));
     $offset = max(0, $offset);
     $uid = (int)$userRow['id'];
@@ -4289,10 +4289,12 @@ function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId 
     if ($qTrim !== '') {
         $qClause = " AND (d.title LIKE :q ESCAPE '\\' OR IFNULL(d.body, '') LIKE :q ESCAPE '\\')";
         $bind[':q'] = ['%' . escapeSqlLikePattern($qTrim) . '%', SQLITE3_TEXT];
+        $includeBody = true;
     }
+    $bodySelect = $includeBody ? 'd.body,' : '';
 
     $sql = "
-        SELECT d.id, d.project_id, d.title, d.directory_path, d.status, d.created_by_user_id,
+        SELECT d.id, d.project_id, d.title, {$bodySelect} d.directory_path, d.status, d.created_by_user_id,
                d.created_at, d.updated_at,
                d.public_link_enabled, d.public_link_token,
                cu.username AS created_by_username,
@@ -4598,6 +4600,49 @@ function addDocumentComment(int $documentId, int $userId, string $comment): arra
         notificationsAfterDocumentComment($docRow, $id, $userId, $comment);
     }
     return ['success' => true, 'id' => $id, 'created_at' => $createdAt];
+}
+
+/**
+ * Escape + wrap the first case-insensitive occurrence of $q in <mark class="st-hl">.
+ */
+function highlightSearchMatch(string $text, string $q): string
+{
+    $needle = trim($q);
+    if ($needle === '' || $text === '') {
+        return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    }
+    $pos = mb_stripos($text, $needle);
+    if ($pos === false) {
+        return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+    }
+    $len = mb_strlen($needle);
+    return htmlspecialchars(mb_substr($text, 0, $pos), ENT_QUOTES, 'UTF-8')
+        . '<mark class="st-hl">' . htmlspecialchars(mb_substr($text, $pos, $len), ENT_QUOTES, 'UTF-8') . '</mark>'
+        . htmlspecialchars(mb_substr($text, $pos + $len), ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * ~160-char body snippet centered on the first match of $q (HTML-safe, with highlight).
+ */
+function documentSearchSnippet(?string $body, string $q, int $maxLen = 160): string
+{
+    $plain = trim(preg_replace('/\s+/u', ' ', strip_tags((string)$body)) ?? '');
+    if ($plain === '') {
+        return '';
+    }
+    $needle = trim($q);
+    $pos = $needle !== '' ? mb_stripos($plain, $needle) : false;
+    if ($pos === false) {
+        $slice = mb_substr($plain, 0, $maxLen);
+        $suffix = mb_strlen($plain) > $maxLen ? '…' : '';
+        return htmlspecialchars($slice, ENT_QUOTES, 'UTF-8') . $suffix;
+    }
+    $half = (int)floor($maxLen / 2);
+    $start = max(0, $pos - $half);
+    $slice = mb_substr($plain, $start, $maxLen);
+    $prefix = $start > 0 ? '…' : '';
+    $suffix = ($start + $maxLen) < mb_strlen($plain) ? '…' : '';
+    return $prefix . highlightSearchMatch($slice, $needle) . $suffix;
 }
 
 /**

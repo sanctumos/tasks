@@ -2,8 +2,7 @@
 /**
  * Documents top-level page: lists all docs the viewer can access across
  * their accessible directory projects, sorted by most recent activity.
- * Optional ?project_id=N narrows the list. Doubles as the entry point
- * for creating a new doc.
+ * Optional ?project_id=N and ?q= narrow the list.
  */
 
 require_once __DIR__ . '/../includes/auth.php';
@@ -28,23 +27,34 @@ if ($projectFilter > 0) {
     }
 }
 
+$docsQ = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
+$isDocsSearch = $docsQ !== '';
+
 $accessibleProjects = listDirectoryProjectsForUser($currentUser, 500);
-$documents = listDocumentsForUser($currentUser, 500, $projectFilter ?: null);
+$documents = listDocumentsForUser(
+    $currentUser,
+    500,
+    $projectFilter ?: null,
+    $isDocsSearch ? $docsQ : null
+);
 $currentDir = normalizeDocumentDirectoryPath((string)($_GET['dir'] ?? ''));
 $aggDocs = aggregateDocumentsForDirectoryView($documents, $currentDir);
 $dirChildren = $aggDocs['dir_children'];
 $documentsInDir = $aggDocs['documents_in_dir'];
 
-$buildDocsUrl = static function (int $projectFilter, string $dirPath = ''): string {
-    $q = [];
+$buildDocsUrl = static function (int $projectFilter, string $dirPath = '', string $q = ''): string {
+    $params = [];
     if ($projectFilter > 0) {
-        $q['project_id'] = $projectFilter;
+        $params['project_id'] = $projectFilter;
     }
     $dirPath = normalizeDocumentDirectoryPath($dirPath);
     if ($dirPath !== '') {
-        $q['dir'] = $dirPath;
+        $params['dir'] = $dirPath;
     }
-    return '/admin/docs.php' . ($q ? ('?' . http_build_query($q)) : '');
+    if (trim($q) !== '') {
+        $params['q'] = trim($q);
+    }
+    return '/admin/docs.php' . ($params ? ('?' . http_build_query($params)) : '');
 };
 
 $flashSuccess = $_SESSION['admin_flash_success'] ?? null;
@@ -86,22 +96,61 @@ require __DIR__ . '/_layout_top.php';
 </div>
 
 <form class="filter-bar" method="get" action="/admin/docs.php">
+    <div class="filter-bar__field" style="min-width: 14rem; flex: 1 1 14rem;">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted" aria-hidden="true"></i></span>
+            <input class="form-control border-start-0" type="search" name="q"
+                   value="<?= htmlspecialchars($docsQ, ENT_QUOTES, 'UTF-8') ?>"
+                   placeholder="Search documents…" aria-label="Search documents">
+        </div>
+    </div>
     <div class="filter-bar__field">
-        <select class="form-select" name="project_id" onchange="this.form.submit()">
+        <select class="form-select" name="project_id">
             <option value="">All projects</option>
             <?php foreach ($accessibleProjects as $p): ?>
                 <option value="<?= (int)$p['id'] ?>" <?= $projectFilter === (int)$p['id'] ? 'selected' : '' ?>><?= htmlspecialchars((string)$p['name']) ?></option>
             <?php endforeach; ?>
         </select>
     </div>
-    <?php if ($projectFilter > 0 || $currentDir !== ''): ?>
-        <div class="filter-bar__actions">
-            <a class="btn btn-outline-secondary btn-sm" href="/admin/docs.php"><i class="bi bi-x-lg me-1"></i>Clear filters</a>
-        </div>
-    <?php endif; ?>
+    <div class="filter-bar__actions">
+        <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-funnel-fill me-1"></i>Search</button>
+        <?php if ($projectFilter > 0 || $currentDir !== '' || $isDocsSearch): ?>
+            <a class="btn btn-outline-secondary btn-sm" href="/admin/docs.php"><i class="bi bi-x-lg me-1"></i>Clear</a>
+        <?php endif; ?>
+    </div>
 </form>
 
-<?php if (empty($documents) && $currentDir === ''): ?>
+<?php if ($isDocsSearch): ?>
+    <?php if (empty($documents)): ?>
+        <div class="surface surface-pad text-center st-docs-search-empty">
+            <p class="mb-2">No documents match “<?= htmlspecialchars($docsQ, ENT_QUOTES, 'UTF-8') ?>”.</p>
+            <a class="btn btn-outline-secondary btn-sm" href="<?= htmlspecialchars($buildDocsUrl($projectFilter), ENT_QUOTES, 'UTF-8') ?>">Clear search</a>
+        </div>
+    <?php else: ?>
+        <div class="surface surface-pad">
+            <div class="text-muted small mb-3"><?= count($documents) ?> document<?= count($documents) === 1 ? '' : 's' ?> matching “<?= htmlspecialchars($docsQ, ENT_QUOTES, 'UTF-8') ?>”</div>
+            <?php foreach ($documents as $d):
+                $snip = documentSearchSnippet($d['body'] ?? null, $docsQ);
+                $dirLabel = normalizeDocumentDirectoryPath((string)($d['directory_path'] ?? '')) ?: '/';
+                ?>
+                <a class="st-docresult" href="/admin/doc.php?id=<?= (int)$d['id'] ?>">
+                    <i class="bi bi-file-text st-docresult__icon" aria-hidden="true"></i>
+                    <div class="min-w-0">
+                        <div class="st-docresult__title"><?= highlightSearchMatch((string)$d['title'], $docsQ) ?></div>
+                        <?php if ($snip !== ''): ?>
+                            <div class="st-docresult__snip"><?= $snip ?></div>
+                        <?php endif; ?>
+                        <div class="fine-print text-muted mt-1">
+                            <?= htmlspecialchars((string)$d['project_name'], ENT_QUOTES, 'UTF-8') ?>
+                            · <?= htmlspecialchars($dirLabel, ENT_QUOTES, 'UTF-8') ?>
+                            · updated <?= htmlspecialchars(st_absolute_time($d['updated_at'] ?? null), ENT_QUOTES, 'UTF-8') ?>
+                        </div>
+                    </div>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+<?php elseif (empty($documents) && $currentDir === ''): ?>
     <div class="surface surface-pad text-center">
         <div class="mb-3" style="font-size: 2rem; color: var(--st-text-muted);"><i class="bi bi-journal-text"></i></div>
         <h2 class="h5 mb-1"><?= $selectedProject ? 'No docs in ' . htmlspecialchars($selectedProject['name']) . ' yet' : 'No docs yet' ?></h2>
