@@ -219,19 +219,30 @@ require __DIR__ . '/_layout_top.php';
         </div>
 
         <div class="surface surface-pad mb-3" id="discussion">
-            <div class="section-title-row">
+            <div class="section-title-row flex-wrap gap-2">
                 <div class="section-title d-flex align-items-center gap-2 flex-wrap">
                     <i class="bi bi-chat-left-text"></i> Discussion
                     <span class="count"><?= (int)$commentCount ?></span>
                     <?= st_doc_help('mentions-markdown', 'Comments @mentions and markdown') ?>
                 </div>
-                <a href="#discussion-composer" class="btn btn-sm btn-link"><i class="bi bi-plus-lg"></i> New comment</a>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <?php if ($commentCount > 0): ?>
+                        <div class="st-findbar" role="search" aria-label="Find in thread">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input type="search" id="st-find-thread-q" class="form-control form-control-sm border-0 bg-transparent" placeholder="Find in thread" autocomplete="off" aria-label="Find in thread">
+                            <span class="st-findbar__count text-muted" id="st-find-thread-count" aria-live="polite"></span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="st-find-thread-prev" title="Previous match" aria-label="Previous match"><i class="bi bi-chevron-up"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary py-0" id="st-find-thread-next" title="Next match" aria-label="Next match"><i class="bi bi-chevron-down"></i></button>
+                        </div>
+                    <?php endif; ?>
+                    <a href="#discussion-composer" class="btn btn-sm btn-link"><i class="bi bi-plus-lg"></i> New comment</a>
+                </div>
             </div>
 
             <?php if ($commentCount === 0): ?>
                 <div class="empty-hint">No comments yet. Start the conversation below.</div>
             <?php else: ?>
-                <ol class="comment-thread">
+                <ol class="comment-thread" id="st-comment-thread">
                     <?php foreach ($comments as $c):
                         $username = (string)($c['username'] ?? '—');
                         $body = (string)($c['comment'] ?? '');
@@ -283,12 +294,21 @@ require __DIR__ . '/_layout_top.php';
             }
         ?>
         <div class="surface surface-pad mb-3" id="attachments">
-            <div class="section-title-row section-title-row--with-help">
+            <div class="section-title-row section-title-row--with-help flex-wrap gap-2">
                 <div class="section-title">
                     <i class="bi bi-paperclip"></i> Files &amp; attachments
                     <span class="count"><?= (int)$attachmentCount ?></span>
                 </div>
-                <?= st_doc_help('images-attachments', 'Upload images, PDFs, and other files') ?>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <?php if ($attachmentCount > 0): ?>
+                        <div class="st-findbar" role="search" aria-label="Filter attachments">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input type="search" id="st-find-attach-q" class="form-control form-control-sm border-0 bg-transparent" placeholder="Filter files…" autocomplete="off" aria-label="Filter attachments by file name">
+                            <span class="st-findbar__count text-muted" id="st-find-attach-count" aria-live="polite"></span>
+                        </div>
+                    <?php endif; ?>
+                    <?= st_doc_help('images-attachments', 'Upload images, PDFs, and other files') ?>
+                </div>
             </div>
             <div
                 class="js-task-image-upload st-image-upload mb-3"
@@ -306,7 +326,7 @@ require __DIR__ . '/_layout_top.php';
                 <div class="js-task-image-status st-image-upload__status d-none" aria-live="polite"></div>
             </div>
             <?php if ($attachmentCount > 0): ?>
-                <ul class="attachment-list">
+                <ul class="attachment-list" id="st-attachment-list">
                     <?php foreach ($attachments as $a):
                         $url = (string)$a['file_url'];
                         $name = (string)$a['file_name'];
@@ -314,7 +334,7 @@ require __DIR__ . '/_layout_top.php';
                         $isImg = ($mime !== '' && str_starts_with($mime, 'image/'));
                         $mdSnippet = taskAttachmentMarkdownSnippet($name, $url, $mime !== '' ? $mime : null);
                     ?>
-                        <li class="attachment-list__row">
+                        <li class="attachment-list__row" data-st-filter-item data-st-filter-text="<?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?>">
                             <?php if ($isImg): ?>
                                 <a class="attachment-list__thumb" href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener">
                                     <img src="<?= htmlspecialchars($url) ?>" alt="" width="56" height="56" loading="lazy">
@@ -323,7 +343,7 @@ require __DIR__ . '/_layout_top.php';
                                 <span class="attachment-list__thumb attachment-list__thumb--file"><i class="bi bi-file-earmark fs-4 text-muted"></i></span>
                             <?php endif; ?>
                             <div class="attachment-list__main">
-                                <div class="attachment-list__title">
+                                <div class="attachment-list__title" data-st-filter-title>
                                     <a href="<?= htmlspecialchars($url) ?>" target="_blank" rel="noopener"><?= htmlspecialchars($name) ?></a>
                                 </div>
                                 <div class="attachment-list__meta text-muted small">
@@ -584,3 +604,32 @@ require __DIR__ . '/_layout_top.php';
 </div>
 
 <?php require __DIR__ . '/_layout_bottom.php'; ?>
+<script>
+(function () {
+    if (!window.stFilter) return;
+    var thread = document.getElementById('st-comment-thread');
+    var findQ = document.getElementById('st-find-thread-q');
+    if (thread && findQ && typeof stFilter.attachFind === 'function') {
+        stFilter.attachFind({
+            input: findQ,
+            root: thread,
+            contentSelector: '.comment-body',
+            scopeSelector: '.comment-item',
+            counterEl: document.getElementById('st-find-thread-count'),
+            prevBtn: document.getElementById('st-find-thread-prev'),
+            nextBtn: document.getElementById('st-find-thread-next'),
+            activeClass: 'st-comment-hl'
+        });
+    }
+    var attachItems = document.querySelectorAll('#st-attachment-list [data-st-filter-item]');
+    var attachQ = document.getElementById('st-find-attach-q');
+    if (attachItems.length && attachQ) {
+        stFilter.attach({
+            input: attachQ,
+            items: attachItems,
+            countEl: document.getElementById('st-find-attach-count'),
+            urlParam: ''
+        });
+    }
+})();
+</script>

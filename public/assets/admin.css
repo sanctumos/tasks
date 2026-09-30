@@ -1391,3 +1391,42 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
   border-color: #2c5cff;
   color: #fff;
 }
+
+/* Find in thread (S4 / R5) */
+.st-findbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #fffbe8;
+  border: 1px solid #f0e0a8;
+  border-radius: 8px;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.82rem;
+  max-width: 100%;
+}
+.st-findbar .form-control {
+  width: 9.5rem;
+  min-width: 0;
+  box-shadow: none !important;
+}
+.st-findbar__count {
+  font-variant-numeric: tabular-nums;
+  min-width: 2.25rem;
+  text-align: center;
+  white-space: nowrap;
+}
+.st-comment-hl {
+  outline: 2px solid #f0c040;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+mark.st-hl {
+  background: #fff3bf;
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+mark.st-hl--active {
+  background: #fbbf24;
+  outline: 1px solid #d97706;
+}
