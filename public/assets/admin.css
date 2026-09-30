@@ -1171,19 +1171,26 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
 .markdown-body .footnotes li p { margin-bottom: 0.25rem; }
 .markdown-body .footnotes .footnote-backref { text-decoration: none; margin-left: 0.15rem; }
 
-/* ---------- Global omnibox (Search S1.3) ---------- */
-.admin-nav .st-omnibox {
+/* ---------- Global omnibox — bar below header (Search S1.3 / layout fix) ---------- */
+.st-searchbar {
+    background: #fff;
+    border-bottom: 1px solid var(--st-border-subtle, #e4e7ee);
+    padding: 0.55rem 0;
     position: relative;
-    max-width: 560px;
-    min-width: 0;
+    z-index: 1035;
+}
+.st-searchbar .st-omnibox {
+    position: relative;
+    max-width: 42rem;
     width: 100%;
+    margin: 0 auto;
     z-index: 1040;
 }
-.admin-nav .st-omnibox__input {
+.st-searchbar .st-omnibox__input {
     background: #fff;
     color: var(--st-text-primary);
 }
-.admin-nav .st-omnibox__kbd {
+.st-searchbar .st-omnibox__kbd {
     font-size: 0.68rem;
     font-weight: 600;
     color: var(--st-text-muted);
@@ -1193,7 +1200,7 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
     line-height: 1.4;
     background: var(--st-bg-soft);
 }
-.admin-nav .st-omnibox__drop {
+.st-searchbar .st-omnibox__drop {
     position: absolute;
     top: calc(100% + 0.35rem);
     left: 0;
@@ -1206,7 +1213,7 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
     box-shadow: var(--st-shadow-md);
     z-index: 1050;
 }
-.admin-nav .st-omnibox__group {
+.st-searchbar .st-omnibox__group {
     font-size: 0.68rem;
     font-weight: 700;
     letter-spacing: 0.04em;
@@ -1215,8 +1222,8 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
     padding: 0.55rem 0.85rem 0.25rem;
     border-top: 1px solid var(--st-border-subtle);
 }
-.admin-nav .st-omnibox__group:first-child { border-top: 0; }
-.admin-nav .st-omnibox__item {
+.st-searchbar .st-omnibox__group:first-child { border-top: 0; }
+.st-searchbar .st-omnibox__item {
     display: flex;
     align-items: flex-start;
     gap: 0.65rem;
@@ -1229,11 +1236,11 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
     text-align: left;
     cursor: pointer;
 }
-.admin-nav .st-omnibox__item:hover,
-.admin-nav .st-omnibox__item.is-active {
+.st-searchbar .st-omnibox__item:hover,
+.st-searchbar .st-omnibox__item.is-active {
     background: var(--st-accent-soft);
 }
-.admin-nav .st-omnibox__icon {
+.st-searchbar .st-omnibox__icon {
     flex: 0 0 auto;
     width: 1.7rem;
     height: 1.7rem;
@@ -1243,12 +1250,12 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
     justify-content: center;
     font-size: 0.9rem;
 }
-.admin-nav .st-omnibox__icon--task { background: #e9efff; color: #2c5cff; }
-.admin-nav .st-omnibox__icon--doc { background: #fef4d6; color: #b45309; }
-.admin-nav .st-omnibox__icon--user { background: #dcfce7; color: #15803d; }
-.admin-nav .st-omnibox__icon--project { background: #f3e8ff; color: #7e22ce; }
-.admin-nav .st-omnibox__text { min-width: 0; flex: 1; }
-.admin-nav .st-omnibox__title {
+.st-searchbar .st-omnibox__icon--task { background: #e9efff; color: #2c5cff; }
+.st-searchbar .st-omnibox__icon--doc { background: #fef4d6; color: #b45309; }
+.st-searchbar .st-omnibox__icon--user { background: #dcfce7; color: #15803d; }
+.st-searchbar .st-omnibox__icon--project { background: #f3e8ff; color: #7e22ce; }
+.st-searchbar .st-omnibox__text { min-width: 0; flex: 1; }
+.st-searchbar .st-omnibox__title {
     display: block;
     font-size: 0.86rem;
     font-weight: 600;
@@ -1256,7 +1263,7 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.admin-nav .st-omnibox__sub {
+.st-searchbar .st-omnibox__sub {
     display: block;
     font-size: 0.74rem;
     color: var(--st-text-muted);
@@ -1264,20 +1271,20 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.admin-nav .st-omnibox__title mark.st-hl,
+.st-searchbar .st-omnibox__title mark.st-hl,
 .st-search-results mark.st-hl {
     background: #fef08a;
     color: inherit;
     padding: 0 0.1em;
     border-radius: 2px;
 }
-.admin-nav .st-omnibox__empty {
+.st-searchbar .st-omnibox__empty {
     padding: 0.85rem;
     font-size: 0.86rem;
     color: var(--st-text-muted);
     text-align: center;
 }
-.admin-nav .st-omnibox__foot {
+.st-searchbar .st-omnibox__foot {
     display: flex;
     justify-content: space-between;
     gap: 0.75rem;
@@ -1289,14 +1296,10 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
     background: var(--st-bg-soft);
 }
 @media (max-width: 575.98px) {
-    .admin-nav .st-omnibox {
-        flex: 1 1 100%;
+    .st-searchbar .st-omnibox {
         max-width: none;
-        order: 3;
-        margin-left: 0 !important;
-        margin-right: 0 !important;
     }
-    .admin-nav .st-omnibox__drop {
+    .st-searchbar .st-omnibox__drop {
         position: fixed;
         left: 0.5rem;
         right: 0.5rem;
