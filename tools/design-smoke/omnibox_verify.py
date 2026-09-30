@@ -115,10 +115,14 @@ def seed_searchable(base: str, needle: str) -> int:
 def run_omnibox_flow(page, base: str, needle: str, task_id: int, shot_name: str) -> None:
     login_admin(page, base)
     page.goto(f"{base}/admin/", wait_until="networkidle")
-    page.wait_for_selector("#st-omnibox-input", timeout=15000)
+    # Toggle lives in the collapse menu on mobile — attached is enough here.
+    page.wait_for_selector("#st-omnibox-toggle", state="attached", timeout=15000)
+    # Collapsed by default
+    assert page.locator("#st-searchbar.is-open").count() == 0
 
-    # Esc closes: open dropdown first
+    # Esc closes: open bar + dropdown first (Ctrl+K works without opening hamburger)
     page.keyboard.press("Control+k")
+    page.wait_for_selector("#st-searchbar.is-open #st-omnibox-input", timeout=10000)
     page.locator("#st-omnibox-input").fill(needle)
     page.wait_for_selector("#st-omnibox-drop:not([hidden])", timeout=10000)
     page.wait_for_selector(".st-omnibox__group", timeout=10000)
@@ -130,9 +134,20 @@ def run_omnibox_flow(page, base: str, needle: str, task_id: int, shot_name: str)
         "() => document.getElementById('st-omnibox-drop')?.hasAttribute('hidden') === true",
         timeout=8000,
     )
+    # Second Esc collapses the search bar
+    page.locator("#st-omnibox-input").press("Escape")
+    page.wait_for_function(
+        "() => !document.getElementById('st-searchbar')?.classList.contains('is-open')",
+        timeout=8000,
+    )
 
-    # Re-open, confirm arrow moves active, Enter opens first task
-    page.keyboard.press("Control+k")
+    # Re-open via Search nav control (desktop) or hamburger + Search (mobile)
+    viewport = page.viewport_size or {"width": 1280}
+    if viewport.get("width", 1280) < 992:
+        page.locator(".navbar-toggler").click()
+        page.wait_for_selector("#st-omnibox-toggle", state="visible", timeout=10000)
+    page.locator("#st-omnibox-toggle").click()
+    page.wait_for_selector("#st-searchbar.is-open #st-omnibox-input", timeout=10000)
     page.locator("#st-omnibox-input").fill("")
     page.locator("#st-omnibox-input").fill(needle)
     page.wait_for_selector(".st-omnibox__item.is-active", timeout=10000)

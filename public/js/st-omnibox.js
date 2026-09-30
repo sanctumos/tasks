@@ -1,6 +1,7 @@
 /**
  * Global admin omnibox — live dropdown against GET /api/search.php.
  * Progressive enhancement: form GETs /admin/search.php when JS is off.
+ * Bar is collapsible (desktop) / popover (mobile); opened via Search nav or Ctrl/Cmd+K.
  */
 (function () {
     "use strict";
@@ -11,6 +12,10 @@
     }
     var input = document.getElementById("st-omnibox-input");
     var drop = document.getElementById("st-omnibox-drop");
+    var bar = document.getElementById("st-searchbar");
+    var toggleBtn = document.getElementById("st-omnibox-toggle");
+    var closeBtn = document.getElementById("st-omnibox-close");
+    var backdrop = document.getElementById("st-omnibox-backdrop");
     if (!input || !drop) {
         return;
     }
@@ -41,6 +46,64 @@
             return true;
         }
         return !!el.isContentEditable;
+    }
+
+    function isMobilePopover() {
+        return window.matchMedia("(max-width: 991.98px)").matches;
+    }
+
+    function isBarOpen() {
+        return !!(bar && bar.classList.contains("is-open") && !bar.hidden);
+    }
+
+    function collapseNavIfOpen() {
+        var nav = document.getElementById("adminNavbar");
+        if (!nav || !nav.classList.contains("show")) {
+            return;
+        }
+        var toggler = document.querySelector('.navbar-toggler[data-bs-target="#adminNavbar"]');
+        if (typeof bootstrap !== "undefined" && bootstrap.Collapse) {
+            bootstrap.Collapse.getOrCreateInstance(nav, { toggle: false }).hide();
+        } else if (toggler) {
+            toggler.click();
+        }
+    }
+
+    function openBar(opts) {
+        opts = opts || {};
+        if (bar) {
+            bar.hidden = false;
+            bar.classList.add("is-open");
+            if (isMobilePopover()) {
+                collapseNavIfOpen();
+                document.body.classList.add("st-searchbar-lock");
+            }
+        }
+        if (toggleBtn) {
+            toggleBtn.setAttribute("aria-expanded", "true");
+            toggleBtn.classList.add("is-active");
+        }
+        if (opts.focus !== false) {
+            window.setTimeout(function () {
+                input.focus();
+                if (opts.select !== false) {
+                    input.select();
+                }
+            }, 0);
+        }
+    }
+
+    function closeBar() {
+        closeDrop();
+        if (bar) {
+            bar.classList.remove("is-open");
+            bar.hidden = true;
+        }
+        document.body.classList.remove("st-searchbar-lock");
+        if (toggleBtn) {
+            toggleBtn.setAttribute("aria-expanded", "false");
+            toggleBtn.classList.remove("is-active");
+        }
     }
 
     function escapeHtml(s) {
@@ -125,6 +188,10 @@
     }
 
     function positionMobileDrop() {
+        if (isMobilePopover()) {
+            drop.style.top = "";
+            return;
+        }
         if (window.matchMedia("(max-width: 575.98px)").matches) {
             var rect = form.getBoundingClientRect();
             drop.style.top = Math.round(rect.bottom + 6) + "px";
@@ -285,8 +352,6 @@
     });
 
     form.addEventListener("submit", function (e) {
-        // With dropdown open and an active item, Enter opens that item.
-        // Otherwise fall through to the results page (native GET).
         if (!drop.hidden && activeIdx >= 0 && flatItems[activeIdx]) {
             e.preventDefault();
             window.location.href = flatItems[activeIdx].url;
@@ -296,8 +361,14 @@
     input.addEventListener("keydown", function (e) {
         if (e.key === "Escape") {
             e.preventDefault();
-            closeDrop();
-            input.blur();
+            if (!drop.hidden) {
+                closeDrop();
+                return;
+            }
+            closeBar();
+            if (toggleBtn) {
+                toggleBtn.focus();
+            }
             return;
         }
         if (drop.hidden) {
@@ -318,18 +389,64 @@
                 return;
             }
             e.preventDefault();
-            input.focus();
-            input.select();
+            openBar({ focus: true, select: true });
+        }
+        if (e.key === "Escape" && isBarOpen() && e.target !== input) {
+            closeBar();
         }
     });
 
     document.addEventListener("click", function (e) {
-        if (!form.contains(e.target) && !drop.contains(e.target)) {
+        if (!isBarOpen()) {
+            return;
+        }
+        if (form.contains(e.target) || drop.contains(e.target)) {
+            return;
+        }
+        if (toggleBtn && toggleBtn.contains(e.target)) {
+            return;
+        }
+        // Desktop: click outside closes dropdown only; mobile popover uses backdrop.
+        if (!isMobilePopover()) {
             closeDrop();
         }
     });
 
+    if (toggleBtn) {
+        toggleBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            if (isBarOpen()) {
+                closeBar();
+            } else {
+                openBar({ focus: true, select: true });
+            }
+        });
+    }
+    if (closeBtn) {
+        closeBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            closeBar();
+            if (toggleBtn) {
+                toggleBtn.focus();
+            }
+        });
+    }
+    if (backdrop) {
+        backdrop.addEventListener("click", function (e) {
+            e.preventDefault();
+            closeBar();
+        });
+    }
+
     window.addEventListener("resize", function () {
+        if (!isBarOpen()) {
+            return;
+        }
+        if (isMobilePopover()) {
+            document.body.classList.add("st-searchbar-lock");
+        } else {
+            document.body.classList.remove("st-searchbar-lock");
+        }
         if (!drop.hidden) {
             positionMobileDrop();
         }

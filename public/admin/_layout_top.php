@@ -17,7 +17,7 @@ $stSkinSlugs = skinLabAvailableSlugs();
     <title><?= htmlspecialchars($pageTitle) ?> · <?= htmlspecialchars($stAppName) ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <link href="/assets/admin.css?v=26" rel="stylesheet">
+    <link href="/assets/admin.css?v=27" rel="stylesheet">
     <?php if ($stShowSkinCompBar): ?>
         <?php /* Comp bar toggles data-skin-comp client-side — load every skin sheet so switches paint. */ ?>
         <?php foreach ($stSkinSlugs as $slug): ?>
@@ -67,6 +67,9 @@ window.__ST_SKIN_LAB__ = {
                 ?>
                 <div class="d-flex flex-column flex-lg-row flex-wrap gap-2 ms-lg-auto align-items-stretch align-items-lg-center py-3 py-lg-0">
                     <a class="btn btn-outline-light text-center text-lg-start" href="/admin/" title="Your projects &amp; all tasks"><i class="bi bi-house-door me-1"></i>Home</a>
+                    <button type="button" class="btn btn-outline-light text-center text-lg-start" id="st-omnibox-toggle" aria-expanded="false" aria-controls="st-searchbar" title="Search everything (Ctrl K)">
+                        <i class="bi bi-search me-1"></i>Search
+                    </button>
                     <div class="dropdown">
                         <button class="btn btn-outline-light text-center text-lg-start dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Pinned boards and all projects">
                             <i class="bi bi-pin-angle me-1"></i>Boards<?php if ($stNavPins !== []): ?><span class="badge text-bg-light text-dark ms-1"><?= count($stNavPins) ?></span><?php endif; ?>
@@ -151,8 +154,9 @@ window.__ST_SKIN_LAB__ = {
     </div>
 </nav>
 <?php if (isLoggedIn()): ?>
-<div class="st-searchbar" role="search">
-    <div class="container-fluid px-3 px-lg-4">
+<div class="st-searchbar" id="st-searchbar" role="search" hidden data-st-searchbar>
+    <button type="button" class="st-searchbar__backdrop" id="st-omnibox-backdrop" tabindex="-1" aria-label="Close search"></button>
+    <div class="st-searchbar__panel container-fluid px-3 px-lg-4">
         <form class="st-omnibox" id="st-omnibox" method="get" action="/admin/search.php" autocomplete="off">
             <div class="input-group">
                 <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted" aria-hidden="true"></i></span>
@@ -164,6 +168,9 @@ window.__ST_SKIN_LAB__ = {
                        aria-expanded="false"
                        value="">
                 <span class="input-group-text bg-white border-start-0 d-none d-md-inline-flex"><span class="st-omnibox__kbd">Ctrl K</span></span>
+                <button type="button" class="btn btn-outline-secondary" id="st-omnibox-close" aria-label="Close search" title="Close">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
             </div>
             <div class="st-omnibox__drop" id="st-omnibox-drop" hidden role="listbox" aria-label="Search results"></div>
         </form>

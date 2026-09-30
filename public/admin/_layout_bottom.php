@@ -3,7 +3,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/assets/admin.js?v=6"></script>
 <script src="/assets/st-filter.js?v=3"></script>
-<script src="/js/st-omnibox.js?v=1"></script>
+<script src="/js/st-omnibox.js?v=2"></script>
 <script src="/js/st-home-live-filter.js?v=1"></script>
 <?php require __DIR__ . '/_mermaid_assets.php'; ?>
 <?php require __DIR__ . '/_ask_q.php'; ?>
