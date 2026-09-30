@@ -748,6 +748,28 @@ class TasksClient:
         response = self._request('POST', 'update-directory-project.php', data=payload)
         return response.get('project', {})
 
+    def archive_project(self, project_id: int) -> Dict[str, Any]:
+        """Soft-archive a directory project (chatter-safe manage ACL)."""
+        response = self._request('POST', 'archive-project.php', data={'id': project_id})
+        return response.get('project', response) if isinstance(response, dict) else response
+
+    def delete_directory_project(
+        self,
+        project_id: int,
+        *,
+        confirm_name: str,
+        force: bool = False,
+        acknowledge_no_export: bool = False,
+    ) -> Dict[str, Any]:
+        """Admin permanent purge of a directory project."""
+        payload: Dict[str, Any] = {
+            'id': project_id,
+            'confirm_name': confirm_name,
+            'force': force,
+            'acknowledge_no_export': acknowledge_no_export,
+        }
+        return self._request('POST', 'delete-directory-project.php', data=payload)
+
     def list_project_members(self, project_id: int) -> List[Dict[str, Any]]:
         response = self._request('GET', 'list-project-members.php', params={'project_id': project_id})
         return response.get('members', [])

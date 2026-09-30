@@ -9,7 +9,7 @@
 
 | Profile | Commands exposed | Typical harness |
 |---------|------------------|-----------------|
-| **`chatter`** | 16 daily board verbs | Q Vernal Ask Q, Otto Cursor default |
+| **`chatter`** | 17 daily board verbs | Q Vernal Ask Q, Otto Cursor default |
 | **`admin`** | chatter + bulk, attachments, watchers, pins, tags, statuses | Otto power-user / internal ops |
 | **`full`** | All API-key routes minus `health` noise | Dev / migration / attach-all rehearsal |
 
@@ -17,7 +17,7 @@ Source of truth in code: `smcp_plugin/tasks/tool_profiles.py` (`PROFILES`).
 
 ---
 
-## `chatter` (16)
+## `chatter` (17)
 
 | Command | API route |
 |---------|-----------|
@@ -37,12 +37,13 @@ Source of truth in code: `smcp_plugin/tasks/tool_profiles.py` (`PROFILES`).
 | `list-directory-projects` | `GET /api/list-directory-projects.php` |
 | `list-todo-lists` | `GET /api/list-todo-lists.php` |
 | `search-users` | `GET /api/search-users.php` |
+| `archive-project` | `POST /api/archive-project.php` |
 
 ---
 
 ## `admin` extras (beyond chatter)
 
-`bulk-create-tasks`, `bulk-update-tasks`, `list-attachments`, `upload-attachment`, `add-attachment`, `watch-task`, `unwatch-task`, `list-watchers`, `list-project-members`, `list-project-pins`, `set-project-pin`, `list-tags`, `list-statuses`, `get-directory-project`, `create-todo-list`, plus **admin-only** IAM/org routes (`create-user`, `list-users`, `create-api-key`, …).
+`bulk-create-tasks`, `bulk-update-tasks`, `list-attachments`, `upload-attachment`, `add-attachment`, `watch-task`, `unwatch-task`, `list-watchers`, `list-project-members`, `list-project-pins`, `set-project-pin`, `list-tags`, `list-statuses`, `get-directory-project`, `create-todo-list`, plus **admin-only** IAM/org routes (`create-user`, `list-users`, `create-api-key`, `create-directory-project`, `update-directory-project`, `delete-directory-project`, …).
 
 ---
 

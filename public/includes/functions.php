@@ -2807,6 +2807,261 @@ function computeHomePulseKpis(array $viewer): array {
     ];
 }
 
+/**
+ * Days since a UTC datetime string (project/task updated_at). Null/invalid → large stale.
+ */
+function st_days_since_utc(?string $when): ?int {
+    if ($when === null || trim($when) === '') {
+        return null;
+    }
+    try {
+        $then = new DateTimeImmutable(trim($when), new DateTimeZone('UTC'));
+        $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $diff = $now->getTimestamp() - $then->getTimestamp();
+        if ($diff < 0) {
+            return 0;
+        }
+        return (int)floor($diff / 86400);
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+/**
+ * Home Comp B — light per-board attention cards (aggregates only).
+ *
+ * @return list<array{
+ *   project_id:int,name:string,state:string,state_label:string,
+ *   blocked:int,doing:int,todo:int,stale_days:?int,message:string,href:string
+ * }>
+ */
+function computeHomeBoardHealthCards(array $viewer, int $cap = 8): array {
+    $cap = max(1, min(12, $cap));
+    $projects = listDirectoryProjectsForUser($viewer, 300);
+    if ($projects === []) {
+        return [];
+    }
+
+    $pinOrder = [];
+    $rank = 0;
+    foreach (listUserProjectPinsForUser($viewer, 80) as $pin) {
+        $pinOrder[(int)$pin['project_id']] = $rank++;
+    }
+
+    usort($projects, static function (array $a, array $b) use ($pinOrder): int {
+        $aid = (int)$a['id'];
+        $bid = (int)$b['id'];
+        $ap = array_key_exists($aid, $pinOrder);
+        $bp = array_key_exists($bid, $pinOrder);
+        if ($ap && !$bp) {
+            return -1;
+        }
+        if ($bp && !$ap) {
+            return 1;
+        }
+        if ($ap && $bp) {
+            return $pinOrder[$aid] <=> $pinOrder[$bid];
+        }
+        return strcmp((string)($b['updated_at'] ?? ''), (string)($a['updated_at'] ?? ''));
+    });
+
+    $selected = array_slice($projects, 0, $cap);
+    $cards = [];
+    foreach ($selected as $proj) {
+        $pid = (int)$proj['id'];
+        $blocked = listTasks([
+            'project_id' => $pid,
+            'tag' => 'blocked',
+            'exclude_done' => true,
+            'limit' => 1,
+        ], true, null, $viewer);
+        $doing = listTasks([
+            'project_id' => $pid,
+            'status' => 'doing',
+            'limit' => 1,
+        ], true, null, $viewer);
+        $todo = listTasks([
+            'project_id' => $pid,
+            'status' => 'todo',
+            'limit' => 1,
+        ], true, null, $viewer);
+
+        $blockedN = (int)($blocked['total'] ?? 0);
+        $doingN = (int)($doing['total'] ?? 0);
+        $todoN = (int)($todo['total'] ?? 0);
+        $staleDays = st_days_since_utc(isset($proj['updated_at']) ? (string)$proj['updated_at'] : null);
+        if ($staleDays === null) {
+            $staleDays = 999;
+        }
+
+        if ($blockedN > 0 || ($staleDays >= 14 && ($todoN + $doingN) > 0)) {
+            $state = 'needs_eyes';
+            $stateLabel = 'Needs eyes';
+        } elseif ($staleDays <= 2 || $doingN > 0) {
+            $state = 'moving';
+            $stateLabel = 'Moving';
+        } else {
+            $state = 'quiet';
+            $stateLabel = 'Quiet';
+        }
+
+        if ($staleDays <= 0) {
+            $msg = 'Updated today';
+        } elseif ($staleDays === 1) {
+            $msg = 'Updated yesterday';
+        } else {
+            $msg = $staleDays . 'd since activity';
+        }
+
+        $cards[] = [
+            'project_id' => $pid,
+            'name' => (string)($proj['name'] ?? ''),
+            'state' => $state,
+            'state_label' => $stateLabel,
+            'blocked' => $blockedN,
+            'doing' => $doingN,
+            'todo' => $todoN,
+            'stale_days' => $staleDays >= 999 ? null : $staleDays,
+            'message' => $msg,
+            'href' => '/admin/project.php?id=' . $pid,
+        ];
+    }
+    return $cards;
+}
+
+/**
+ * Permanently delete a directory project and dependent data (admin only).
+ *
+ * Soft archive/trash remain separate. Spec: Tasks Doc #1377.
+ *
+ * @param array{
+ *   confirm_name?:string,
+ *   force?:bool,
+ *   acknowledge_no_export?:bool
+ * } $opts
+ * @return array{success:bool,error?:string,code?:string,deleted?:array<string,int>}
+ */
+function purgeDirectoryProject(int $actorUserId, int $projectId, array $opts = []): array {
+    $actor = getUserById($actorUserId, false);
+    if (!$actor || !isAdminRole((string)($actor['role'] ?? ''))) {
+        return ['success' => false, 'error' => 'Only admins can permanently delete boards', 'code' => 'auth.forbidden'];
+    }
+    $proj = getDirectoryProjectById($projectId);
+    if (!$proj) {
+        return ['success' => false, 'error' => 'Project not found', 'code' => 'project.not_found'];
+    }
+
+    $confirmName = trim((string)($opts['confirm_name'] ?? ''));
+    if ($confirmName === '' || $confirmName !== (string)$proj['name']) {
+        return [
+            'success' => false,
+            'error' => 'confirm_name must exactly match the board name',
+            'code' => 'validation.confirm_name',
+        ];
+    }
+
+    $status = (string)($proj['status'] ?? 'active');
+    $force = !empty($opts['force']);
+    if ($status === 'active' && !$force) {
+        return [
+            'success' => false,
+            'error' => 'Active boards cannot be permanently deleted without force=true; archive or trash first',
+            'code' => 'project.active',
+        ];
+    }
+
+    $hasReadyExport = getLatestReadyBoardExportWithFile($projectId) !== null;
+    if (!$hasReadyExport && empty($opts['acknowledge_no_export'])) {
+        return [
+            'success' => false,
+            'error' => 'No ready ZIP export on disk; pass acknowledge_no_export=true to proceed without a snapshot',
+            'code' => 'project.no_export',
+        ];
+    }
+
+    $db = getDbConnection();
+    $counts = [
+        'tasks' => 0,
+        'documents' => 0,
+        'todo_lists' => 0,
+        'exports' => 0,
+        'attachments_files' => 0,
+        'export_files' => 0,
+    ];
+
+    // Collect tasks + local attachment files before row deletes.
+    $taskIds = [];
+    $tStmt = $db->prepare('SELECT id FROM tasks WHERE project_id = :p');
+    $tStmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $tRes = $tStmt->execute();
+    while ($row = $tRes->fetchArray(SQLITE3_ASSOC)) {
+        $taskIds[] = (int)$row['id'];
+    }
+    $counts['tasks'] = count($taskIds);
+
+    foreach ($taskIds as $tid) {
+        foreach (listTaskAttachments($tid) as $att) {
+            deleteLocalTaskAttachmentFile($att);
+            $counts['attachments_files']++;
+        }
+    }
+
+    $exportJobs = listBoardExportJobsForProject($projectId, 100);
+    $counts['exports'] = count($exportJobs);
+    foreach ($exportJobs as $job) {
+        $rel = trim((string)($job['storage_rel_path'] ?? ''));
+        if ($rel === '') {
+            continue;
+        }
+        $abs = boardExportAbsolutePath($rel);
+        if ($abs !== null && is_file($abs)) {
+            @unlink($abs);
+            $counts['export_files']++;
+        }
+    }
+
+    $docCountStmt = $db->prepare('SELECT COUNT(*) AS c FROM documents WHERE project_id = :p');
+    $docCountStmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $docRow = $docCountStmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $counts['documents'] = (int)($docRow['c'] ?? 0);
+
+    $listCountStmt = $db->prepare('SELECT COUNT(*) AS c FROM todo_lists WHERE project_id = :p');
+    $listCountStmt->bindValue(':p', $projectId, SQLITE3_INTEGER);
+    $listRow = $listCountStmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $counts['todo_lists'] = (int)($listRow['c'] ?? 0);
+
+    $db->exec('BEGIN');
+    try {
+        if ($taskIds !== []) {
+            // Notifications reference tasks/docs without FK cascade.
+            $placeholders = implode(',', array_fill(0, count($taskIds), '?'));
+            $db->exec('DELETE FROM user_notifications WHERE task_id IN (' . implode(',', array_map('intval', $taskIds)) . ')');
+            $db->exec('DELETE FROM tasks WHERE project_id = ' . (int)$projectId);
+        }
+        $db->exec('DELETE FROM user_notifications WHERE document_id IN (SELECT id FROM documents WHERE project_id = ' . (int)$projectId . ')');
+        // project row CASCADE handles members, pins, doors, docs, lists, export rows.
+        $del = $db->prepare('DELETE FROM projects WHERE id = :id');
+        $del->bindValue(':id', $projectId, SQLITE3_INTEGER);
+        $del->execute();
+        if ($db->changes() === 0) {
+            $db->exec('ROLLBACK');
+            return ['success' => false, 'error' => 'Project not found', 'code' => 'project.not_found'];
+        }
+        $db->exec('COMMIT');
+    } catch (Throwable $e) {
+        $db->exec('ROLLBACK');
+        return ['success' => false, 'error' => 'Could not permanently delete project', 'code' => 'project.purge_failed'];
+    }
+
+    createAuditLog($actorUserId, 'project.purge', 'project', (string)$projectId, [
+        'name' => (string)$proj['name'],
+        'prior_status' => $status,
+        'counts' => $counts,
+    ]);
+
+    return ['success' => true, 'deleted' => $counts];
+}
+
 function updateOrganizationDefaultSkin(int $orgId, ?string $skinSlug, ?int $actorUserId): array {
     if ($orgId <= 0) {
         return ['success' => false, 'error' => 'Invalid organization'];

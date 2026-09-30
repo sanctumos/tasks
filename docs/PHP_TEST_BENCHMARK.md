@@ -24,6 +24,16 @@ Coverage (PCOV) — Unit line % on includes:
 php -d pcov.enabled=1 vendor/bin/phpunit --testsuite unit --coverage-text
 ```
 
+## Measured snapshot (2026-09-30, `dev` branch — Home health/schedule + board purge + archive-project)
+
+| Category | Result |
+| -------- | ------ |
+| **Unit** (PCOV, scoped includes) | **90.01%** lines (4485/4983) |
+| **Integration** (PHPUnit HTTP suite) | **100%** green (18/18, incl. `ArchiveAndPurgeProjectHttpTest`) |
+| **E2E** (PHPUnit e2e suite) | **100%** green (1/1 checklist runner) |
+
+Scope: Home board health cards (#3181), schedule peek (#3182), `delete-directory-project` (#4050), chatter `archive-project` (#1266). No `main` merge yet.
+
 ## Measured snapshot (2026-09-30, `dev` branch — Search S4 complete)
 
 | Category | Result |

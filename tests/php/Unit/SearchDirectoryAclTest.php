@@ -23,6 +23,12 @@ final class SearchDirectoryAclTest extends TestCase
 
         $aid = (int)$admin['id'];
         $mid = (int)$member['id'];
+        $oid = (int)$outsider['id'];
+        // Isolate outsider in another org so prior all_access boards in org 1 cannot leak them.
+        $foreignOrg = createOrganization("AclOutOrg {$suffix}", $aid);
+        $this->assertTrue($foreignOrg['success'], (string)($foreignOrg['error'] ?? ''));
+        $this->assertTrue(setUserOrganization($aid, $oid, (int)$foreignOrg['id'])['success']);
+
         $proj = createDirectoryProject($aid, "AclBoard {$suffix}", null, false, false);
         $this->assertTrue($proj['success']);
         $pid = (int)$proj['id'];

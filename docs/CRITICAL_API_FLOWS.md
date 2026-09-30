@@ -15,5 +15,7 @@ Target: **≥ 90%** of these flows have an automated PHPUnit Integration (HTTP) 
 | A09 | Board export download ZIP | `BoardExportHttpTest` |
 | A10 | Board export unchanged reuse | `BoardExportHttpTest` |
 | A11 | Omnibox cross-entity search (`GET /api/search.php`) | `OmniboxSearchHttpTest` |
+| A12 | Archive directory project (`POST /api/archive-project.php`) | `ArchiveAndPurgeProjectHttpTest` |
+| A13 | Permanent delete directory project (`POST /api/delete-directory-project.php`) | `ArchiveAndPurgeProjectHttpTest` |
 
 PHPUnit `tests/php/Integration/CriticalApiFlowsChecklistTest.php` asserts ≥ 90% of this table is wired.

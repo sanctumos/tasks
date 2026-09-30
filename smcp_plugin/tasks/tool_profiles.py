@@ -22,6 +22,7 @@ PROFILE_CHATTER: FrozenSet[str] = frozenset(
         "list-directory-projects",
         "list-todo-lists",
         "search-users",
+        "archive-project",
     }
 )
 
@@ -58,6 +59,7 @@ PROFILE_ADMIN_ONLY: FrozenSet[str] = frozenset(
         "list-organizations",
         "create-directory-project",
         "update-directory-project",
+        "delete-directory-project",
         "add-project-member",
         "remove-project-member",
         "create-status",
@@ -116,6 +118,12 @@ TOOL_HELP_ROUTES: List[Dict[str, Any]] = [
         "tools": ["list-directory-projects", "list-todo-lists"],
         "required": ["project-id for list-todo-lists"],
         "anti": "guessing list_id",
+    },
+    {
+        "intent": "archive a board or project from chat",
+        "tools": ["archive-project", "list-directory-projects"],
+        "required": ["id or project-id; manage ACL on that board"],
+        "anti": "delete-directory-project (permanent erase, admin only)",
     },
     {
         "intent": "resolve assignee username to user id",

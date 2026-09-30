@@ -22,7 +22,12 @@ final class ViewerScopedPickersTest extends TestCase
 
         $aid = (int)$admin['id'];
         $mid = (int)$member['id'];
+        $oid = (int)$outsider['id'];
         $pidPeer = (int)$peer['id'];
+        $foreignOrg = createOrganization("PickOutOrg {$suffix}", $aid);
+        $this->assertTrue($foreignOrg['success'], (string)($foreignOrg['error'] ?? ''));
+        $this->assertTrue(setUserOrganization($aid, $oid, (int)$foreignOrg['id'])['success']);
+
         $proj = createDirectoryProject($aid, "PickBoard {$suffix}", null, false, false);
         $this->assertTrue($proj['success'], (string)($proj['error'] ?? ''));
         $pid = (int)$proj['id'];
@@ -37,6 +42,7 @@ final class ViewerScopedPickersTest extends TestCase
 
         $adminRow = getUserById($aid, false);
         $adminNames = array_column(listUsersVisibleForViewer($adminRow, false), 'username');
+        // Admin created the foreign org (multi-org staff), so they can still resolve that user.
         $this->assertContains("pick_out_{$suffix}", $adminNames);
     }
 

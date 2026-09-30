@@ -76,6 +76,30 @@ if ($tab === 'password' && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_P
     }
 }
 
+$archivePurgeError = null;
+$archivePurgeSuccess = null;
+if ($tab === 'archived-boards' && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_POST['settings_action'] ?? '') === 'purge_directory_project') {
+    requireCsrfToken();
+    if (!$isAdmin) {
+        $archivePurgeError = 'Only admins can permanently delete boards.';
+    } else {
+        $purgeId = (int)($_POST['project_id'] ?? 0);
+        $confirmName = (string)($_POST['confirm_name'] ?? '');
+        $ackNoExport = isset($_POST['acknowledge_no_export']);
+        $result = purgeDirectoryProject((int)$currentUser['id'], $purgeId, [
+            'confirm_name' => $confirmName,
+            'force' => false,
+            'acknowledge_no_export' => $ackNoExport,
+        ]);
+        if (!empty($result['success'])) {
+            $_SESSION['admin_flash_success'] = 'Board permanently deleted.';
+            header('Location: /admin/settings.php?tab=archived-boards');
+            exit;
+        }
+        $archivePurgeError = $result['error'] ?? 'Could not permanently delete that board.';
+    }
+}
+
 require __DIR__ . '/_layout_top.php';
 
 function st_settings_tab_link(string $tab, string $active, array $availableTabs, bool $isAdmin): string {

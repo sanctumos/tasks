@@ -414,6 +414,14 @@ Query: `id`.
 
 JSON: `id`, plus fields to update: `name`, `description`, `status` (`active` \| `archived` \| `trashed`), `client_visible`, `all_access`.
 
+#### `POST /api/archive-project.php`
+
+Soft-archive a board (`status=archived`). JSON: `id` or `project_id`. Requires project **manage** ACL (lead / org admin / unrestricted manager) — safe for chatter / Ask Q. Idempotent if already archived. Does **not** permanently delete.
+
+#### `POST /api/delete-directory-project.php`
+
+Admin-only **permanent** purge of a directory project and dependents (tasks, docs, lists, members, pins, doors, export ZIPs, local attachment files). JSON: `id`, `confirm_name` (must exactly match board name), optional `force` (allow purge while still `active`), optional `acknowledge_no_export` (required when no ready ZIP exists on disk). Spec: Tasks Doc #1377.
+
 #### `GET /api/list-project-members.php`
 
 Query: `project_id`.

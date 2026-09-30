@@ -145,6 +145,57 @@ body.bg-light { background-color: var(--st-bg-app) !important; color: var(--st-t
 .st-pri--normal { background: var(--st-pri-normal-soft); color: var(--st-pri-normal); }
 .st-peek .st-peek__li:first-child { border-top: 0 !important; }
 
+.st-health-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+@media (max-width: 900px) {
+    .st-health-grid { grid-template-columns: 1fr; }
+}
+.st-health {
+    border: 1px solid var(--st-border-subtle);
+    border-radius: var(--st-radius);
+    padding: 0.7rem 0.8rem;
+    background: var(--st-bg-surface);
+    color: inherit;
+    transition: border-color 0.12s ease;
+}
+.st-health:hover { border-color: var(--st-accent); }
+.st-health__top {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    align-items: start;
+    margin-bottom: 0.45rem;
+}
+.st-health__name { font-weight: 600; font-size: 0.9rem; }
+.st-health__pill {
+    font-size: 0.68rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.12rem 0.4rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.st-health__pill--quiet { background: var(--st-bg-soft); color: var(--st-text-muted); }
+.st-health__pill--hot { background: var(--st-status-blocked-soft, #fee2e2); color: var(--st-status-blocked, #b91c1c); }
+.st-health__pill--ok { background: var(--st-status-done-soft, #dcfce7); color: var(--st-status-done, #15803d); }
+.st-health__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    font-size: 0.78rem;
+    color: var(--st-text-muted);
+}
+.st-health__stats b { color: var(--st-text-primary); }
+.st-health__msg {
+    font-size: 0.75rem;
+    color: var(--st-text-muted);
+    margin-top: 0.4rem;
+}
+
 .st-pin-nav { gap: 0.5rem; }
 .st-pin-chip {
     display: inline-flex;

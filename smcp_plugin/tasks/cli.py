@@ -788,6 +788,30 @@ def update_directory_project(args: Dict[str, Any], api_key: str) -> Dict[str, An
     return _wrap(run)
 
 
+def archive_project(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        pid = int(args.get("id") or args.get("project-id") or 0)
+        project = client.archive_project(project_id=pid)
+        return _success(project=project)
+
+    return _wrap(run)
+
+
+def delete_directory_project(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
+    def run() -> Dict[str, Any]:
+        client = get_client(api_key)
+        result = client.delete_directory_project(
+            project_id=int(args["id"]),
+            confirm_name=str(args["confirm-name"]),
+            force=bool(args.get("force", False)),
+            acknowledge_no_export=bool(args.get("acknowledge-no-export", False)),
+        )
+        return _success(**(result if isinstance(result, dict) else {"result": result}))
+
+    return _wrap(run)
+
+
 def list_project_members(args: Dict[str, Any], api_key: str) -> Dict[str, Any]:
     def run() -> Dict[str, Any]:
         client = get_client(api_key)
@@ -900,6 +924,8 @@ def command_handlers() -> Dict[str, Callable[[Dict[str, Any], str], Dict[str, An
         "search-users": search_users,
         "get-directory-project": get_directory_project,
         "update-directory-project": update_directory_project,
+        "archive-project": archive_project,
+        "delete-directory-project": delete_directory_project,
         "list-project-members": list_project_members,
         "add-project-member": add_project_member,
         "remove-project-member": remove_project_member,
@@ -1285,6 +1311,24 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--status")
     p.add_argument("--client-visible", action="store_true", dest="client_visible")
     p.add_argument("--all-access", action="store_true", dest="all_access")
+
+    p = subparsers.add_parser(
+        "archive-project",
+        help="POST /api/archive-project.php — soft-archive a board (manage ACL; chatter-safe)",
+    )
+    add_api_key(p)
+    p.add_argument("--id", type=int, help="Directory project id")
+    p.add_argument("--project-id", type=int, dest="project_id", help="Alias for --id")
+
+    p = subparsers.add_parser(
+        "delete-directory-project",
+        help="POST /api/delete-directory-project.php — admin permanent purge",
+    )
+    add_api_key(p)
+    p.add_argument("--id", type=int, required=True)
+    p.add_argument("--confirm-name", required=True, dest="confirm_name")
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--acknowledge-no-export", action="store_true", dest="acknowledge_no_export")
 
     p = subparsers.add_parser("list-project-members", help="GET /api/list-project-members.php")
     add_api_key(p)

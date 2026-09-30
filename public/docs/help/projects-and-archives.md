@@ -68,6 +68,14 @@ Archiving does three things:
 
 Archive is not delete. It is "this is no longer current, but the record still matters."
 
+From chat (Ask Q), people who can manage a board can also archive it with the `archive-project` tool — same soft-hide, never a permanent erase.
+
+## Permanent erase (admins)
+
+Admins can permanently delete an archived board from **Settings → Archived boards → Erase…**. You must type the board’s exact name. Prefer a ZIP download first; if there is no ZIP on disk, you must check the acknowledge box.
+
+This removes the board and its tasks, documents, lists, members, and local files. It cannot be undone. Do not use this on boards you might need again.
+
 ## Archived boards and ZIP downloads
 
 Archived boards have an **Archive downloads** tab.

@@ -128,6 +128,22 @@ if (!empty($homeWidgets['inbox_peek'])) {
     $inboxPeek = array_slice($inboxResult['notifications'] ?? [], 0, 5);
 }
 
+$schedulePeek = [];
+if (!empty($homeWidgets['schedule_peek'])) {
+    $sched = listScheduleForViewer($currentUser, [
+        'scope' => 'mine',
+        'include_overdue' => false,
+        'include_done' => false,
+        'limit' => 5,
+    ]);
+    $schedulePeek = array_slice($sched['entries'] ?? [], 0, 5);
+}
+
+$boardHealthCards = [];
+if (!empty($homeWidgets['board_health'])) {
+    $boardHealthCards = computeHomeBoardHealthCards($currentUser, 8);
+}
+
 $flashError = $_SESSION['admin_flash_error'] ?? null;
 $flashSuccess = $_SESSION['admin_flash_success'] ?? null;
 unset($_SESSION['admin_flash_error'], $_SESSION['admin_flash_success']);
@@ -221,10 +237,14 @@ require __DIR__ . '/_layout_top.php';
 </section>
 <?php endif; ?>
 
-<?php if (!empty($homeWidgets['my_work']) || !empty($homeWidgets['inbox_peek'])): ?>
+<?php
+$showPeeks = !empty($homeWidgets['inbox_peek']) || !empty($homeWidgets['schedule_peek']);
+$showMyWorkOrPeeks = !empty($homeWidgets['my_work']) || $showPeeks;
+?>
+<?php if ($showMyWorkOrPeeks): ?>
 <div class="row g-3 mb-5">
     <?php if (!empty($homeWidgets['my_work'])): ?>
-    <div class="<?= !empty($homeWidgets['inbox_peek']) ? 'col-lg-8' : 'col-12' ?>">
+    <div class="<?= $showPeeks ? 'col-lg-8' : 'col-12' ?>">
         <section class="st-home-mywork" aria-labelledby="st-home-mywork-heading">
             <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
                 <h2 id="st-home-mywork-heading" class="h5 mb-0"><i class="bi bi-person-check me-2 text-muted"></i>My Work</h2>
@@ -254,47 +274,130 @@ require __DIR__ . '/_layout_top.php';
         </section>
     </div>
     <?php endif; ?>
-    <?php if (!empty($homeWidgets['inbox_peek'])): ?>
+    <?php if ($showPeeks): ?>
     <div class="<?= !empty($homeWidgets['my_work']) ? 'col-lg-4' : 'col-12' ?>">
-        <section class="st-peek surface surface-pad" aria-labelledby="st-home-inbox-heading">
-            <h2 id="st-home-inbox-heading" class="h6 mb-3 d-flex align-items-center gap-2">
-                <i class="bi bi-bell"></i> Inbox
-                <?php $unreadN = countUnreadNotifications((int)$currentUser['id']); ?>
-                <?php if ($unreadN > 0): ?><span class="badge text-bg-danger"><?= $unreadN > 99 ? '99+' : (int)$unreadN ?></span><?php endif; ?>
-                <a class="ms-auto small" href="/admin/notifications.php">All</a>
-            </h2>
-            <?php if ($inboxPeek === []): ?>
-                <p class="text-muted small mb-0">No recent notifications.</p>
-            <?php else: ?>
-                <ul class="list-unstyled mb-0">
-                    <?php foreach ($inboxPeek as $n): ?>
-                        <?php
-                        $nLabel = trim((string)($n['label'] ?? ''));
-                        if ($nLabel === '') {
-                            $nLabel = trim((string)($n['title'] ?? ''));
-                        }
-                        if ($nLabel === '') {
-                            $nLabel = 'Notification';
-                        }
-                        $nHref = (string)($n['href'] ?? '');
-                        if ($nHref === '' && !empty($n['task_id'])) {
-                            $nHref = '/admin/view.php?id=' . (int)$n['task_id'];
-                        }
-                        if ($nHref === '') {
-                            $nHref = '/admin/notifications.php';
-                        }
-                        ?>
-                        <li class="st-peek__li d-flex justify-content-between gap-2 py-1 border-top">
-                            <a class="small text-decoration-none" href="<?= htmlspecialchars($nHref) ?>"><?= htmlspecialchars($nLabel) ?></a>
-                            <span class="text-muted small text-nowrap"><?= htmlspecialchars(st_relative_time($n['created_at'] ?? null)) ?></span>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
+        <div class="d-flex flex-column gap-3">
+            <?php if (!empty($homeWidgets['schedule_peek'])): ?>
+            <section class="st-peek surface surface-pad" aria-labelledby="st-home-schedule-heading">
+                <h2 id="st-home-schedule-heading" class="h6 mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-calendar3"></i> Coming up
+                    <a class="ms-auto small" href="/admin/schedule.php">Schedule</a>
+                </h2>
+                <?php if ($schedulePeek === []): ?>
+                    <p class="text-muted small mb-0">Nothing due in the next window.</p>
+                <?php else: ?>
+                    <ul class="list-unstyled mb-0">
+                        <?php foreach ($schedulePeek as $entry): ?>
+                            <?php
+                            $eTitle = trim((string)($entry['title'] ?? 'Task'));
+                            $eHref = !empty($entry['task_id'])
+                                ? '/admin/view.php?id=' . (int)$entry['task_id']
+                                : '/admin/schedule.php';
+                            $whenLabel = (string)($entry['due_date'] ?? '');
+                            if (!empty($entry['is_overdue'])) {
+                                $whenLabel = 'Overdue';
+                            } elseif ($whenLabel !== '') {
+                                try {
+                                    $whenLabel = (new DateTimeImmutable($whenLabel))->format('D M j');
+                                } catch (Exception $e) {
+                                    // keep raw
+                                }
+                            }
+                            ?>
+                            <li class="st-peek__li d-flex justify-content-between gap-2 py-1 border-top">
+                                <a class="small text-decoration-none" href="<?= htmlspecialchars($eHref) ?>"><?= htmlspecialchars($eTitle) ?></a>
+                                <span class="text-muted small text-nowrap"><?= htmlspecialchars($whenLabel) ?></span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </section>
             <?php endif; ?>
-        </section>
+            <?php if (!empty($homeWidgets['inbox_peek'])): ?>
+            <section class="st-peek surface surface-pad" aria-labelledby="st-home-inbox-heading">
+                <h2 id="st-home-inbox-heading" class="h6 mb-3 d-flex align-items-center gap-2">
+                    <i class="bi bi-bell"></i> Inbox
+                    <?php $unreadN = countUnreadNotifications((int)$currentUser['id']); ?>
+                    <?php if ($unreadN > 0): ?><span class="badge text-bg-danger"><?= $unreadN > 99 ? '99+' : (int)$unreadN ?></span><?php endif; ?>
+                    <a class="ms-auto small" href="/admin/notifications.php">All</a>
+                </h2>
+                <?php if ($inboxPeek === []): ?>
+                    <p class="text-muted small mb-0">No recent notifications.</p>
+                <?php else: ?>
+                    <ul class="list-unstyled mb-0">
+                        <?php foreach ($inboxPeek as $n): ?>
+                            <?php
+                            $nLabel = trim((string)($n['label'] ?? ''));
+                            if ($nLabel === '') {
+                                $nLabel = trim((string)($n['title'] ?? ''));
+                            }
+                            if ($nLabel === '') {
+                                $nLabel = 'Notification';
+                            }
+                            $nHref = (string)($n['href'] ?? '');
+                            if ($nHref === '' && !empty($n['task_id'])) {
+                                $nHref = '/admin/view.php?id=' . (int)$n['task_id'];
+                            }
+                            if ($nHref === '') {
+                                $nHref = '/admin/notifications.php';
+                            }
+                            ?>
+                            <li class="st-peek__li d-flex justify-content-between gap-2 py-1 border-top">
+                                <a class="small text-decoration-none" href="<?= htmlspecialchars($nHref) ?>"><?= htmlspecialchars($nLabel) ?></a>
+                                <span class="text-muted small text-nowrap"><?= htmlspecialchars(st_relative_time($n['created_at'] ?? null)) ?></span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </section>
+            <?php endif; ?>
+        </div>
     </div>
     <?php endif; ?>
 </div>
+<?php endif; ?>
+
+<?php if (!empty($homeWidgets['board_health'])): ?>
+<section class="st-home-health mb-5" aria-labelledby="st-home-health-heading">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <h2 id="st-home-health-heading" class="h5 mb-0"><i class="bi bi-heart-pulse me-2 text-muted"></i>Board health</h2>
+        <span class="text-muted small"><?= count($boardHealthCards) ?> boards · toggle in Appearance</span>
+    </div>
+    <?php if ($boardHealthCards === []): ?>
+        <div class="surface surface-pad text-muted small">No boards to summarize yet.</div>
+    <?php else: ?>
+        <div class="st-health-grid">
+            <?php foreach ($boardHealthCards as $card): ?>
+                <?php
+                $pillClass = $card['state'] === 'needs_eyes'
+                    ? 'st-health__pill--hot'
+                    : ($card['state'] === 'moving' ? 'st-health__pill--ok' : 'st-health__pill--quiet');
+                ?>
+                <a class="st-health text-decoration-none text-reset" href="<?= htmlspecialchars((string)$card['href']) ?>">
+                    <div class="st-health__top">
+                        <div class="st-health__name"><?= htmlspecialchars((string)$card['name']) ?></div>
+                        <span class="st-health__pill <?= $pillClass ?>"><?= htmlspecialchars((string)$card['state_label']) ?></span>
+                    </div>
+                    <div class="st-health__stats">
+                        <?php if ((int)$card['blocked'] > 0): ?>
+                            <span><b><?= (int)$card['blocked'] ?></b> blocked</span>
+                        <?php endif; ?>
+                        <?php if ($card['state'] === 'moving'): ?>
+                            <span><b><?= (int)$card['doing'] ?></b> doing</span>
+                            <span><b><?= (int)$card['todo'] ?></b> todo</span>
+                        <?php else: ?>
+                            <span><b><?= (int)$card['blocked'] ?></b> blocked</span>
+                            <?php if ($card['stale_days'] !== null): ?>
+                                <span><b><?= (int)$card['stale_days'] ?>d</b> since activity</span>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="st-health__msg"><?= htmlspecialchars((string)$card['message']) ?> · Open board →</div>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</section>
 <?php endif; ?>
 
 <?php /* -------- Projects hub (accessible directory projects first) ------- */ ?>
