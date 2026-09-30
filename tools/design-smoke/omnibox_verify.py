@@ -153,6 +153,14 @@ def run_omnibox_flow(page, base: str, needle: str, task_id: int, shot_name: str)
     page.wait_for_selector("#st-omnibox-drop:not([hidden]) .st-omnibox__item", timeout=10000)
     page.screenshot(path=str(OUT / shot_name), full_page=False)
 
+    # S1.4 — Enter with no active nav (blur dropdown by submitting form via Enter on empty active
+    # when footer "all results" path): navigate via form action
+    page.goto(f"{base}/admin/search.php?q={needle}", wait_until="networkidle")
+    page.wait_for_selector(".st-search-group", timeout=10000)
+    assert page.locator('.st-search-group[data-group="tasks"]').count() >= 1
+    assert page.locator('.st-search-group[data-group="documents"]').count() >= 1
+    page.screenshot(path=str(OUT / shot_name.replace("omnibox_", "search_results_")), full_page=True)
+
 
 def main() -> int:
     try:
@@ -237,6 +245,8 @@ def main() -> int:
 
         print(OUT / "omnibox_desktop.png")
         print(OUT / "omnibox_mobile.png")
+        print(OUT / "search_results_desktop.png")
+        print(OUT / "search_results_mobile.png")
         return 0
     finally:
         proc.terminate()

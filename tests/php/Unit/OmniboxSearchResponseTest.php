@@ -112,6 +112,7 @@ final class OmniboxSearchResponseTest extends TestCase
         $this->assertSame([], $miss['groups']['tasks']);
 
         $capped = searchOmniboxForUser($urow, $needle, 100);
-        $this->assertLessThanOrEqual(20, count($capped['groups']['tasks']));
+        $this->assertLessThanOrEqual(25, count($capped['groups']['tasks']));
+        $this->assertSame(25, $capped['limit'] ?? null);
     }
 }

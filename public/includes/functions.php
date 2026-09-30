@@ -4252,8 +4252,9 @@ function emitTaskAttachmentHttpResponse(array $attachment, bool $publicShare = f
  * @param string|null $q Optional case-insensitive substring match on title OR body
  *                       (SQL LIKE with escaped wildcards). Empty/whitespace is ignored.
  */
-function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId = null, ?string $q = null): array {
+function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId = null, ?string $q = null, int $offset = 0): array {
     $limit = max(1, min(500, $limit));
+    $offset = max(0, $offset);
     $uid = (int)$userRow['id'];
     $orgIds = listOrganizationIdsForUserAccess($userRow);
     if ($orgIds === []) return [];
@@ -4262,7 +4263,11 @@ function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId 
     $canSeeAll = userHasUnrestrictedOrgDirectoryAccess($userRow);
 
     $db = getDbConnection();
-    $bind = [':uid' => [$uid, SQLITE3_INTEGER], ':lim' => [$limit, SQLITE3_INTEGER]];
+    $bind = [
+        ':uid' => [$uid, SQLITE3_INTEGER],
+        ':lim' => [$limit, SQLITE3_INTEGER],
+        ':off' => [$offset, SQLITE3_INTEGER],
+    ];
     $orgPlaceholders = [];
     foreach ($orgIds as $i => $oid) {
         $k = ':org' . $i;
@@ -4304,7 +4309,7 @@ function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId 
           {$projectClause}
           {$qClause}
         ORDER BY d.updated_at DESC, d.id DESC
-        LIMIT :lim
+        LIMIT :lim OFFSET :off
     ";
     $stmt = $db->prepare($sql);
     foreach ($bind as $k => $v) {
@@ -4625,20 +4630,25 @@ function buildOmniboxSearchResponse(string $q, array $groups, array $counts = []
 }
 
 /**
- * Cross-entity omnibox search for an authenticated viewer.
+ * Cross-entity omnibox / full-search for an authenticated viewer.
  *
- * @return array{q:string,groups:array<string,list<array<string,mixed>>>,counts:array<string,int>}|array{success:false,error:string,http?:int}
+ * @param array{tasks?:int,documents?:int,users?:int,projects?:int} $offsets
+ * @return array{q:string,groups:array<string,list<array<string,mixed>>>,counts:array<string,int>,offsets:array<string,int>,limit:int}|array{success:false,error:string,http?:int}
  */
-function searchOmniboxForUser(array $userRow, string $q, int $limitPerEntity = 5): array
+function searchOmniboxForUser(array $userRow, string $q, int $limitPerEntity = 5, array $offsets = []): array
 {
     $q = trim($q);
     if (strlen($q) < 2) {
         return ['success' => false, 'error' => 'q must be at least 2 characters', 'http' => 400];
     }
-    $limitPerEntity = max(1, min(20, $limitPerEntity));
+    $limitPerEntity = max(1, min(25, $limitPerEntity));
+    $taskOff = max(0, (int)($offsets['tasks'] ?? 0));
+    $docOff = max(0, (int)($offsets['documents'] ?? 0));
+    $userOff = max(0, (int)($offsets['users'] ?? 0));
+    $projOff = max(0, (int)($offsets['projects'] ?? 0));
 
     $taskPage = listTasks(
-        ['q' => $q, 'limit' => $limitPerEntity, 'offset' => 0, 'sort_by' => 'updated_at', 'sort_dir' => 'DESC'],
+        ['q' => $q, 'limit' => $limitPerEntity, 'offset' => $taskOff, 'sort_by' => 'updated_at', 'sort_dir' => 'DESC'],
         true,
         $userRow,
         $userRow
@@ -4662,7 +4672,7 @@ function searchOmniboxForUser(array $userRow, string $q, int $limitPerEntity = 5
         ];
     }
 
-    $docs = listDocumentsForUser($userRow, $limitPerEntity, null, $q);
+    $docs = listDocumentsForUser($userRow, $limitPerEntity, null, $q, $docOff);
     $docTotal = countDocumentsForUser($userRow, null, $q);
     $docItems = [];
     foreach ($docs as $d) {
@@ -4677,11 +4687,11 @@ function searchOmniboxForUser(array $userRow, string $q, int $limitPerEntity = 5
             'url' => '/admin/doc.php?id=' . $did,
             'project_id' => (int)($d['project_id'] ?? 0),
             'project_name' => (string)($d['project_name'] ?? ''),
+            'directory_path' => (string)($d['directory_path'] ?? ''),
         ];
     }
 
     $userItems = [];
-    $userTotal = 0;
     $db = getDbConnection();
     $like = '%' . escapeSqlLikePattern($q) . '%';
     $countStmt = $db->prepare("
@@ -4695,10 +4705,11 @@ function searchOmniboxForUser(array $userRow, string $q, int $limitPerEntity = 5
         FROM users
         WHERE is_active = 1 AND username LIKE :pat ESCAPE '\\'
         ORDER BY length(username) ASC, username ASC
-        LIMIT :lim
+        LIMIT :lim OFFSET :off
     ");
     $uStmt->bindValue(':pat', $like, SQLITE3_TEXT);
     $uStmt->bindValue(':lim', $limitPerEntity, SQLITE3_INTEGER);
+    $uStmt->bindValue(':off', $userOff, SQLITE3_INTEGER);
     $uRes = $uStmt->execute();
     while ($row = $uRes->fetchArray(SQLITE3_ASSOC)) {
         $uid = (int)$row['id'];
@@ -4724,7 +4735,7 @@ function searchOmniboxForUser(array $userRow, string $q, int $limitPerEntity = 5
     }
     $projectTotal = count($projectMatched);
     $projectItems = [];
-    foreach (array_slice($projectMatched, 0, $limitPerEntity) as $p) {
+    foreach (array_slice($projectMatched, $projOff, $limitPerEntity) as $p) {
         $pid = (int)$p['id'];
         $projectItems[] = [
             'id' => $pid,
@@ -4736,7 +4747,7 @@ function searchOmniboxForUser(array $userRow, string $q, int $limitPerEntity = 5
         ];
     }
 
-    return buildOmniboxSearchResponse($q, [
+    $payload = buildOmniboxSearchResponse($q, [
         'tasks' => $taskItems,
         'documents' => $docItems,
         'users' => $userItems,
@@ -4747,6 +4758,14 @@ function searchOmniboxForUser(array $userRow, string $q, int $limitPerEntity = 5
         'users' => $userTotal,
         'projects' => $projectTotal,
     ]);
+    $payload['offsets'] = [
+        'tasks' => $taskOff,
+        'documents' => $docOff,
+        'users' => $userOff,
+        'projects' => $projOff,
+    ];
+    $payload['limit'] = $limitPerEntity;
+    return $payload;
 }
 
 require_once __DIR__ . '/activity_feed.php';

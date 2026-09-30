@@ -37,8 +37,14 @@ if (!$user) {
 
 $q = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
 $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 5;
+$offsets = [
+    'tasks' => isset($_GET['tasks_offset']) ? (int)$_GET['tasks_offset'] : 0,
+    'documents' => isset($_GET['documents_offset']) ? (int)$_GET['documents_offset'] : 0,
+    'users' => isset($_GET['users_offset']) ? (int)$_GET['users_offset'] : 0,
+    'projects' => isset($_GET['projects_offset']) ? (int)$_GET['projects_offset'] : 0,
+];
 
-$result = searchOmniboxForUser($user, $q, $limit);
+$result = searchOmniboxForUser($user, $q, $limit, $offsets);
 if (isset($result['success']) && $result['success'] === false) {
     $http = (int)($result['http'] ?? 400);
     apiError('validation.invalid_q', (string)($result['error'] ?? 'Invalid q'), $http);

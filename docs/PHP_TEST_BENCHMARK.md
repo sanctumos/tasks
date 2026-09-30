@@ -24,15 +24,15 @@ Coverage (PCOV) — Unit line % on includes:
 php -d pcov.enabled=1 vendor/bin/phpunit --testsuite unit --coverage-text
 ```
 
-## Measured snapshot (2026-09-30, `dev` branch — post S1.3 omnibox UI)
+## Measured snapshot (2026-09-30, `dev` branch — post S1.4 search results page)
 
 | Category | Result |
 | -------- | ------ |
-| **Unit** (PCOV, scoped includes) | **90.21%** lines (4071/4513) |
-| **Integration** (PHPUnit HTTP suite) | **100%** green (incl. A11) |
-| **E2E** (checklist + Playwright W17) | **100%** checklist; `omnibox_verify.py` green (desktop 1280 + mobile 390) |
+| **Unit** (PCOV, scoped includes) | **90.24%** lines (4089/4531) |
+| **Integration** (PHPUnit HTTP suite) | **100%** green (incl. `AdminSearchPageHttpTest`) |
+| **E2E** (checklist + Playwright W17) | **100%**; omnibox + search results screenshots inspected |
 
-Prior snapshot (2026-09-30, post S1.2): Unit **90.21%** (4071/4513).
+Prior snapshot (2026-09-30, post S1.3): Unit **90.21%** (4071/4513).
 
 ## CI
 
