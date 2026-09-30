@@ -33,8 +33,8 @@ $showHomeResults = $showHeavyBoard || $showLightResults;
 $statuses = listTaskStatuses();
 $statusMap = [];
 foreach ($statuses as $s) { $statusMap[$s['slug']] = $s; }
-$users = $showHomeResults ? listUsers(false) : [];
-$projects = $showHomeResults ? listProjects(200) : [];
+$users = $showHomeResults ? listUsersVisibleForViewer($currentUser, false) : [];
+$projects = $showHomeResults ? listProjectsForUser($currentUser, 200) : [];
 
 // directory_projects (workspace projects), used to render Project as a link
 $directoryProjects = !empty($homeWidgets['projects_hub']) || $showHomeResults || !empty($homeWidgets['my_work'])

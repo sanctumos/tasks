@@ -608,6 +608,98 @@ function listUsers(bool $includeDisabled = false): array {
     return $users;
 }
 
+/**
+ * Users safe to show in assignee / filter pickers for this viewer.
+ * Unrestricted staff: all users. Others: self, co-members of accessible boards,
+ * and same-org peers when the viewer can see an all_access board in that org.
+ *
+ * @return list<array<string,mixed>>
+ */
+function listUsersVisibleForViewer(array $viewerRow, bool $includeDisabled = false): array {
+    if (userHasUnrestrictedOrgDirectoryAccess($viewerRow)) {
+        return listUsers($includeDisabled);
+    }
+    $viewerId = (int)($viewerRow['id'] ?? 0);
+    if ($viewerId <= 0) {
+        return [];
+    }
+    $projectIds = getAccessibleDirectoryProjectIdsForUser($viewerRow);
+    $allAccessOrgIds = [];
+    if ($projectIds !== []) {
+        $db = getDbConnection();
+        $ph = [];
+        foreach ($projectIds as $i => $pid) {
+            $ph[] = ':ap' . $i;
+        }
+        $stmt = $db->prepare(
+            'SELECT DISTINCT org_id FROM projects WHERE all_access = 1 AND id IN (' . implode(',', $ph) . ')'
+        );
+        foreach ($projectIds as $i => $pid) {
+            $stmt->bindValue(':ap' . $i, (int)$pid, SQLITE3_INTEGER);
+        }
+        $res = $stmt->execute();
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            $oid = (int)($row['org_id'] ?? 0);
+            if ($oid > 0) {
+                $allAccessOrgIds[$oid] = true;
+            }
+        }
+    }
+
+    $activeClause = $includeDisabled ? '' : 'AND u.is_active = 1';
+    $db = getDbConnection();
+    $sql = "
+        SELECT u.id, u.username, u.role, u.is_active, u.must_change_password, u.mfa_enabled, u.org_id, u.person_kind, u.limited_project_access, u.created_at,
+               o.name AS org_name
+        FROM users u
+        LEFT JOIN organizations o ON o.id = u.org_id
+        WHERE 1=1 {$activeClause}
+          AND (
+            u.id = :vid
+    ";
+    $params = [':vid' => [$viewerId, SQLITE3_INTEGER]];
+    if ($projectIds !== []) {
+        $ph = [];
+        foreach ($projectIds as $i => $pid) {
+            $key = ':pm' . $i;
+            $ph[] = $key;
+            $params[$key] = [(int)$pid, SQLITE3_INTEGER];
+        }
+        $sql .= " OR u.id IN (SELECT pm.user_id FROM project_members pm WHERE pm.project_id IN (" . implode(',', $ph) . "))";
+    }
+    if ($allAccessOrgIds !== []) {
+        $ph = [];
+        $i = 0;
+        foreach (array_keys($allAccessOrgIds) as $oid) {
+            $key = ':aaorg' . $i;
+            $ph[] = $key;
+            $params[$key] = [(int)$oid, SQLITE3_INTEGER];
+            $i++;
+        }
+        $sql .= " OR u.org_id IN (" . implode(',', $ph) . ")";
+    }
+    $sql .= ") ORDER BY u.username ASC";
+    $stmt = $db->prepare($sql);
+    foreach ($params as $k => $pair) {
+        $stmt->bindValue($k, $pair[0], $pair[1]);
+    }
+    $res = $stmt->execute();
+    $users = [];
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $row['is_active'] = (int)$row['is_active'];
+        $row['must_change_password'] = (int)$row['must_change_password'];
+        $row['mfa_enabled'] = (int)$row['mfa_enabled'];
+        if (isset($row['org_id']) && $row['org_id'] !== null) {
+            $row['org_id'] = (int)$row['org_id'];
+        }
+        $row['role'] = normalizeRole((string)($row['role'] ?? 'member')) ?? 'member';
+        $row['person_kind'] = normalizePersonKind($row['person_kind'] ?? 'team_member');
+        $row['limited_project_access'] = (int)($row['limited_project_access'] ?? 0);
+        $users[] = $row;
+    }
+    return $users;
+}
+
 function createUser(string $username, string $password, string $role = 'member', bool $mustChangePassword = true, ?int $orgId = null, string $personKind = 'team_member', bool $limitedProjectAccess = false): array {
     $db0 = getDbConnection();
     ensureDefaultOrganizationAndUsers($db0);
@@ -3606,6 +3698,74 @@ function listProjects(int $limit = 100): array {
             'name' => $row['project'],
             'task_count' => (int)$row['task_count'],
         ];
+    }
+    return $items;
+}
+
+/**
+ * Legacy task.project name labels the viewer may see in Home filter datalists.
+ * Unrestricted staff: global listProjects. Others: names from accessible boards
+ * and from tasks in directory scope (null-project creator/assignee).
+ *
+ * @return list<array{name:string,task_count:int}>
+ */
+function listProjectsForUser(array $userRow, int $limit = 200): array {
+    $limit = max(1, min(1000, $limit));
+    if (userHasUnrestrictedOrgDirectoryAccess($userRow)) {
+        return listProjects($limit);
+    }
+    $uid = (int)($userRow['id'] ?? 0);
+    $counts = [];
+    foreach (listDirectoryProjectsForUser($userRow, $limit) as $p) {
+        $n = trim((string)($p['name'] ?? ''));
+        if ($n !== '') {
+            $counts[$n] = ($counts[$n] ?? 0);
+        }
+    }
+    $projectIds = getAccessibleDirectoryProjectIdsForUser($userRow);
+    $db = getDbConnection();
+    if ($projectIds === []) {
+        $stmt = $db->prepare("
+            SELECT project, COUNT(*) AS task_count
+            FROM tasks
+            WHERE project IS NOT NULL AND TRIM(project) <> ''
+              AND project_id IS NULL
+              AND (created_by_user_id = :uid OR assigned_to_user_id = :uid)
+            GROUP BY project
+        ");
+        $stmt->bindValue(':uid', $uid, SQLITE3_INTEGER);
+    } else {
+        $ph = [];
+        foreach ($projectIds as $i => $pid) {
+            $ph[] = ':lp' . $i;
+        }
+        $stmt = $db->prepare("
+            SELECT project, COUNT(*) AS task_count
+            FROM tasks
+            WHERE project IS NOT NULL AND TRIM(project) <> ''
+              AND (
+                (project_id IS NULL AND (created_by_user_id = :uid OR assigned_to_user_id = :uid))
+                OR project_id IN (" . implode(',', $ph) . ")
+              )
+            GROUP BY project
+        ");
+        $stmt->bindValue(':uid', $uid, SQLITE3_INTEGER);
+        foreach ($projectIds as $i => $pid) {
+            $stmt->bindValue(':lp' . $i, (int)$pid, SQLITE3_INTEGER);
+        }
+    }
+    $res = $stmt->execute();
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $n = (string)$row['project'];
+        $counts[$n] = ($counts[$n] ?? 0) + (int)$row['task_count'];
+    }
+    ksort($counts, SORT_NATURAL | SORT_FLAG_CASE);
+    $items = [];
+    foreach ($counts as $name => $taskCount) {
+        $items[] = ['name' => $name, 'task_count' => (int)$taskCount];
+        if (count($items) >= $limit) {
+            break;
+        }
     }
     return $items;
 }

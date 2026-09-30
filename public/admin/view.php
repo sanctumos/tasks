@@ -27,7 +27,7 @@ $statuses = listTaskStatuses();
 $statusMap = [];
 foreach ($statuses as $s) { $statusMap[$s['slug']] = $s; }
 
-$users = listUsers();
+$users = listUsersVisibleForViewer($currentUser, false);
 
 $accessibleProjects = listDirectoryProjectsForUser($currentUser, 500);
 $projectsById = [];
