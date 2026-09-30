@@ -1802,8 +1802,8 @@ function listTasks($filters = [], bool $withPagination = false, ?array $apiUser 
     }
 
     if (!empty($filters['q'])) {
-        $where[] = '(t.title LIKE :q OR IFNULL(t.body, \'\') LIKE :q)';
-        $params[':q'] = ['%' . trim((string)$filters['q']) . '%', SQLITE3_TEXT];
+        $where[] = '(t.title LIKE :q ESCAPE \'\\\' OR IFNULL(t.body, \'\') LIKE :q ESCAPE \'\\\')';
+        $params[':q'] = ['%' . escapeSqlLikePattern(trim((string)$filters['q'])) . '%', SQLITE3_TEXT];
     }
 
     if (!empty($filters['due_before'])) {
@@ -4593,6 +4593,160 @@ function addDocumentComment(int $documentId, int $userId, string $comment): arra
         notificationsAfterDocumentComment($docRow, $id, $userId, $comment);
     }
     return ['success' => true, 'id' => $id, 'created_at' => $createdAt];
+}
+
+/**
+ * Pure assembler for the omnibox /api/search.php payload (unit-tested without DB).
+ *
+ * @param array{
+ *   tasks?: list<array<string,mixed>>,
+ *   documents?: list<array<string,mixed>>,
+ *   users?: list<array<string,mixed>>,
+ *   projects?: list<array<string,mixed>>
+ * } $groups
+ * @param array{tasks?:int,documents?:int,users?:int,projects?:int} $counts
+ * @return array{q:string,groups:array<string,list<array<string,mixed>>>,counts:array<string,int>}
+ */
+function buildOmniboxSearchResponse(string $q, array $groups, array $counts = []): array
+{
+    $keys = ['tasks', 'documents', 'users', 'projects'];
+    $outGroups = [];
+    $outCounts = [];
+    foreach ($keys as $k) {
+        $items = array_values($groups[$k] ?? []);
+        $outGroups[$k] = $items;
+        $outCounts[$k] = array_key_exists($k, $counts) ? max(0, (int)$counts[$k]) : count($items);
+    }
+    return [
+        'q' => $q,
+        'groups' => $outGroups,
+        'counts' => $outCounts,
+    ];
+}
+
+/**
+ * Cross-entity omnibox search for an authenticated viewer.
+ *
+ * @return array{q:string,groups:array<string,list<array<string,mixed>>>,counts:array<string,int>}|array{success:false,error:string,http?:int}
+ */
+function searchOmniboxForUser(array $userRow, string $q, int $limitPerEntity = 5): array
+{
+    $q = trim($q);
+    if (strlen($q) < 2) {
+        return ['success' => false, 'error' => 'q must be at least 2 characters', 'http' => 400];
+    }
+    $limitPerEntity = max(1, min(20, $limitPerEntity));
+
+    $taskPage = listTasks(
+        ['q' => $q, 'limit' => $limitPerEntity, 'offset' => 0, 'sort_by' => 'updated_at', 'sort_dir' => 'DESC'],
+        true,
+        $userRow,
+        $userRow
+    );
+    $taskRows = is_array($taskPage) && isset($taskPage['tasks']) ? $taskPage['tasks'] : [];
+    $taskTotal = is_array($taskPage) ? (int)($taskPage['total'] ?? count($taskRows)) : count($taskRows);
+    $taskItems = [];
+    foreach ($taskRows as $t) {
+        $tid = (int)($t['id'] ?? 0);
+        if ($tid <= 0) {
+            continue;
+        }
+        $taskItems[] = [
+            'id' => $tid,
+            'title' => (string)($t['title'] ?? ''),
+            'entity' => 'task',
+            'url' => '/admin/view.php?id=' . $tid,
+            'status' => (string)($t['status'] ?? ''),
+            'project_id' => isset($t['project_id']) ? (int)$t['project_id'] : null,
+            'project_name' => (string)(($t['directory_project']['name'] ?? null) ?: ($t['project'] ?? '')),
+        ];
+    }
+
+    $docs = listDocumentsForUser($userRow, $limitPerEntity, null, $q);
+    $docTotal = countDocumentsForUser($userRow, null, $q);
+    $docItems = [];
+    foreach ($docs as $d) {
+        $did = (int)($d['id'] ?? 0);
+        if ($did <= 0) {
+            continue;
+        }
+        $docItems[] = [
+            'id' => $did,
+            'title' => (string)($d['title'] ?? ''),
+            'entity' => 'document',
+            'url' => '/admin/doc.php?id=' . $did,
+            'project_id' => (int)($d['project_id'] ?? 0),
+            'project_name' => (string)($d['project_name'] ?? ''),
+        ];
+    }
+
+    $userItems = [];
+    $userTotal = 0;
+    $db = getDbConnection();
+    $like = '%' . escapeSqlLikePattern($q) . '%';
+    $countStmt = $db->prepare("
+        SELECT COUNT(*) AS c FROM users
+        WHERE is_active = 1 AND username LIKE :pat ESCAPE '\\'
+    ");
+    $countStmt->bindValue(':pat', $like, SQLITE3_TEXT);
+    $userTotal = (int)(($countStmt->execute()->fetchArray(SQLITE3_ASSOC)['c'] ?? 0));
+    $uStmt = $db->prepare("
+        SELECT id, username, role, person_kind, org_id
+        FROM users
+        WHERE is_active = 1 AND username LIKE :pat ESCAPE '\\'
+        ORDER BY length(username) ASC, username ASC
+        LIMIT :lim
+    ");
+    $uStmt->bindValue(':pat', $like, SQLITE3_TEXT);
+    $uStmt->bindValue(':lim', $limitPerEntity, SQLITE3_INTEGER);
+    $uRes = $uStmt->execute();
+    while ($row = $uRes->fetchArray(SQLITE3_ASSOC)) {
+        $uid = (int)$row['id'];
+        $userItems[] = [
+            'id' => $uid,
+            'title' => (string)$row['username'],
+            'name' => (string)$row['username'],
+            'entity' => 'user',
+            'url' => '/admin/users.php?q=' . rawurlencode((string)$row['username']),
+            'role' => normalizeRole((string)($row['role'] ?? 'member')) ?? 'member',
+            'person_kind' => normalizePersonKind($row['person_kind'] ?? 'team_member'),
+        ];
+    }
+
+    $projectsAll = listDirectoryProjectsForUser($userRow, 500, []);
+    $projectMatched = [];
+    $qLower = strtolower($q);
+    foreach ($projectsAll as $p) {
+        $name = (string)($p['name'] ?? '');
+        if ($name !== '' && str_contains(strtolower($name), $qLower)) {
+            $projectMatched[] = $p;
+        }
+    }
+    $projectTotal = count($projectMatched);
+    $projectItems = [];
+    foreach (array_slice($projectMatched, 0, $limitPerEntity) as $p) {
+        $pid = (int)$p['id'];
+        $projectItems[] = [
+            'id' => $pid,
+            'title' => (string)$p['name'],
+            'name' => (string)$p['name'],
+            'entity' => 'project',
+            'url' => '/admin/project.php?id=' . $pid,
+            'status' => (string)($p['status'] ?? 'active'),
+        ];
+    }
+
+    return buildOmniboxSearchResponse($q, [
+        'tasks' => $taskItems,
+        'documents' => $docItems,
+        'users' => $userItems,
+        'projects' => $projectItems,
+    ], [
+        'tasks' => $taskTotal,
+        'documents' => $docTotal,
+        'users' => $userTotal,
+        'projects' => $projectTotal,
+    ]);
 }
 
 require_once __DIR__ . '/activity_feed.php';

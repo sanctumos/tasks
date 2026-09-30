@@ -30,6 +30,7 @@ final class CriticalApiFlowsChecklistTest extends TestCase
             'A08' => 'BoardExportHttpTest',
             'A09' => 'BoardExportHttpTest',
             'A10' => 'BoardExportHttpTest',
+            'A11' => 'OmniboxSearchHttpTest',
         ];
         $ok = 0;
         $bad = [];

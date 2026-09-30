@@ -14,5 +14,6 @@ Target: **≥ 90%** of these flows have an automated PHPUnit Integration (HTTP) 
 | A08 | Board export list jobs | `BoardExportHttpTest` |
 | A09 | Board export download ZIP | `BoardExportHttpTest` |
 | A10 | Board export unchanged reuse | `BoardExportHttpTest` |
+| A11 | Omnibox cross-entity search (`GET /api/search.php`) | `OmniboxSearchHttpTest` |
 
 PHPUnit `tests/php/Integration/CriticalApiFlowsChecklistTest.php` asserts ≥ 90% of this table is wired.
