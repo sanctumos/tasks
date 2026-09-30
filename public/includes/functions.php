@@ -2349,6 +2349,59 @@ function updateAppNameSetting(string $appName, ?int $actorUserId): array {
 }
 
 /** Default Home widget visibility (cross-project board off — it hydrates all tasks). */
+/**
+ * True when Home is asked for the results-region HTML fragment (live filter).
+ *
+ * @param array<string, mixed> $get
+ */
+function st_is_home_results_partial_request(array $get): bool {
+    return isset($get['partial']) && (string)$get['partial'] === 'results';
+}
+
+/**
+ * Build listAllTasks filters from Home GET query params.
+ *
+ * @param array<string, mixed> $get
+ * @return array<string, mixed>
+ */
+function st_home_board_filters_from_get(array $get, ?int $mineAssigneeUserId = null): array {
+    $status = isset($get['status']) ? trim((string)$get['status']) : '';
+    $tag = isset($get['tag']) ? trim((string)$get['tag']) : '';
+    $priority = isset($get['priority']) ? trim((string)$get['priority']) : '';
+    $project = isset($get['project']) ? trim((string)$get['project']) : '';
+    $projectIdFilter = isset($get['project_id']) ? (int)$get['project_id'] : 0;
+    $q = isset($get['q']) ? trim((string)$get['q']) : '';
+    $sortBy = isset($get['sort_by']) ? (string)$get['sort_by'] : 'updated_at';
+    $sortDir = strtoupper((string)($get['sort_dir'] ?? 'DESC')) === 'ASC' ? 'ASC' : 'DESC';
+    $excludeDone = isset($get['exclude_done']) && (string)$get['exclude_done'] === '1';
+
+    $mineActive = isset($get['mine']) && (string)$get['mine'] === '1';
+    $assignedToUserId = isset($get['assigned_to_user_id']) ? trim((string)$get['assigned_to_user_id']) : '';
+    if ($mineActive && $mineAssigneeUserId !== null) {
+        $assignedToUserId = (string)$mineAssigneeUserId;
+    }
+
+    $filters = [
+        'status' => $status !== '' ? $status : null,
+        'assigned_to_user_id' => $assignedToUserId,
+        'priority' => $priority !== '' ? $priority : null,
+        'project' => $project !== '' ? $project : null,
+        'q' => $q !== '' ? $q : null,
+        'sort_by' => $sortBy,
+        'sort_dir' => $sortDir,
+    ];
+    if ($tag !== '') {
+        $filters['tag'] = $tag;
+    }
+    if ($excludeDone) {
+        $filters['exclude_done'] = true;
+    }
+    if ($projectIdFilter > 0) {
+        $filters['project_id'] = $projectIdFilter;
+    }
+    return $filters;
+}
+
 function homeWidgetDefaults(): array {
     return [
         'pulse_kpis' => true,
