@@ -1372,3 +1372,22 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
 .st-livebar__count { font-size: 0.78rem; color: var(--bs-secondary-color, #4a5260); white-space: nowrap; }
 .st-livebar__count a { text-decoration: none; }
 .st-livebar__count a:hover { text-decoration: underline; }
+
+/* Project board search chips (S3) */
+.st-projsearch { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.st-chip-toggle {
+  border: 1px solid var(--st-border-subtle, #e4e7ee);
+  background: #fff;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  padding: 0.2rem 0.65rem;
+  color: var(--st-text-muted, #4a5260);
+  cursor: pointer;
+  user-select: none;
+}
+.st-chip-toggle.is-on,
+.st-chip-toggle:has(input:checked) {
+  background: #2c5cff;
+  border-color: #2c5cff;
+  color: #fff;
+}

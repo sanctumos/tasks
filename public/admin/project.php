@@ -285,11 +285,27 @@ foreach (listUsers(false) as $u) {
 
 $mineFilter = st_mine_filter_active();
 $mineUserId = (int)$currentUser['id'];
+$boardSearchQ = isset($_GET['q']) ? trim((string)$_GET['q']) : '';
+$boardChips = [];
+if (isset($_GET['chip'])) {
+    $rawChips = $_GET['chip'];
+    if (!is_array($rawChips)) {
+        $rawChips = [$rawChips];
+    }
+    foreach ($rawChips as $c) {
+        $c = strtolower(trim((string)$c));
+        if (in_array($c, ['open', 'done', 'high', 'mine'], true)) {
+            $boardChips[$c] = true;
+        }
+    }
+}
+$stBoardClientMax = 200;
 $projectTaskFilters = [
     'project_id' => $id,
     'sort_by' => 'rank',
     'sort_dir' => 'ASC',
 ];
+// "Assigned to me" URL toggle always hits the server (existing control).
 if ($mineFilter) {
     $projectTaskFilters['assigned_to_user_id'] = $mineUserId;
 }
@@ -312,6 +328,36 @@ foreach ($legacyTasksResult['tasks'] as $lt) {
     if ((int)($lt['project_id'] ?? 0) !== $id) {
         $projectTasks[] = $lt;
     }
+}
+$boardTaskUniverse = count($projectTasks);
+$stBoardUseClientFilter = $boardTaskUniverse > 0 && $boardTaskUniverse <= $stBoardClientMax;
+
+// Large boards (or no-JS share links on large boards): apply q/chips server-side.
+if (!$stBoardUseClientFilter && ($boardSearchQ !== '' || $boardChips !== [])) {
+    $projectTasks = array_values(array_filter($projectTasks, static function (array $t) use ($boardSearchQ, $boardChips, $mineUserId): bool {
+        if ($boardSearchQ !== '') {
+            $hay = strtolower((string)($t['title'] ?? '') . ' ' . (string)($t['body'] ?? '') . ' ' . (string)($t['assigned_to_username'] ?? ''));
+            if (!str_contains($hay, strtolower($boardSearchQ))) {
+                return false;
+            }
+        }
+        $isDone = (int)($t['status_is_done'] ?? 0) === 1;
+        $prio = strtolower((string)($t['priority'] ?? 'normal'));
+        $assigneeId = (int)($t['assigned_to_user_id'] ?? 0);
+        if (!empty($boardChips['open']) && $isDone) {
+            return false;
+        }
+        if (!empty($boardChips['done']) && !$isDone) {
+            return false;
+        }
+        if (!empty($boardChips['high']) && $prio !== 'high' && $prio !== 'urgent') {
+            return false;
+        }
+        if (!empty($boardChips['mine']) && $assigneeId !== $mineUserId) {
+            return false;
+        }
+        return true;
+    }));
 }
 $totalTasks = count($projectTasks);
 
@@ -474,7 +520,7 @@ require __DIR__ . '/_layout_top.php';
 
 <?php if ($tab === 'tasks'): ?>
 
-    <?php if ($totalTasks === 0): ?>
+    <?php if ($totalTasks === 0 && $boardSearchQ === '' && empty($boardChips)): ?>
         <div class="surface surface-pad text-center">
             <div class="mb-3" style="font-size: 2rem; color: var(--st-text-muted);"><i class="bi bi-inbox"></i></div>
             <h2 class="h5 mb-1"><?= $mineFilter ? 'Nothing assigned to you here' : 'No tasks here yet' ?></h2>
@@ -489,7 +535,41 @@ require __DIR__ . '/_layout_top.php';
             <?php endif; ?>
         </div>
     <?php else: ?>
-        <div class="board">
+        <form id="st-board-filter" class="st-projsearch mb-3" method="get" action="/admin/project.php" role="search"
+              data-st-board-count="<?= (int)$boardTaskUniverse ?>"
+              data-st-client-filter-max="<?= (int)$stBoardClientMax ?>"
+              data-st-use-client="<?= $stBoardUseClientFilter ? '1' : '0' ?>"
+              data-st-viewer-id="<?= (int)$mineUserId ?>">
+            <input type="hidden" name="id" value="<?= (int)$id ?>">
+            <input type="hidden" name="tab" value="tasks">
+            <?php if ($mineFilter): ?><input type="hidden" name="mine" value="1"><?php endif; ?>
+            <div class="input-group" style="max-width: 340px;">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input class="form-control border-start-0" type="search" name="q" value="<?= htmlspecialchars($boardSearchQ) ?>" placeholder="Search this board…" aria-label="Search this board" id="st-board-filter-q">
+            </div>
+            <?php if ($stBoardUseClientFilter): ?>
+                <button type="button" class="st-chip-toggle<?= !empty($boardChips['open']) ? ' is-on' : '' ?>" data-st-chip="open" aria-pressed="<?= !empty($boardChips['open']) ? 'true' : 'false' ?>">Open</button>
+                <button type="button" class="st-chip-toggle<?= !empty($boardChips['done']) ? ' is-on' : '' ?>" data-st-chip="done" aria-pressed="<?= !empty($boardChips['done']) ? 'true' : 'false' ?>">Done</button>
+                <button type="button" class="st-chip-toggle<?= !empty($boardChips['high']) ? ' is-on' : '' ?>" data-st-chip="high" aria-pressed="<?= !empty($boardChips['high']) ? 'true' : 'false' ?>">High priority</button>
+                <button type="button" class="st-chip-toggle<?= !empty($boardChips['mine']) ? ' is-on' : '' ?>" data-st-chip="mine" aria-pressed="<?= !empty($boardChips['mine']) ? 'true' : 'false' ?>">Assigned to me</button>
+            <?php else: ?>
+                <label class="st-chip-toggle<?= !empty($boardChips['open']) ? ' is-on' : '' ?>"><input type="checkbox" name="chip[]" value="open" <?= !empty($boardChips['open']) ? 'checked' : '' ?> class="d-none">Open</label>
+                <label class="st-chip-toggle<?= !empty($boardChips['done']) ? ' is-on' : '' ?>"><input type="checkbox" name="chip[]" value="done" <?= !empty($boardChips['done']) ? 'checked' : '' ?> class="d-none">Done</label>
+                <label class="st-chip-toggle<?= !empty($boardChips['high']) ? ' is-on' : '' ?>"><input type="checkbox" name="chip[]" value="high" <?= !empty($boardChips['high']) ? 'checked' : '' ?> class="d-none">High priority</label>
+                <label class="st-chip-toggle<?= !empty($boardChips['mine']) ? ' is-on' : '' ?>"><input type="checkbox" name="chip[]" value="mine" <?= !empty($boardChips['mine']) ? 'checked' : '' ?> class="d-none">Assigned to me</label>
+                <button class="btn btn-primary btn-sm" type="submit">Filter</button>
+            <?php endif; ?>
+            <a class="btn btn-outline-secondary btn-sm st-board-filter-clear" href="/admin/project.php?id=<?= (int)$id ?>&amp;tab=tasks">Clear</a>
+            <span class="st-livebar__count" id="st-board-filter-count"><strong><?= (int)$totalTasks ?></strong> of <?= (int)$boardTaskUniverse ?> items</span>
+        </form>
+
+        <?php if ($totalTasks === 0): ?>
+            <div class="surface surface-pad text-center">
+                <p class="text-muted mb-2">No tasks match these filters.</p>
+                <a class="btn btn-outline-secondary btn-sm" href="/admin/project.php?id=<?= (int)$id ?>&amp;tab=tasks">Clear</a>
+            </div>
+        <?php else: ?>
+        <div class="board" id="st-board-results">
             <?php foreach ($statuses as $s):
                 $kind = st_status_kind(['slug' => $s['slug'], 'is_done' => $s['is_done']]);
                 $count = count($grouped[$s['slug']] ?? []);
@@ -503,8 +583,19 @@ require __DIR__ . '/_layout_top.php';
                         <?php if ($count === 0): ?>
                             <div class="swimlane__empty">No tasks here.</div>
                         <?php endif; ?>
-                        <?php foreach (($grouped[$s['slug']] ?? []) as $t): ?>
-                            <div class="task-card task-card--interactive">
+                        <?php foreach (($grouped[$s['slug']] ?? []) as $t):
+                            $isDone = (int)($t['status_is_done'] ?? 0) === 1;
+                            $prio = strtolower((string)($t['priority'] ?? 'normal'));
+                            $assigneeId = (int)($t['assigned_to_user_id'] ?? 0);
+                        ?>
+                            <div class="task-card task-card--interactive"
+                                 data-st-filter-item="1"
+                                 data-st-filter-text="<?= htmlspecialchars((string)$t['title'] . ' ' . ($t['assigned_to_username'] ?? '') . ' ' . $prio, ENT_QUOTES, 'UTF-8') ?>"
+                                 data-st-chip-open="<?= $isDone ? '0' : '1' ?>"
+                                 data-st-chip-done="<?= $isDone ? '1' : '0' ?>"
+                                 data-st-chip-high="<?= $prio === 'high' || $prio === 'urgent' ? '1' : '0' ?>"
+                                 data-st-chip-mine="<?= $assigneeId === $mineUserId ? '1' : '0' ?>"
+                                 data-assigned-to="<?= $assigneeId ?>">
                                 <a class="task-card__title text-decoration-none stretched-link" href="/admin/view.php?id=<?= (int)$t['id'] ?>"><?= htmlspecialchars($t['title']) ?></a>
                                 <div class="task-card__meta">
                                     <?= st_priority_chip_html((string)($t['priority'] ?? 'normal')) ?>
@@ -529,6 +620,26 @@ require __DIR__ . '/_layout_top.php';
                 </div>
             <?php endforeach; ?>
         </div>
+        <?php endif; ?>
+        <?php if ($stBoardUseClientFilter): ?>
+        <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.stFilter) return;
+            var form = document.getElementById('st-board-filter');
+            if (!form || form.getAttribute('data-st-use-client') !== '1') return;
+            var items = document.querySelectorAll('#st-board-results [data-st-filter-item]');
+            stFilter.attach({
+                input: document.getElementById('st-board-filter-q'),
+                items: items,
+                chips: form.querySelectorAll('[data-st-chip]'),
+                countEl: document.getElementById('st-board-filter-count'),
+                clearEl: form.querySelector('.st-board-filter-clear'),
+                urlParam: 'q'
+            });
+            form.addEventListener('submit', function (ev) { ev.preventDefault(); });
+        });
+        </script>
+        <?php endif; ?>
     <?php endif; ?>
 
 <?php elseif ($tab === 'lists'): ?>
