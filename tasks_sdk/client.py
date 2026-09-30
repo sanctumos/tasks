@@ -823,14 +823,19 @@ class TasksClient:
     # ---------- Documents (directory project markdown) ----------
     def list_documents(
         self,
-        project_id: int,
+        project_id: Optional[int] = None,
         *,
         limit: int = 100,
         directory_path: Optional[str] = None,
+        q: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        params: Dict[str, Any] = {'project_id': project_id, 'limit': limit}
+        params: Dict[str, Any] = {'limit': limit}
+        if project_id is not None:
+            params['project_id'] = project_id
         if directory_path is not None:
             params['directory_path'] = directory_path
+        if q is not None and str(q).strip() != '':
+            params['q'] = str(q).strip()
         response = self._request('GET', 'list-documents.php', params=params)
         return response.get('documents', [])
 

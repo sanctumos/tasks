@@ -24,15 +24,15 @@ Coverage (PCOV) — Unit line % on includes:
 php -d pcov.enabled=1 vendor/bin/phpunit --testsuite unit --coverage-text
 ```
 
-## Measured snapshot (2026-07-23, `dev` branch)
+## Measured snapshot (2026-09-30, `dev` branch — post S1.1 docs `q`)
 
 | Category | Result |
 | -------- | ------ |
-| **Unit** (PCOV, scoped includes) | **90.03%** lines (3583/3980) |
-| **Integration** (critical API flows) | **100%** of checklist (10/10) |
-| **E2E** (required major workflows) | **100%** of required scripts (13/13); board export Playwright green on `dev.tasks` |
+| **Unit** (PCOV, scoped includes) | **90.01%** lines (3966/4406) |
+| **Integration** (PHPUnit HTTP suite) | **100%** green (10/10) |
+| **E2E** (PHPUnit e2e suite) | **100%** green (1/1 checklist runner) |
 
-Board export module: **91.7%** unit lines; Integration `BoardExportHttpTest` covers request/list/download/unchanged reuse.
+Prior snapshot (2026-07-23): Unit **90.03%** (3583/3980). Denominator grew with board export / companion-adjacent includes; gate restored via document `q` tests + membership/door/mention edge coverage.
 
 ## CI
 

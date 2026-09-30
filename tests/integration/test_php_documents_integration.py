@@ -140,6 +140,30 @@ def test_document_full_lifecycle_with_comments(php_server):
     ids = [int(d["id"]) for d in listed.json()["documents"]]
     assert doc_id in ids
 
+    # q matches title / body; no-match returns empty; q + project_id composes.
+    by_q = requests.get(
+        _url(base, f"/api/list-documents.php?project_id={project_id}&q=onboarding"),
+        headers=headers,
+        timeout=5,
+    )
+    assert by_q.status_code == 200, by_q.text
+    q_ids = [int(d["id"]) for d in by_q.json()["documents"]]
+    assert doc_id in q_ids
+
+    no_match = requests.get(
+        _url(base, f"/api/list-documents.php?project_id={project_id}&q=zzzz-no-such-{tag}"),
+        headers=headers,
+        timeout=5,
+    )
+    assert no_match.status_code == 200
+    assert no_match.json()["documents"] == []
+
+    unauth = requests.get(
+        _url(base, f"/api/list-documents.php?q=onboarding"),
+        timeout=5,
+    )
+    assert unauth.status_code == 401
+
     # Other-project filter excludes our doc.
     other_pid = _create_project(base, api_key, f"OtherDocsProj-{tag}")
     other_listed = requests.get(

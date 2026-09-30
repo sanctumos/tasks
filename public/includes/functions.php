@@ -47,6 +47,18 @@ function requestIpAddress(): string {
     return $remoteAddr;
 }
 
+/**
+ * Escape user input for use inside a SQL LIKE pattern with ESCAPE '\\'.
+ * Treats %, _, and \ as literals so leading-wildcard searches cannot be widened by the caller.
+ */
+function escapeSqlLikePattern(string $raw): string {
+    return str_replace(
+        ['\\', '%', '_'],
+        ['\\\\', '\\%', '\\_'],
+        $raw
+    );
+}
+
 function truncateString(string $value, int $max): string {
     if (strlen($value) <= $max) {
         return $value;
@@ -160,7 +172,9 @@ function parseDateTimeOrNull($value): ?string {
         $dt = new DateTime($s, new DateTimeZone('UTC'));
         $dt->setTimezone(new DateTimeZone('UTC'));
         return $dt->format('Y-m-d H:i:s');
-    } catch (Exception $e) {
+    } catch (Throwable $e) {
+        // Catch Throwable (not just Exception): PHP 8.3+ DateMalformedStringException
+        // can surface as Error when Xdebug tries to set dynamic $xdebug_message.
         return null;
     }
 }
@@ -4232,7 +4246,13 @@ function emitTaskAttachmentHttpResponse(array $attachment, bool $publicShare = f
     exit();
 }
 
-function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId = null): array {
+/**
+ * List documents visible to $userRow.
+ *
+ * @param string|null $q Optional case-insensitive substring match on title OR body
+ *                       (SQL LIKE with escaped wildcards). Empty/whitespace is ignored.
+ */
+function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId = null, ?string $q = null): array {
     $limit = max(1, min(500, $limit));
     $uid = (int)$userRow['id'];
     $orgIds = listOrganizationIdsForUserAccess($userRow);
@@ -4259,6 +4279,12 @@ function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId 
         $projectClause = ' AND d.project_id = :pid';
         $bind[':pid'] = [$projectId, SQLITE3_INTEGER];
     }
+    $qClause = '';
+    $qTrim = $q !== null ? trim($q) : '';
+    if ($qTrim !== '') {
+        $qClause = " AND (d.title LIKE :q ESCAPE '\\' OR IFNULL(d.body, '') LIKE :q ESCAPE '\\')";
+        $bind[':q'] = ['%' . escapeSqlLikePattern($qTrim) . '%', SQLITE3_TEXT];
+    }
 
     $sql = "
         SELECT d.id, d.project_id, d.title, d.directory_path, d.status, d.created_by_user_id,
@@ -4276,6 +4302,7 @@ function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId 
           {$cvJoin}
           {$accessClause}
           {$projectClause}
+          {$qClause}
         ORDER BY d.updated_at DESC, d.id DESC
         LIMIT :lim
     ";
@@ -4300,7 +4327,7 @@ function listDocumentsForUser(array $userRow, int $limit = 200, ?int $projectId 
 }
 
 /** Same access rules as listDocumentsForUser; total row count for badges and empty checks. */
-function countDocumentsForUser(array $userRow, ?int $projectId = null): int {
+function countDocumentsForUser(array $userRow, ?int $projectId = null, ?string $q = null): int {
     $uid = (int)$userRow['id'];
     $orgIds = listOrganizationIdsForUserAccess($userRow);
     if ($orgIds === []) {
@@ -4328,6 +4355,12 @@ function countDocumentsForUser(array $userRow, ?int $projectId = null): int {
         $projectClause = ' AND d.project_id = :pid';
         $bind[':pid'] = [$projectId, SQLITE3_INTEGER];
     }
+    $qClause = '';
+    $qTrim = $q !== null ? trim($q) : '';
+    if ($qTrim !== '') {
+        $qClause = " AND (d.title LIKE :q ESCAPE '\\' OR IFNULL(d.body, '') LIKE :q ESCAPE '\\')";
+        $bind[':q'] = ['%' . escapeSqlLikePattern($qTrim) . '%', SQLITE3_TEXT];
+    }
 
     $sql = "
         SELECT COUNT(*) AS c
@@ -4340,6 +4373,7 @@ function countDocumentsForUser(array $userRow, ?int $projectId = null): int {
           {$cvJoin}
           {$accessClause}
           {$projectClause}
+          {$qClause}
     ";
     $stmt = $db->prepare($sql);
     foreach ($bind as $k => $v) {

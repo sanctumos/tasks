@@ -23,6 +23,12 @@ final class ProjectDoorsTest extends TestCase
     {
         $bad = normalizeProjectDoorUrl('javascript:alert(1)');
         $this->assertFalse($bad['success']);
+        $emptyHost = normalizeProjectDoorUrl('http:///no-host');
+        $this->assertFalse($emptyHost['success']);
+        $this->assertSame('Invalid URL', $emptyHost['error'] ?? null);
+        $creds = normalizeProjectDoorUrl('https://user:pass@example.com/x');
+        $this->assertFalse($creds['success']);
+        $this->assertStringContainsString('credentials', (string)($creds['error'] ?? ''));
         $good = normalizeProjectDoorUrl('https://figma.com/file/abc');
         $this->assertTrue($good['success']);
         $this->assertSame('https://figma.com/file/abc', $good['url']);
@@ -84,5 +90,50 @@ final class ProjectDoorsTest extends TestCase
             'url' => 'https://example.com/nope',
         ]);
         $this->assertFalse($denied['success']);
+    }
+
+    public function test_update_door_rejects_overlong_fields(): void
+    {
+        $boot = bootstrapQAclE2eFixtures();
+        $m = $boot['manifest'];
+        $projectId = (int)$m['projects']['member_visible']['id'];
+        $created = createProjectDoor(self::$adminId, $projectId, [
+            'title' => 'Resize me',
+            'url' => 'https://example.com/door-edge',
+        ]);
+        $this->assertTrue($created['success'], $created['error'] ?? '');
+        $doorId = (int)($created['id'] ?? $created['door']['id'] ?? 0);
+        if ($doorId <= 0) {
+            $listed = listProjectDoorsForProject(getUserById(self::$adminId, false), $projectId);
+            foreach ($listed as $d) {
+                if (($d['title'] ?? '') === 'Resize me') {
+                    $doorId = (int)$d['id'];
+                    break;
+                }
+            }
+        }
+        $this->assertGreaterThan(0, $doorId);
+
+        $longTitle = updateProjectDoor(self::$adminId, $doorId, [
+            'title' => str_repeat('T', 201),
+        ]);
+        $this->assertFalse($longTitle['success']);
+        $this->assertStringContainsString('200', (string)($longTitle['error'] ?? ''));
+
+        $longDesc = updateProjectDoor(self::$adminId, $doorId, [
+            'description' => str_repeat('D', 501),
+        ]);
+        $this->assertFalse($longDesc['success']);
+        $this->assertStringContainsString('500', (string)($longDesc['error'] ?? ''));
+
+        $missing = updateProjectDoor(self::$adminId, 99999999, ['title' => 'x']);
+        $this->assertFalse($missing['success']);
+
+        $emptyTitle = updateProjectDoor(self::$adminId, $doorId, ['title' => '   ']);
+        $this->assertFalse($emptyTitle['success']);
+        $this->assertStringContainsString('Title', (string)($emptyTitle['error'] ?? ''));
+
+        $delMissing = deleteProjectDoor(self::$adminId, 99999999);
+        $this->assertFalse($delMissing['success']);
     }
 }

@@ -209,4 +209,97 @@ final class DbDocumentLifecycleTest extends TestCase
         $this->assertSame(1000000, strlen((string)$loaded['body']));
         $this->assertSame($exact, $loaded['body']);
     }
+
+    public function testEscapeSqlLikePatternTreatsWildcardsAsLiterals(): void
+    {
+        $this->assertSame('100\\% done', escapeSqlLikePattern('100% done'));
+        $this->assertSame('a\\_b', escapeSqlLikePattern('a_b'));
+        $this->assertSame('c\\\\d', escapeSqlLikePattern('c\\d'));
+    }
+
+    public function testListDocumentsQMatchesTitleAndBodyCaseInsensitive(): void
+    {
+        [$uid, $pid, $suf] = $this->makeUserAndProject('qmatch');
+        $u = getUserById($uid, false);
+
+        $titleHit = createDocument($uid, $pid, "AlphaInvoice {$suf}", 'unrelated body');
+        $this->assertTrue($titleHit['success']);
+        $bodyHit = createDocument($uid, $pid, "Other {$suf}", "contains InVoIcE payload {$suf}");
+        $this->assertTrue($bodyHit['success']);
+        $miss = createDocument($uid, $pid, "NoMatch {$suf}", 'nothing here');
+        $this->assertTrue($miss['success']);
+
+        $byTitle = listDocumentsForUser($u, 200, $pid, 'invoice');
+        $idsTitle = array_column($byTitle, 'id');
+        $this->assertContains((int)$titleHit['id'], $idsTitle);
+        $this->assertContains((int)$bodyHit['id'], $idsTitle);
+        $this->assertNotContains((int)$miss['id'], $idsTitle);
+
+        $byBodyOnly = listDocumentsForUser($u, 200, $pid, "payload {$suf}");
+        $this->assertSame([(int)$bodyHit['id']], array_map('intval', array_column($byBodyOnly, 'id')));
+
+        $empty = listDocumentsForUser($u, 200, $pid, 'zzzz-no-such-token');
+        $this->assertSame([], $empty);
+
+        $this->assertSame(2, countDocumentsForUser($u, $pid, 'invoice'));
+        $this->assertSame(0, countDocumentsForUser($u, $pid, 'zzzz-no-such-token'));
+    }
+
+    public function testListDocumentsQRespectsProjectScopeAndLiteralWildcards(): void
+    {
+        [$uidA, $pidA, $sufA] = $this->makeUserAndProject('qscopea');
+        [$uidB, $pidB, $sufB] = $this->makeUserAndProject('qscopeb');
+        $uA = getUserById($uidA, false);
+
+        $inA = createDocument($uidA, $pidA, "Scoped {$sufA}", 'needle_value in A');
+        $this->assertTrue($inA['success']);
+        $pct = createDocument($uidA, $pidA, "Percent {$sufA}", 'literal 50% complete');
+        $this->assertTrue($pct['success']);
+        $inB = createDocument($uidB, $pidB, "OtherBoard {$sufB}", 'needle_value in B');
+        $this->assertTrue($inB['success']);
+
+        $scoped = listDocumentsForUser($uA, 200, $pidA, 'needle_value');
+        $scopedIds = array_map('intval', array_column($scoped, 'id'));
+        $this->assertContains((int)$inA['id'], $scopedIds);
+        $this->assertNotContains((int)$inB['id'], $scopedIds);
+
+        // '%' in the query must be literal, not "match anything".
+        $pctHits = listDocumentsForUser($uA, 200, $pidA, '50%');
+        $pctIds = array_map('intval', array_column($pctHits, 'id'));
+        $this->assertContains((int)$pct['id'], $pctIds);
+        $this->assertNotContains((int)$inA['id'], $pctIds);
+
+        // Underscore in query is literal (would otherwise match any single char).
+        $under = listDocumentsForUser($uA, 200, $pidA, 'needle_value');
+        $this->assertContains((int)$inA['id'], array_map('intval', array_column($under, 'id')));
+    }
+
+    public function testUpdateDocumentOptimisticConcurrencyConflict(): void
+    {
+        [$uid, $pid] = $this->makeUserAndProject('conflict');
+        $doc = createDocument($uid, $pid, 'Race me', 'v1');
+        $this->assertTrue($doc['success']);
+        $id = (int)$doc['id'];
+        $row = getDocumentById($id, false);
+        $this->assertNotNull($row);
+        $stale = '2000-01-01 00:00:00';
+
+        $conflict = updateDocument($id, [
+            'body' => 'stale write',
+            'expected_updated_at' => $stale,
+        ], $uid);
+        $this->assertFalse($conflict['success']);
+        $this->assertSame('document.conflict', $conflict['error_code'] ?? null);
+        $this->assertSame($id, (int)($conflict['details']['document_id'] ?? 0));
+        $this->assertSame($stale, $conflict['details']['expected_updated_at'] ?? null);
+        $this->assertNotNull($conflict['details']['current_updated_at'] ?? null);
+
+        $ok = updateDocument($id, [
+            'body' => 'fresh write',
+            'expected_updated_at' => (string)$row['updated_at'],
+        ], $uid);
+        $this->assertTrue($ok['success'], (string)($ok['error'] ?? 'fresh'));
+        $reloaded = getDocumentById($id, false);
+        $this->assertStringContainsString('fresh write', (string)$reloaded['body']);
+    }
 }
