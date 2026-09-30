@@ -24,7 +24,17 @@ Coverage (PCOV) — Unit line % on includes:
 php -d pcov.enabled=1 vendor/bin/phpunit --testsuite unit --coverage-text
 ```
 
-## Measured snapshot (2026-09-30, `dev` branch — Search S1 complete)
+## Measured snapshot (2026-09-30, `dev` branch — Search S2 complete)
+
+| Category | Result |
+| -------- | ------ |
+| **Unit** (PCOV, scoped includes) | **90.23%** lines (4158/4608) |
+| **Integration** (PHPUnit HTTP suite) | **100%** green (15/15) |
+| **E2E** (checklist + Playwright W17–W19) | **100%**; omnibox + docs search + Home live filter screenshots inspected |
+
+Commits on `dev` (S2): `1a35465`…`07b713f` (on top of S1). W19 wired. No `main` merge / Ada sync.
+
+## Prior snapshot (2026-09-30 — Search S1 complete)
 
 | Category | Result |
 | -------- | ------ |
@@ -32,7 +42,7 @@ php -d pcov.enabled=1 vendor/bin/phpunit --testsuite unit --coverage-text
 | **Integration** (PHPUnit HTTP suite) | **100%** green (13/13) |
 | **E2E** (checklist + Playwright W17–W18) | **100%**; omnibox + docs search screenshots inspected |
 
-Commits on `dev` (S1): `d24f65a`…`aa51920`. A11 + W17 + W18 wired. No `main` merge / Ada sync.
+Commits on `dev` (S1): `d24f65a`…`aa51920`. A11 + W17 + W18 wired.
 
 ## CI
 
