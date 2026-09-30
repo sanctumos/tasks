@@ -22,6 +22,7 @@ Target: **≥ 90%** of these workflows have an automated browser path under `too
 | W16 | Ask Q prod smoke | `ask_q_prod_verify.py` | optional |
 | W17 | Navbar omnibox (Ctrl+K / live dropdown) | `omnibox_verify.py` | yes |
 | W18 | Docs hub + project Docs tab search | `docs_search_verify.py` | yes |
+| W19 | Home live filter (debounced fragment) | `home_live_filter_verify.py` | yes |
 
 **Required set** = rows marked `yes`. Pass rate = scripts present and runnable against the target host.
 

@@ -388,7 +388,7 @@ require __DIR__ . '/_layout_top.php';
     <div class="page-header">
         <div class="page-header__title">
             <h2 id="st-home-master-heading" class="h4 mb-1">All tasks <span class="text-muted fw-normal">across projects</span></h2>
-            <div class="subtitle"><?= $total ?> task<?= $total === 1 ? '' : 's' ?> across every project you can reach.</div>
+            <div class="subtitle st-home-master-count" data-st-home-count="1"><?= (int)$total ?> task<?= $total === 1 ? '' : 's' ?> across every project you can reach.</div>
         </div>
         <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
             <div class="btn-group" role="group" aria-label="View">
@@ -405,9 +405,9 @@ require __DIR__ . '/_layout_top.php';
         </div>
     </div>
 
-<form class="filter-bar" method="get" action="/admin/" role="search">
+<form id="st-home-filter-form" class="filter-bar st-livebar" method="get" action="/admin/" role="search" data-st-home-live-filter="1">
     <?php if ($mineFilter): ?>
-        <input type="hidden" name="mine" value="1">
+        <input type="hidden" name="mine" value="1" data-st-home-mine="1">
     <?php endif; ?>
     <div class="filter-bar__search">
         <div class="input-group">
@@ -462,7 +462,11 @@ require __DIR__ . '/_layout_top.php';
     <div class="filter-bar__actions d-flex align-items-center flex-wrap gap-2">
         <?= st_assigned_to_me_button('/admin/', st_request_query(['mine', 'assigned_to_user_id']), $mineFilter) ?>
         <button class="btn btn-primary" type="submit"><i class="bi bi-funnel-fill me-1"></i>Filter</button>
-        <a class="btn btn-outline-secondary" href="/admin/"><i class="bi bi-x-lg"></i></a>
+        <a class="btn btn-outline-secondary st-home-filter-clear" href="/admin/" title="Clear filters"><i class="bi bi-x-lg"></i></a>
+        <span class="st-livebar__spinner spinner-border spinner-border-sm text-primary" role="status" aria-label="Updating results" hidden></span>
+        <span class="st-livebar__count st-home-live-count" aria-live="polite"><?= (int)$total ?> task<?= $total === 1 ? '' : 's' ?><?php
+            $hasActiveHomeFilters = ($q !== '' || $status !== '' || $tag !== '' || $priority !== '' || $project !== '' || $projectIdFilter > 0 || $mineFilter || $assignedToUserId !== '' || $excludeDone);
+            if ($hasActiveHomeFilters): ?> · <a href="/admin/" class="st-home-filter-clear">clear</a><?php endif; ?></span>
         <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#advFilters" aria-expanded="false"><i class="bi bi-sliders"></i> More</button>
         <?= st_doc_help('filters', 'How filters and sorting work') ?>
     </div>

@@ -34,6 +34,7 @@ final class MajorWorkflowsChecklistTest extends TestCase
             'board_export_archives_verify.py',
             'omnibox_verify.py',
             'docs_search_verify.py',
+            'home_live_filter_verify.py',
         ];
         $smoke = $root . '/tools/design-smoke';
         $present = 0;

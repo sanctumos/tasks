@@ -1365,3 +1365,10 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
     padding: 0 1px;
     border-radius: 2px;
 }
+
+/* Home live filter (S2) */
+.st-livebar.is-loading .st-livebar__spinner { display: inline-block !important; }
+.st-livebar__spinner[hidden] { display: none !important; }
+.st-livebar__count { font-size: 0.78rem; color: var(--bs-secondary-color, #4a5260); white-space: nowrap; }
+.st-livebar__count a { text-decoration: none; }
+.st-livebar__count a:hover { text-decoration: underline; }
