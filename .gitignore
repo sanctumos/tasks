@@ -43,3 +43,4 @@ tools/design-smoke/output/
 vendor/
 .phpunit.cache/
 
+.venv/
