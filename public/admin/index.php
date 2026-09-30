@@ -24,29 +24,20 @@ $excludeDone = isset($_GET['exclude_done']) && (string)$_GET['exclude_done'] ===
 
 $homeWidgets = getHomeWidgetsForUser($currentUser);
 $isHomeResultsPartial = st_is_home_results_partial_request($_GET);
-// Filter / board deep-links (and results fragments) opt into the heavy cross-project board for this request only.
-if (
-    $isHomeResultsPartial
-    || isset($_GET['board'])
-    || $status !== ''
-    || $tag !== ''
-    || $q !== ''
-    || $priority !== ''
-    || $project !== ''
-    || $projectIdFilter > 0
-    || $excludeDone
-) {
-    $homeWidgets['cross_project_board'] = true;
-}
+// S2.3: filters / partials use the light path — do not force-enable the heavy board widget.
+$homeResultsMode = st_home_results_mode($homeWidgets, $_GET);
+$showHeavyBoard = $homeResultsMode === 'heavy';
+$showLightResults = $homeResultsMode === 'light';
+$showHomeResults = $showHeavyBoard || $showLightResults;
 
 $statuses = listTaskStatuses();
 $statusMap = [];
 foreach ($statuses as $s) { $statusMap[$s['slug']] = $s; }
-$users = !empty($homeWidgets['cross_project_board']) ? listUsers(false) : [];
-$projects = !empty($homeWidgets['cross_project_board']) ? listProjects(200) : [];
+$users = $showHomeResults ? listUsers(false) : [];
+$projects = $showHomeResults ? listProjects(200) : [];
 
 // directory_projects (workspace projects), used to render Project as a link
-$directoryProjects = !empty($homeWidgets['projects_hub']) || !empty($homeWidgets['cross_project_board']) || !empty($homeWidgets['my_work'])
+$directoryProjects = !empty($homeWidgets['projects_hub']) || $showHomeResults || !empty($homeWidgets['my_work'])
     ? listDirectoryProjectsForUser($currentUser, 300)
     : [];
 $directoryProjectByName = [];
@@ -54,8 +45,9 @@ foreach ($directoryProjects as $dp) {
     $directoryProjectByName[strtolower($dp['name'])] = $dp;
 }
 
+// Heavy board only: hydrate every project's todo lists for the New task modal.
 $todoListsByProject = [];
-if (!empty($homeWidgets['cross_project_board'])) {
+if ($showHeavyBoard) {
     foreach ($directoryProjects as $dp) {
         $todoListsByProject[(int)$dp['id']] = listTodoListsForProject($currentUser, (int)$dp['id']);
     }
@@ -74,7 +66,7 @@ $grouped = [];
 foreach ($statuses as $s) {
     $grouped[$s['slug']] = [];
 }
-if (!empty($homeWidgets['cross_project_board'])) {
+if ($showHomeResults) {
     $tasksResult = listAllTasks($filters, null, $currentUser);
     $tasks = $tasksResult['tasks'];
     $total = (int)$tasksResult['total'];
@@ -87,7 +79,11 @@ if (!empty($homeWidgets['cross_project_board'])) {
     }
 }
 
-$initialView = ($view === 'list' || $view === 'board') ? $view : 'board';
+if ($view === 'list' || $view === 'board') {
+    $initialView = $view;
+} else {
+    $initialView = $showLightResults ? 'list' : 'board';
+}
 
 if (!function_exists('st_render_task_assignee_html')) {
     function st_render_task_assignee_html(array $t): string {
@@ -102,6 +98,10 @@ if ($isHomeResultsPartial) {
     header('Content-Type: text/html; charset=UTF-8');
     header('X-Total-Count: ' . (int)$total);
     header('Cache-Control: no-store');
+    if (!$showHomeResults) {
+        echo '<div id="st-home-results" class="st-home-results" data-total-count="0" data-match-count="0" data-st-home-path="off"><div class="empty-hint text-muted p-3">No results region for this request.</div></div>';
+        exit;
+    }
     require __DIR__ . '/_home_results.php';
     exit;
 }
@@ -373,34 +373,46 @@ require __DIR__ . '/_layout_top.php';
 
 <hr class="st-home-rule text-muted opacity-50 my-5" aria-hidden="true">
 
-<?php if (empty($homeWidgets['cross_project_board'])): ?>
+<?php if (!$showHomeResults): ?>
 <section class="st-home-master-optin mb-4">
     <div class="surface surface-pad d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div>
             <div class="fw-semibold mb-1">Cross-project board</div>
-            <p class="fine-print mb-0 text-muted">Off by default — it loads every reachable task. Turn it on under Appearance → Home widgets when you need the full board.</p>
+            <p class="fine-print mb-0 text-muted">Off by default — it loads every reachable task. Turn it on under Appearance → Home widgets when you need the full board. Filtered deep links use a light results list instead.</p>
         </div>
-        <a class="btn btn-outline-primary btn-sm" href="/admin/settings.php?tab=appearance"><i class="bi bi-sliders me-1"></i>Enable in settings</a>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-secondary btn-sm" href="/admin/?board=1"><i class="bi bi-kanban me-1"></i>Show board once</a>
+            <a class="btn btn-outline-primary btn-sm" href="/admin/settings.php?tab=appearance"><i class="bi bi-sliders me-1"></i>Enable in settings</a>
+        </div>
     </div>
 </section>
 <?php else: ?>
-<section class="st-home-master" aria-labelledby="st-home-master-heading">
+<section class="st-home-master" data-st-home-path="<?= $showHeavyBoard ? 'heavy' : 'light' ?>" aria-labelledby="st-home-master-heading">
     <div class="page-header">
         <div class="page-header__title">
-            <h2 id="st-home-master-heading" class="h4 mb-1">All tasks <span class="text-muted fw-normal">across projects</span></h2>
-            <div class="subtitle st-home-master-count" data-st-home-count="1"><?= (int)$total ?> task<?= $total === 1 ? '' : 's' ?> across every project you can reach.</div>
+            <?php if ($showHeavyBoard): ?>
+                <h2 id="st-home-master-heading" class="h4 mb-1">All tasks <span class="text-muted fw-normal">across projects</span></h2>
+                <div class="subtitle st-home-master-count" data-st-home-count="1"><?= (int)$total ?> task<?= $total === 1 ? '' : 's' ?> across every project you can reach.</div>
+            <?php else: ?>
+                <h2 id="st-home-master-heading" class="h4 mb-1">Filtered tasks</h2>
+                <div class="subtitle st-home-master-count" data-st-home-count="1"><?= (int)$total ?> match<?= $total === 1 ? '' : 'es' ?> · light path (board widget off)</div>
+            <?php endif; ?>
         </div>
         <div class="page-header__actions d-flex align-items-center flex-wrap gap-2">
             <div class="btn-group" role="group" aria-label="View">
                 <button type="button" class="btn btn-sm btn-outline-secondary <?= $initialView === 'board' ? 'active' : '' ?>" data-view-switch="board"><i class="bi bi-kanban me-1"></i>Board</button>
                 <button type="button" class="btn btn-sm btn-outline-secondary <?= $initialView === 'list' ? 'active' : '' ?>" data-view-switch="list"><i class="bi bi-list-ul me-1"></i>List</button>
             </div>
-            <?php if (!empty($directoryProjects)): ?>
-                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newTaskModal">
-                    <i class="bi bi-plus-lg"></i> New task
-                </button>
+            <?php if ($showHeavyBoard): ?>
+                <?php if (!empty($directoryProjects)): ?>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newTaskModal">
+                        <i class="bi bi-plus-lg"></i> New task
+                    </button>
+                <?php else: ?>
+                    <a class="btn btn-outline-primary btn-sm" href="/admin/workspace-projects.php"><i class="bi bi-kanban me-1"></i>Create a project first</a>
+                <?php endif; ?>
             <?php else: ?>
-                <a class="btn btn-outline-primary btn-sm" href="/admin/workspace-projects.php"><i class="bi bi-kanban me-1"></i>Create a project first</a>
+                <a class="btn btn-outline-secondary btn-sm" href="/admin/?board=1"><i class="bi bi-kanban me-1"></i>Open full board</a>
             <?php endif; ?>
         </div>
     </div>
@@ -493,8 +505,8 @@ require __DIR__ . '/_layout_top.php';
 
 <?php require __DIR__ . '/_home_results.php'; ?>
 
-<?php /* ------- New task modal (requires a directory project) ------- */ ?>
-<?php if (!empty($directoryProjects)): ?>
+<?php /* ------- New task modal (heavy board only — todo-list hydration) ------- */ ?>
+<?php if ($showHeavyBoard && !empty($directoryProjects)): ?>
 <div class="modal fade" id="newTaskModal" tabindex="-1" aria-labelledby="newTaskModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -577,8 +589,9 @@ require __DIR__ . '/_layout_top.php';
 <?php endif; ?>
 
 <script>
+<?php if ($showHeavyBoard): ?>
 (function () {
-    var byProject = <?= json_encode($todoListsByProject, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
+    var byProject = <?= json_encode($todoListsByProject, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>; // st-home-board-hydration
     var projSel = document.getElementById('newTaskProjectId');
     var listSel = document.getElementById('newTaskListId');
     if (!projSel || !listSel) return;
@@ -619,6 +632,7 @@ require __DIR__ . '/_layout_top.php';
         modal.addEventListener('shown.bs.modal', refillLists);
     }
 })();
+<?php endif; ?>
 // View switcher: hide/show board vs list based on data-view-root
 (function () {
     function applyView(name) {

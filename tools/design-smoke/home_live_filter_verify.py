@@ -176,6 +176,26 @@ def run_live_filter_flow(page, base: str, needle: str, shot_name: str) -> None:
     page.wait_for_selector(f"#st-home-results >> text=Match {needle}", timeout=10000)
 
 
+def run_cold_light_path(page, base: str, needle: str) -> None:
+    """Board widget off: cold GET ?q= uses light path, not heavy hydration."""
+    login_admin(page, base)
+    page.goto(f"{base}/admin/?q={needle}", wait_until="load", timeout=60000)
+    page.wait_for_selector("#st-home-results", timeout=15000)
+    path = page.locator(".st-home-master").get_attribute("data-st-home-path")
+    if path != "light":
+        raise RuntimeError(f"expected light path, got {path!r}")
+    html = page.content()
+    if f"Match {needle}" not in html:
+        raise RuntimeError("matching task missing from light-path HTML")
+    total = page.locator("#st-home-results").get_attribute("data-total-count")
+    if total != "1":
+        raise RuntimeError(f"expected 1 match, data-total-count={total!r}")
+    if "st-home-board-hydration" in html:
+        raise RuntimeError("heavy board hydration present on light path")
+    if page.locator("#newTaskModal").count() > 0:
+        raise RuntimeError("new task modal should not mount on light path")
+
+
 def main() -> int:
     try:
         from playwright.sync_api import sync_playwright
@@ -243,11 +263,25 @@ def main() -> int:
                 page = browser.new_page(viewport={"width": MOBILE[0], "height": MOBILE[1]})
                 run_live_filter_flow(page, base, needle, "home_live_filter_mobile.png")
                 page.close()
+
+                # S2.3 — cold filtered URL with board widget off
+                con = sqlite3.connect(db)
+                con.execute(
+                    "UPDATE users SET home_widgets_json = ? WHERE username = ?",
+                    (json.dumps({"cross_project_board": False}), ADMIN_USER),
+                )
+                con.commit()
+                con.close()
+                page = browser.new_page(viewport={"width": DESKTOP[0], "height": DESKTOP[1]})
+                run_cold_light_path(page, base, needle)
+                page.screenshot(path=str(OUT / "home_live_filter_light_cold.png"), full_page=False)
+                page.close()
             finally:
                 browser.close()
 
         print(OUT / "home_live_filter_desktop.png")
         print(OUT / "home_live_filter_mobile.png")
+        print(OUT / "home_live_filter_light_cold.png")
         return 0
     finally:
         proc.terminate()

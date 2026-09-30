@@ -174,6 +174,13 @@
         if (ev) {
             ev.preventDefault();
         }
+        var master = document.querySelector(".st-home-master");
+        var path = master ? master.getAttribute("data-st-home-path") : "";
+        // Light path has no unfiltered results region — leave via full navigation.
+        if (path === "light") {
+            window.location.href = "/admin/";
+            return;
+        }
         form.querySelectorAll('input[name="q"], input[name="tag"], input[name="project"]').forEach(function (el) {
             el.value = "";
         });

@@ -57,4 +57,21 @@ final class HomeBoardFiltersTest extends TestCase
         $this->assertArrayNotHasKey('exclude_done', $filters);
         $this->assertArrayNotHasKey('project_id', $filters);
     }
+
+    public function testResultsModeDoesNotForceHeavyOnFiltersAlone(): void
+    {
+        $widgetsOff = homeWidgetDefaults();
+        $this->assertFalse($widgetsOff['cross_project_board']);
+        $this->assertSame('off', st_home_results_mode($widgetsOff, []));
+        $this->assertSame('light', st_home_results_mode($widgetsOff, ['q' => 'garage']));
+        $this->assertSame('light', st_home_results_mode($widgetsOff, ['status' => 'todo']));
+        $this->assertSame('light', st_home_results_mode($widgetsOff, ['mine' => '1']));
+        $this->assertSame('heavy', st_home_results_mode($widgetsOff, ['board' => '1']));
+        $this->assertSame('heavy', st_home_results_mode(
+            array_merge($widgetsOff, ['cross_project_board' => true]),
+            ['q' => 'garage']
+        ));
+        $this->assertFalse(st_home_request_has_active_filters(['view' => 'list', 'sort_by' => 'title']));
+        $this->assertTrue(st_home_request_has_active_filters(['q' => 'x']));
+    }
 }

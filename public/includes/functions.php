@@ -2402,6 +2402,54 @@ function st_home_board_filters_from_get(array $get, ?int $mineAssigneeUserId = n
     return $filters;
 }
 
+/**
+ * Whether Home GET carries active result filters (not view/sort alone).
+ *
+ * @param array<string, mixed> $get
+ */
+function st_home_request_has_active_filters(array $get): bool {
+    $filters = st_home_board_filters_from_get($get, null);
+    if (!empty($filters['q'])) {
+        return true;
+    }
+    if (!empty($filters['status']) || !empty($filters['priority']) || !empty($filters['project'])) {
+        return true;
+    }
+    if (!empty($filters['tag']) || !empty($filters['exclude_done'])) {
+        return true;
+    }
+    if (!empty($filters['project_id'])) {
+        return true;
+    }
+    if (isset($get['mine']) && (string)$get['mine'] === '1') {
+        return true;
+    }
+    if (isset($filters['assigned_to_user_id']) && (string)$filters['assigned_to_user_id'] !== '') {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Home results rendering mode for this request.
+ * - heavy: full cross-project board (widget or ?board=)
+ * - light: filtered results without todo-list hydration
+ * - off: no results region
+ *
+ * @param array<string, mixed> $homeWidgets
+ * @param array<string, mixed> $get
+ */
+function st_home_results_mode(array $homeWidgets, array $get): string {
+    if (!empty($homeWidgets['cross_project_board']) || isset($get['board'])) {
+        return 'heavy';
+    }
+    // Light path is for filtered deep links / live filter — not an unfiltered full dump.
+    if (st_home_request_has_active_filters($get)) {
+        return 'light';
+    }
+    return 'off';
+}
+
 function homeWidgetDefaults(): array {
     return [
         'pulse_kpis' => true,
