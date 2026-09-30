@@ -1059,9 +1059,25 @@ require __DIR__ . '/_layout_top.php';
             <p class="mb-0">No recorded activity yet. Create tasks, comment, or edit docs — events show up here.</p>
         </div>
     <?php else: ?>
-        <ul class="activity-feed list-unstyled mb-0">
-            <?php foreach ($projectActivityItems as $ev): ?>
-                <li class="activity-feed__item surface surface-pad">
+        <div class="st-feedfilter mb-3" id="st-project-activity-filter">
+            <div class="input-group input-group-sm" style="max-width:280px">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="search" id="st-project-activity-filter-q" class="form-control border-start-0" placeholder="Filter this feed…" autocomplete="off" aria-label="Filter project activity">
+            </div>
+            <button type="button" class="st-chip-toggle" data-st-chip="comment" aria-pressed="false">Comments</button>
+            <button type="button" class="st-chip-toggle" data-st-chip="status" aria-pressed="false">Status changes</button>
+            <button type="button" class="st-chip-toggle" data-st-chip="create" aria-pressed="false">Creates</button>
+            <span class="st-feedfilter__count text-muted small" id="st-project-activity-filter-count" aria-live="polite"></span>
+        </div>
+        <ul class="activity-feed list-unstyled mb-0" id="st-project-activity-feed">
+            <?php foreach ($projectActivityItems as $ev):
+                $kind = activityFeedFilterKind((string)($ev['action'] ?? ''));
+                $filterText = activityFeedFilterText($ev);
+                ?>
+                <li class="activity-feed__item surface surface-pad"
+                    data-st-filter-item
+                    data-st-filter-text="<?= htmlspecialchars($filterText, ENT_QUOTES, 'UTF-8') ?>"
+                    <?php if ($kind !== ''): ?>data-st-chip-<?= htmlspecialchars($kind, ENT_QUOTES, 'UTF-8') ?>="1"<?php endif; ?>>
                     <div class="activity-feed__icon"><i class="bi <?= htmlspecialchars((string)($ev['icon'] ?? 'bi-activity')) ?>"></i></div>
                     <div class="activity-feed__body">
                         <a class="activity-feed__summary stretched-link" href="<?= htmlspecialchars((string)($ev['href'] ?? '/admin/')) ?>"><?= htmlspecialchars((string)($ev['summary'] ?? '')) ?></a>
@@ -1082,6 +1098,21 @@ require __DIR__ . '/_layout_top.php';
                 <a class="btn btn-outline-secondary btn-sm" href="/admin/project.php?<?= htmlspecialchars($moreQ) ?>">Load older</a>
             </div>
         <?php endif; ?>
+        <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!window.stFilter) return;
+            var items = document.querySelectorAll('#st-project-activity-feed [data-st-filter-item]');
+            if (!items.length) return;
+            stFilter.attach({
+                input: document.getElementById('st-project-activity-filter-q'),
+                items: items,
+                chips: document.querySelectorAll('#st-project-activity-filter [data-st-chip]'),
+                countEl: document.getElementById('st-project-activity-filter-count'),
+                urlParam: '',
+                chipMode: 'any'
+            });
+        });
+        </script>
     <?php endif; ?>
 
 <?php elseif ($tab === 'docs'): ?>

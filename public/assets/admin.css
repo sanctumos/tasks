@@ -1392,6 +1392,15 @@ a.mention:hover { background: rgba(59, 91, 219, 0.15); }
   color: #fff;
 }
 
+/* Activity / notifications feed filter (S4 / R6) */
+.st-feedfilter {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.st-feedfilter__count { white-space: nowrap; }
+
 /* Find in thread (S4 / R5) */
 .st-findbar {
   display: flex;

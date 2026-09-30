@@ -194,6 +194,21 @@ final class CoverageSweepRemainingTest extends TestCase
         $this->assertNotSame('', activityFeedIconClass('task.create'));
         $this->assertNotSame('', activityFeedIconClass('document.update'));
         $this->assertNotSame('', activityFeedIconClass('unknown.action'));
+        $this->assertSame('comment', activityFeedFilterKind('task.comment_add'));
+        $this->assertSame('status', activityFeedFilterKind('task.update'));
+        $this->assertSame('create', activityFeedFilterKind('task.create'));
+        $this->assertSame('', activityFeedFilterKind('task.watch_add'));
+        $filterText = activityFeedFilterText([
+            'actor_username' => 'otto',
+            'summary' => 'otto created task “Alpha”.',
+            'task_title' => 'Alpha',
+            'document_title' => '',
+            'action' => 'task.create',
+            'metadata' => ['project_name' => 'BoardX'],
+        ]);
+        $this->assertStringContainsString('otto', $filterText);
+        $this->assertStringContainsString('Alpha', $filterText);
+        $this->assertStringContainsString('BoardX', $filterText);
         foreach ([
             'task.watch_remove', 'document.create', 'document.update', 'document.delete',
             'document.public_link', 'project.member_add', 'project.member_remove', 'project.update',

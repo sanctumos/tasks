@@ -131,6 +131,8 @@
             ? options.urlParam
             : "q";
         var debounceMs = typeof options.debounceMs === "number" ? options.debounceMs : 120;
+        // 'all' = every active chip must match (board chips). 'any' = at least one (activity type chips).
+        var chipMode = options.chipMode === "any" ? "any" : "all";
         var total = itemList.length;
         var timer = null;
         var chipState = {};
@@ -181,19 +183,35 @@
             itemList.forEach(function (el) {
                 var textOk = !qn || normalize(textOf(el)).indexOf(qn) !== -1;
                 var chipOk = true;
-                if (chipOk && chipsOn.length && chipMatch) {
-                    for (var i = 0; i < chipsOn.length; i++) {
-                        if (!chipMatch(el, chipsOn[i])) {
-                            chipOk = false;
-                            break;
+                if (chipsOn.length) {
+                    if (chipMode === "any") {
+                        chipOk = false;
+                        for (var i = 0; i < chipsOn.length; i++) {
+                            var okAny = chipMatch
+                                ? !!chipMatch(el, chipsOn[i])
+                                : (function () {
+                                      var flag = el.getAttribute("data-st-chip-" + chipsOn[i]);
+                                      return flag === "1" || flag === "true";
+                                  })();
+                            if (okAny) {
+                                chipOk = true;
+                                break;
+                            }
                         }
-                    }
-                } else if (chipsOn.length && !chipMatch) {
-                    for (var j = 0; j < chipsOn.length; j++) {
-                        var flag = el.getAttribute("data-st-chip-" + chipsOn[j]);
-                        if (flag !== "1" && flag !== "true") {
-                            chipOk = false;
-                            break;
+                    } else if (chipMatch) {
+                        for (var j = 0; j < chipsOn.length; j++) {
+                            if (!chipMatch(el, chipsOn[j])) {
+                                chipOk = false;
+                                break;
+                            }
+                        }
+                    } else {
+                        for (var k = 0; k < chipsOn.length; k++) {
+                            var flagAll = el.getAttribute("data-st-chip-" + chipsOn[k]);
+                            if (flagAll !== "1" && flagAll !== "true") {
+                                chipOk = false;
+                                break;
+                            }
                         }
                     }
                 }

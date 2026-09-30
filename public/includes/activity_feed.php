@@ -433,3 +433,38 @@ function activityFeedIconClass(string $action): string {
         default => 'bi-activity',
     };
 }
+
+/**
+ * Client filter chip kind for Search S4 / R6 (comment | status | create | '').
+ */
+function activityFeedFilterKind(string $action): string {
+    return match (true) {
+        $action === 'task.comment_add', $action === 'document.comment_add' => 'comment',
+        $action === 'task.update' => 'status',
+        $action === 'task.create', $action === 'document.create', $action === 'todo_list.create' => 'create',
+        default => '',
+    };
+}
+
+/**
+ * Plain text blob for client-side feed filter (actor + titles + summary).
+ *
+ * @param array<string, mixed> $ev
+ */
+function activityFeedFilterText(array $ev): string {
+    $parts = [
+        (string)($ev['actor_username'] ?? ''),
+        (string)($ev['summary'] ?? ''),
+        (string)($ev['task_title'] ?? ''),
+        (string)($ev['document_title'] ?? ''),
+        (string)($ev['action'] ?? ''),
+    ];
+    $meta = isset($ev['metadata']) && is_array($ev['metadata']) ? $ev['metadata'] : [];
+    if (!empty($meta['project_name'])) {
+        $parts[] = (string)$meta['project_name'];
+    }
+    if (!empty($meta['name'])) {
+        $parts[] = (string)$meta['name'];
+    }
+    return trim(preg_replace('/\s+/', ' ', implode(' ', $parts)) ?? '');
+}
