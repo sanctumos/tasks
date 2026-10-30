@@ -19,4 +19,16 @@ final class QBridgeConnectionConfigTest extends TestCase
         $this->assertSame('', $d['sanctum_url']);
         $this->assertSame('', $d['agent_id']);
     }
+
+    public function test_ui_disabled_on_dev_http_host(): void
+    {
+        $prev = $_SERVER['HTTP_HOST'] ?? null;
+        $_SERVER['HTTP_HOST'] = 'dev.tasks.decisionsciencecorp.com';
+        $this->assertFalse(q_bridge_is_ui_enabled());
+        if ($prev === null) {
+            unset($_SERVER['HTTP_HOST']);
+        } else {
+            $_SERVER['HTTP_HOST'] = $prev;
+        }
+    }
 }

@@ -87,6 +87,10 @@ function q_bridge_get_connection_config(): array
 
 function q_bridge_is_ui_enabled(): bool
 {
+    require_once __DIR__ . '/webchat_inbox_micropoll.php';
+    if (webchat_bridge_http_host_is_dev()) {
+        return false;
+    }
     // Hard kill-switch via env still works even if settings say on.
     if (defined('TASKS_Q_BRIDGE_ENABLED') && !TASKS_Q_BRIDGE_ENABLED) {
         return false;

@@ -36,4 +36,20 @@ final class QBridgeInboxMicropollTest extends TestCase
         $this->assertTrue(webchat_bridge_inbox_micropoll_active());
         unset($GLOBALS['_webchat_bridge_inbox_busy_timeout_ms']);
     }
+
+    public function testDevHttpHostIsDetected(): void
+    {
+        $prev = $_SERVER['HTTP_HOST'] ?? null;
+        $_SERVER['HTTP_HOST'] = 'dev.tasks.decisionsciencecorp.com';
+        $this->assertTrue(webchat_bridge_http_host_is_dev());
+        $_SERVER['HTTP_HOST'] = 'www.dev.tasks.decisionsciencecorp.com';
+        $this->assertTrue(webchat_bridge_http_host_is_dev());
+        $_SERVER['HTTP_HOST'] = 'tasks.decisionsciencecorp.com';
+        $this->assertFalse(webchat_bridge_http_host_is_dev());
+        if ($prev === null) {
+            unset($_SERVER['HTTP_HOST']);
+        } else {
+            $_SERVER['HTTP_HOST'] = $prev;
+        }
+    }
 }
