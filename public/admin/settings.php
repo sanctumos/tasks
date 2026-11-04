@@ -63,13 +63,13 @@ if ($tab === 'password' && $_SERVER['REQUEST_METHOD'] === 'POST' && (string)($_P
     } else {
         $result = changePassword((int)$currentUser['id'], $currentPassword, $newPassword);
         if ($result['success']) {
-            $pwd_success = 'Password changed successfully.';
             $_SESSION['must_change_password'] = 0;
+            $_SESSION['admin_flash_success'] = 'Password changed successfully.';
+            // Always PRG-redirect so a refresh cannot re-POST, and so the next
+            // request re-reads must_change_password=0 from the DB via requireAuth().
             $intended = auth_take_intended_url();
-            if ($intended !== null) {
-                header('Location: ' . $intended);
-                exit;
-            }
+            header('Location: ' . ($intended ?? '/admin/'));
+            exit;
         } else {
             $pwd_error = $result['error'] ?? 'Failed to change password.';
         }

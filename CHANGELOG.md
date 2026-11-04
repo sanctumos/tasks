@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- **Forced password change still required after a successful change** — `changePassword()` now verifies the SQLite update persisted (`changes() === 1` + re-read `must_change_password=0` and the new hash) before reporting success; `requireAuth()` re-syncs the session flag from the DB so a stale `$_SESSION['must_change_password']` cannot keep trapping the user; settings password POST always PRG-redirects to the intended URL or `/admin/` after success.
 - **Forced password change could not redirect after success** — `settings.php` now handles the change-password POST **before** `_layout_top.php` prints HTML, so `header(Location: …)` to the stashed return URL works. Previously PHP warned “headers already sent” and the success banner never appeared (CI `test_session_admin_csrf_password_mfa_and_logout_flows`).
 - **Ask Q message list did not scroll inside the flex panel** — `.sanctum-chat-messages` now has `min-height: 0` so long threads scroll inside the 500px window instead of stretching and getting clipped.
 - **`GET /api/get-document.php`** — catch SQLite busy/lock exceptions and return structured **503** `db.busy` (retryable) instead of opaque **500** (GitHub #52). Same busy mapping on document update.

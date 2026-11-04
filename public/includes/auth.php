@@ -168,6 +168,19 @@ function requireAuth(): void {
         auth_redirect_to_login();
     }
 
+    // DB is source of truth. Stale session flags (or a changePassword that cleared
+    // $_SESSION but failed to persist) must not keep trapping the user.
+    $uid = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+    if ($uid > 0) {
+        $row = getUserById($uid, false);
+        if (!$row || (int)$row['is_active'] !== 1) {
+            logout();
+            auth_redirect_to_login();
+        }
+        $_SESSION['role'] = $row['role'];
+        $_SESSION['must_change_password'] = (int)$row['must_change_password'] === 1 ? 1 : 0;
+    }
+
     if (!empty($_SESSION['must_change_password'])) {
         $script = $_SERVER['SCRIPT_NAME'] ?? '';
         if (!authScriptAllowedDuringPasswordChange($script)) {
@@ -299,14 +312,33 @@ function changePassword($userId, $currentPassword, $newPassword): array {
             must_change_password = 0
         WHERE id = :id
     ");
+    if ($update === false) {
+        unset($result, $stmt, $db);
+        return ['success' => false, 'error' => 'Failed to update password. Try again.'];
+    }
     $update->bindValue(':hash', $newHash, SQLITE3_TEXT);
     $update->bindValue(':id', $userId, SQLITE3_INTEGER);
-    $update->execute();
+    $exec = $update->execute();
+    $changed = $exec !== false ? (int)$db->changes() : 0;
+
+    // Release the active writer connection before opening a new one to verify / audit.
+    unset($result, $stmt, $update, $exec, $db);
+
+    if ($changed !== 1) {
+        return ['success' => false, 'error' => 'Failed to update password. Try again.'];
+    }
+
+    // Confirm the flag actually cleared — never report success on a stale must_change.
+    $after = getUserById($userId, true);
+    if (
+        !$after
+        || (int)$after['must_change_password'] !== 0
+        || !password_verify((string)$newPassword, (string)($after['password_hash'] ?? ''))
+    ) {
+        return ['success' => false, 'error' => 'Password update did not persist. Try again.'];
+    }
 
     $_SESSION['must_change_password'] = 0;
-
-    // Release the active writer connection before opening a new one in createAuditLog().
-    unset($result, $stmt, $update, $db);
 
     createAuditLog($userId, 'user.password_change', 'user', (string)$userId);
     return ['success' => true];

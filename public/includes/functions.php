@@ -1038,9 +1038,15 @@ function resetUserPassword(int $userId, string $newPassword, bool $mustChangePas
     $stmt->bindValue(':hash', password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => PASSWORD_COST]), SQLITE3_TEXT);
     $stmt->bindValue(':must_change_password', $mustChangePassword ? 1 : 0, SQLITE3_INTEGER);
     $stmt->bindValue(':id', $userId, SQLITE3_INTEGER);
-    $stmt->execute();
-    if ($db->changes() === 0) {
+    $exec = $stmt->execute();
+    $changed = $exec !== false ? (int)$db->changes() : 0;
+    unset($stmt, $exec, $db);
+    if ($changed === 0) {
         return ['success' => false, 'error' => 'User not found'];
+    }
+    $after = getUserById($userId, false);
+    if (!$after || (int)$after['must_change_password'] !== ($mustChangePassword ? 1 : 0)) {
+        return ['success' => false, 'error' => 'Password reset did not persist. Try again.'];
     }
     createAuditLog(null, 'user.password_reset', 'user', (string)$userId, ['must_change_password' => $mustChangePassword ? 1 : 0]);
     return ['success' => true];

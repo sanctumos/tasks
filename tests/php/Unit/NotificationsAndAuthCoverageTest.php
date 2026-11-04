@@ -126,5 +126,26 @@ final class NotificationsAndAuthCoverageTest extends TestCase
         $chg = changePassword($uid, 'MemberPass123456', 'MemberPass999999');
         $this->assertTrue($chg['success'], (string)($chg['error'] ?? ''));
         logout();
+
+        // Forced-change path: must_change_password must clear in DB + session or
+        // requireAuth will bounce the user back to the password tab forever.
+        $forced = createUser("au_mc_{$suffix}", 'MemberPass123456', 'member', true);
+        $this->assertTrue($forced['success']);
+        $fid = (int)$forced['id'];
+        $before = getUserById($fid, false);
+        $this->assertSame(1, (int)($before['must_change_password'] ?? 0));
+        $loginForced = login("au_mc_{$suffix}", 'MemberPass123456');
+        $this->assertTrue(!empty($loginForced['success']));
+        $this->assertSame(1, (int)($_SESSION['must_change_password'] ?? 0));
+        $chgForced = changePassword($fid, 'MemberPass123456', 'MemberPass999999');
+        $this->assertTrue($chgForced['success'], (string)($chgForced['error'] ?? ''));
+        $this->assertSame(0, (int)($_SESSION['must_change_password'] ?? 1));
+        $after = getUserById($fid, false);
+        $this->assertSame(0, (int)($after['must_change_password'] ?? 1));
+        // requireAuth must trust DB over a stale session flag
+        $_SESSION['must_change_password'] = 1;
+        requireAuth();
+        $this->assertSame(0, (int)($_SESSION['must_change_password'] ?? 1));
+        logout();
     }
 }
