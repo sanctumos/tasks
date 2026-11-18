@@ -36,8 +36,10 @@ define('SESSION_NAME', envOrDefault('TASKS_SESSION_NAME', 'sanctum_tasks'));
 define('SESSION_LIFETIME', (int)envOrDefault('TASKS_SESSION_LIFETIME', 3600));
 define('PASSWORD_COST', (int)envOrDefault('TASKS_PASSWORD_COST', 12));
 define('PASSWORD_MIN_LENGTH', (int)envOrDefault('TASKS_PASSWORD_MIN_LENGTH', 12));
-// Default secure=true for HTTPS; set TASKS_SESSION_COOKIE_SECURE=0 for local HTTP dev only
-define('SESSION_COOKIE_SECURE', envBool('TASKS_SESSION_COOKIE_SECURE', true));
+// Default secure=true for HTTPS; set TASKS_SESSION_COOKIE_SECURE=0 for local HTTP dev only.
+// Also OR request HTTPS so a mis-set env=0 on prod still emits Secure cookies.
+require_once __DIR__ . '/https_request.php';
+define('SESSION_COOKIE_SECURE', envBool('TASKS_SESSION_COOKIE_SECURE', true) || dsc_request_is_https());
 define('LOGIN_LOCK_THRESHOLD', (int)envOrDefault('TASKS_LOGIN_LOCK_THRESHOLD', 5));
 define('LOGIN_LOCK_WINDOW_SECONDS', (int)envOrDefault('TASKS_LOGIN_LOCK_WINDOW_SECONDS', 900));
 define('LOGIN_LOCK_SECONDS', (int)envOrDefault('TASKS_LOGIN_LOCK_SECONDS', 900));
