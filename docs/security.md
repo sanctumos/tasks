@@ -32,8 +32,9 @@
 ## API rate limiting
 
 - Per-key fixed window limits.
+- Counters are **file-backed** under `TASKS_API_RATE_LIMIT_DIR` (default: sibling of `tasks.db` at `db/api-rate-limits/`) with `flock` — **not** written into SQLite. Enforced **before** Tasks DB auth/queries so a busy `tasks.db` cannot turn the meter into HTTP 500.
 - Exposed through `X-RateLimit-*` headers.
-- `429` + `Retry-After` returned when exceeded.
+- Over quota → `429` + `Retry-After`. Meter I/O failure soft-opens (allows) rather than 500.
 
 ## Input validation
 

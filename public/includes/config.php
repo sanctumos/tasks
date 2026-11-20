@@ -45,6 +45,8 @@ define('LOGIN_LOCK_WINDOW_SECONDS', (int)envOrDefault('TASKS_LOGIN_LOCK_WINDOW_S
 define('LOGIN_LOCK_SECONDS', (int)envOrDefault('TASKS_LOGIN_LOCK_SECONDS', 900));
 define('API_RATE_LIMIT_REQUESTS', (int)envOrDefault('TASKS_API_RATE_LIMIT_REQUESTS', 240));
 define('API_RATE_LIMIT_WINDOW_SECONDS', (int)envOrDefault('TASKS_API_RATE_LIMIT_WINDOW_SECONDS', 60));
+/** File-backed API rate counters — outside public/, never tasks.db (avoids SQLite lock → HTTP 500). */
+define('API_RATE_LIMIT_DIR', envOrDefault('TASKS_API_RATE_LIMIT_DIR', dirname(DB_PATH) . '/api-rate-limits'));
 define('APP_DEBUG', envBool('TASKS_APP_DEBUG', false));
 // Default under docroot public/uploads/ — multihost deploy mirrors public/ with --delete but
 // preserves uploads/ (SITE-DESIGN-GUIDE §7). Override TASKS_ASSET_STORAGE_DIR only if you must

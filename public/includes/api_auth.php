@@ -66,6 +66,28 @@ function setRateLimitHeaders(array $rateState): void {
     header('X-RateLimit-Reset: ' . (int)($rateState['reset_epoch'] ?? time()));
 }
 
+/**
+ * Enforce per-key API rate limit before any Tasks DB work.
+ * Over quota → HTTP 429 (never 500). Meter I/O failures soft-open inside checkApiRateLimit.
+ *
+ * @return array{allowed:bool,limit:int,remaining:int,reset_epoch:int,retry_after:int}
+ */
+function enforceApiKeyRateLimit(string $apiKey): array {
+    $rateState = checkApiRateLimit($apiKey);
+    setRateLimitHeaders($rateState);
+    if (empty($rateState['allowed'])) {
+        header('Retry-After: ' . (int)($rateState['retry_after'] ?? 1));
+        apiError(
+            'rate_limited',
+            'Rate limit exceeded. Slow down and retry later.',
+            429,
+            ['retry_after' => (int)($rateState['retry_after'] ?? 1)],
+            ['rate_limit' => $rateState]
+        );
+    }
+    return $rateState;
+}
+
 function requestScheme(): string {
     if (tasksTrustedProxyConnection()) {
         $xfp = strtolower(trim((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')));
@@ -266,28 +288,18 @@ function paginationMeta(string $path, array $baseQueryParams, int $limit, int $o
 }
 
 function requireApiUser(bool $requireAdmin = false): array {
-    initializeDatabase();
     $apiKey = getApiKeyFromRequest();
     if (!$apiKey) {
         apiError('auth.invalid_api_key', 'Invalid or missing API key', 401);
     }
 
+    // Rate limit first — no initializeDatabase / validateApiKey until under quota.
+    enforceApiKeyRateLimit($apiKey);
+
+    initializeDatabase();
     $user = validateApiKeyAndGetUser($apiKey);
     if (!$user) {
         apiError('auth.invalid_api_key', 'Invalid or missing API key', 401);
-    }
-
-    $rateState = checkApiRateLimit($apiKey);
-    setRateLimitHeaders($rateState);
-    if (empty($rateState['allowed'])) {
-        header('Retry-After: ' . (int)($rateState['retry_after'] ?? 1));
-        apiError(
-            'rate_limited',
-            'Rate limit exceeded. Slow down and retry later.',
-            429,
-            ['retry_after' => (int)($rateState['retry_after'] ?? 1)],
-            ['rate_limit' => $rateState]
-        );
     }
 
     if ($requireAdmin && !isAdminRole((string)$user['role'])) {

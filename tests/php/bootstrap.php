@@ -12,9 +12,12 @@ $repoRoot = dirname(__DIR__, 2);
 require_once $repoRoot . '/vendor/autoload.php';
 
 $unitDb = sys_get_temp_dir() . '/sanctum_tasks_phpunit_' . uniqid('', true) . '.db';
+$unitRlDir = sys_get_temp_dir() . '/sanctum_tasks_rl_' . uniqid('', true);
 
 putenv('TASKS_DB_PATH=' . $unitDb);
 $_ENV['TASKS_DB_PATH'] = $unitDb;
+putenv('TASKS_API_RATE_LIMIT_DIR=' . $unitRlDir);
+$_ENV['TASKS_API_RATE_LIMIT_DIR'] = $unitRlDir;
 putenv('TASKS_SESSION_COOKIE_SECURE=0');
 putenv('TASKS_PASSWORD_COST=8');
 putenv('TASKS_APP_DEBUG=1');
@@ -24,8 +27,14 @@ putenv('TASKS_LOGIN_LOCK_THRESHOLD=50');
 // Load core (initializes schema on first include).
 require_once $repoRoot . '/public/includes/functions.php';
 
-register_shutdown_function(static function () use ($unitDb): void {
+register_shutdown_function(static function () use ($unitDb, $unitRlDir): void {
     if (is_file($unitDb)) {
         @unlink($unitDb);
+    }
+    if (is_dir($unitRlDir)) {
+        foreach (glob($unitRlDir . '/*') ?: [] as $f) {
+            @unlink($f);
+        }
+        @rmdir($unitRlDir);
     }
 });

@@ -36,21 +36,10 @@ if (!$publicShareGranted) {
     $requestUser = null;
     $apiKey = getApiKeyFromRequest();
     if ($apiKey !== null && $apiKey !== '') {
+        enforceApiKeyRateLimit($apiKey);
         $requestUser = validateApiKeyAndGetUser($apiKey);
         if (!$requestUser) {
             apiError('auth.invalid_api_key', 'Invalid or missing API key', 401);
-        }
-        $rateState = checkApiRateLimit($apiKey);
-        setRateLimitHeaders($rateState);
-        if (empty($rateState['allowed'])) {
-            header('Retry-After: ' . (int)($rateState['retry_after'] ?? 1));
-            apiError(
-                'rate_limited',
-                'Rate limit exceeded. Slow down and retry later.',
-                429,
-                ['retry_after' => (int)($rateState['retry_after'] ?? 1)],
-                ['rate_limit' => $rateState]
-            );
         }
     } elseif (isLoggedIn()) {
         $requestUser = getCurrentUser();

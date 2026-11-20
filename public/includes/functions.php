@@ -1257,79 +1257,99 @@ function resetLoginAttempts(string $username): void {
 }
 
 // --------------------
-// API rate limits
+// API rate limits (file + flock — never tasks.db)
 // --------------------
+/**
+ * Per-key fixed-window limiter. No SQLite: counters live under API_RATE_LIMIT_DIR.
+ * Soft-fails open on I/O errors so a broken meter never becomes HTTP 500.
+ *
+ * @return array{allowed:bool,limit:int,remaining:int,reset_epoch:int,retry_after:int}
+ */
 function checkApiRateLimit(string $apiKey, int $maxRequests = API_RATE_LIMIT_REQUESTS, int $windowSeconds = API_RATE_LIMIT_WINDOW_SECONDS): array {
     $maxRequests = max(1, $maxRequests);
     $windowSeconds = max(1, $windowSeconds);
 
-    $hash = hash('sha256', $apiKey);
     $windowStart = (int)(floor(time() / $windowSeconds) * $windowSeconds);
     $resetAt = $windowStart + $windowSeconds;
-
-    $db = getDbConnection();
-
-    // Keep table bounded.
-    $cleanup = $db->prepare("DELETE FROM api_rate_limits WHERE window_start < :min_window");
-    $cleanup->bindValue(':min_window', $windowStart - ($windowSeconds * 10), SQLITE3_INTEGER);
-    $cleanup->execute();
-
-    $select = $db->prepare("
-        SELECT request_count
-        FROM api_rate_limits
-        WHERE api_key_hash = :hash AND window_start = :window_start
-        LIMIT 1
-    ");
-    $select->bindValue(':hash', $hash, SQLITE3_TEXT);
-    $select->bindValue(':window_start', $windowStart, SQLITE3_INTEGER);
-    $res = $select->execute();
-    $row = $res->fetchArray(SQLITE3_ASSOC);
-
-    if (!$row) {
-        $insert = $db->prepare("
-            INSERT INTO api_rate_limits (api_key_hash, window_start, request_count, last_request_at)
-            VALUES (:hash, :window_start, 1, CURRENT_TIMESTAMP)
-        ");
-        $insert->bindValue(':hash', $hash, SQLITE3_TEXT);
-        $insert->bindValue(':window_start', $windowStart, SQLITE3_INTEGER);
-        $insert->execute();
-        return [
-            'allowed' => true,
-            'limit' => $maxRequests,
-            'remaining' => max(0, $maxRequests - 1),
-            'reset_epoch' => $resetAt,
-            'retry_after' => 0,
-        ];
-    }
-
-    $count = (int)$row['request_count'];
-    if ($count >= $maxRequests) {
-        return [
-            'allowed' => false,
-            'limit' => $maxRequests,
-            'remaining' => 0,
-            'reset_epoch' => $resetAt,
-            'retry_after' => max(1, $resetAt - time()),
-        ];
-    }
-
-    $update = $db->prepare("
-        UPDATE api_rate_limits
-        SET request_count = request_count + 1,
-            last_request_at = CURRENT_TIMESTAMP
-        WHERE api_key_hash = :hash AND window_start = :window_start
-    ");
-    $update->bindValue(':hash', $hash, SQLITE3_TEXT);
-    $update->bindValue(':window_start', $windowStart, SQLITE3_INTEGER);
-    $update->execute();
-
-    return [
+    $softOpen = [
         'allowed' => true,
         'limit' => $maxRequests,
-        'remaining' => max(0, $maxRequests - ($count + 1)),
+        'remaining' => $maxRequests,
         'reset_epoch' => $resetAt,
         'retry_after' => 0,
     ];
+
+    try {
+        $dir = rtrim((string)API_RATE_LIMIT_DIR, '/\\');
+        if ($dir === '') {
+            return $softOpen;
+        }
+        if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
+            error_log('checkApiRateLimit: cannot create dir ' . $dir);
+            return $softOpen;
+        }
+
+        $path = $dir . '/' . hash('sha256', $apiKey) . '.rl';
+        $fh = @fopen($path, 'c+');
+        if ($fh === false) {
+            error_log('checkApiRateLimit: cannot open ' . $path);
+            return $softOpen;
+        }
+
+        if (!flock($fh, LOCK_EX)) {
+            fclose($fh);
+            error_log('checkApiRateLimit: flock failed for ' . $path);
+            return $softOpen;
+        }
+
+        try {
+            rewind($fh);
+            $raw = stream_get_contents($fh);
+            $storedWindow = 0;
+            $count = 0;
+            if (is_string($raw) && $raw !== '') {
+                $parts = explode(':', trim($raw), 2);
+                if (count($parts) === 2) {
+                    $storedWindow = (int)$parts[0];
+                    $count = (int)$parts[1];
+                }
+            }
+            if ($storedWindow !== $windowStart) {
+                $storedWindow = $windowStart;
+                $count = 0;
+            }
+
+            if ($count >= $maxRequests) {
+                return [
+                    'allowed' => false,
+                    'limit' => $maxRequests,
+                    'remaining' => 0,
+                    'reset_epoch' => $resetAt,
+                    'retry_after' => max(1, $resetAt - time()),
+                ];
+            }
+
+            $count++;
+            ftruncate($fh, 0);
+            rewind($fh);
+            fwrite($fh, $storedWindow . ':' . $count);
+            fflush($fh);
+
+            return [
+                'allowed' => true,
+                'limit' => $maxRequests,
+                'remaining' => max(0, $maxRequests - $count),
+                'reset_epoch' => $resetAt,
+                'retry_after' => 0,
+            ];
+        } finally {
+            flock($fh, LOCK_UN);
+            fclose($fh);
+        }
+    } catch (Throwable $e) {
+        error_log('checkApiRateLimit soft-fail: ' . $e->getMessage());
+        return $softOpen;
+    }
 }
 
 // --------------------

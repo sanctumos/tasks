@@ -58,7 +58,9 @@ Example:
 
 ## Rate limiting
 
-API-key endpoints enforce fixed-window rate limiting.
+API-key endpoints enforce fixed-window rate limiting **before** Tasks DB auth/queries.
+
+Counters are file-backed (`TASKS_API_RATE_LIMIT_DIR`, default `db/api-rate-limits/` next to `tasks.db`) with `flock` — not SQLite `api_rate_limits` rows — so a locked `tasks.db` cannot turn the meter into HTTP 500.
 
 Response headers:
 
@@ -71,6 +73,8 @@ On limit exceeded:
 - HTTP `429`
 - `Retry-After` header
 - Error code `rate_limited`
+
+Meter I/O failure soft-opens (request allowed) rather than failing closed with 500.
 
 ## Task model
 

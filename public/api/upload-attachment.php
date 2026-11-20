@@ -9,21 +9,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $apiUser = null;
 $apiKey = getApiKeyFromRequest();
 if ($apiKey !== null && $apiKey !== '') {
+    enforceApiKeyRateLimit($apiKey);
     $apiUser = validateApiKeyAndGetUser($apiKey);
     if (!$apiUser) {
         apiError('auth.invalid_api_key', 'Invalid or missing API key', 401);
-    }
-    $rateState = checkApiRateLimit($apiKey);
-    setRateLimitHeaders($rateState);
-    if (empty($rateState['allowed'])) {
-        header('Retry-After: ' . (int)($rateState['retry_after'] ?? 1));
-        apiError(
-            'rate_limited',
-            'Rate limit exceeded. Slow down and retry later.',
-            429,
-            ['retry_after' => (int)($rateState['retry_after'] ?? 1)],
-            ['rate_limit' => $rateState]
-        );
     }
 } elseif (isLoggedIn()) {
     $apiUser = getCurrentUser();
